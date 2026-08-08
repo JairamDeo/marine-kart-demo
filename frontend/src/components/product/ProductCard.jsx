@@ -1,0 +1,122 @@
+import { Link } from 'react-router-dom';
+import { Eye, Heart, ShoppingCart } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { formatPrice } from '../../utils/format';
+import { productImageUrl } from '../../utils/productImage';
+import { useAuth } from '../../context/AuthContext';
+import { useCartUI } from '../../context/CartUIContext';
+import { wishlistService } from '../../services/wishlist.service';
+import { friendlyError } from '../../utils/toastMsg';
+
+export default function ProductCard({ product }) {
+  const { isAuthenticated, refreshWishlist, addToCart, requireLogin, wishlistIds } = useAuth();
+  const { openCart } = useCartUI();
+  const img = productImageUrl(product);
+  const productId = String(product.id || product._id || '');
+  const inWishlist = productId && wishlistIds?.includes(productId);
+
+  const handleAdd = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      await addToCart(product, 1);
+      toast.success('Added to cart');
+      openCart();
+    } catch (err) {
+      toast.error(friendlyError(err, 'Could not add to cart'));
+    }
+  };
+
+  const toggleWish = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isAuthenticated) {
+      requireLogin('Please login first to save items to your wishlist.', '/login');
+      return;
+    }
+    try {
+      const { data } = await wishlistService.toggle(productId);
+      await refreshWishlist();
+      toast.success(
+        data.message || (data.data?.added ? 'Added to wishlist' : 'Removed from wishlist')
+      );
+    } catch (err) {
+      toast.error(friendlyError(err, 'Could not update wishlist'));
+    }
+  };
+
+  return (
+    <div className="product-card-store group flex h-full flex-col overflow-hidden rounded-xl bg-white p-3 shadow-sm ring-1 ring-gray-100 transition hover:-translate-y-0.5 hover:shadow-md">
+      <div className="relative mb-3 aspect-square overflow-hidden rounded-lg bg-gray-50">
+        <Link to={`/product/${product.slug}`} className="absolute inset-0 block">
+          <img
+            src={img}
+            alt={product.name}
+            className="h-full w-full object-contain p-2 transition duration-500 group-hover:scale-110"
+            loading="lazy"
+            decoding="async"
+          />
+        </Link>
+        <button
+          type="button"
+          onClick={toggleWish}
+          className={`absolute right-2 top-2 z-10 rounded-full bg-white/95 p-1.5 shadow-md transition hover:scale-110 ${
+            inWishlist ? 'text-rose-500' : 'text-gray-400 hover:text-rose-500'
+          }`}
+          aria-label={inWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
+        >
+          <Heart size={14} fill={inWishlist ? 'currentColor' : 'none'} />
+        </button>
+        <Link
+          to={`/product/${product.slug}`}
+          className="absolute inset-0 z-[5] flex items-center justify-center bg-navy/0 opacity-0 transition hover:bg-navy/10 group-hover:opacity-100"
+          aria-label={`View ${product.name}`}
+          tabIndex={-1}
+        >
+          <span className="flex h-10 w-10 items-center justify-center rounded bg-navy text-white shadow-lg">
+            <Eye size={16} />
+          </span>
+        </Link>
+      </div>
+
+      <Link to={`/product/${product.slug}`}>
+        <p className="text-[10px] font-medium uppercase tracking-wide text-cyan">
+          {product.category?.name || product.shortDescription || 'Marine Product'}
+        </p>
+        <h3 className="mt-1 line-clamp-2 min-h-[2.5rem] text-sm font-semibold text-gray-800 transition group-hover:text-navy">
+          {product.name}
+        </h3>
+      </Link>
+
+      <div className="mt-auto pt-3">
+        <div className="mb-2.5">
+          {product.priceVisible ? (
+            <div>
+              {product.salePrice != null && (
+                <span className="mr-2 text-xs text-gray-400 line-through">
+                  {formatPrice(product.price)}
+                </span>
+              )}
+              <span className="text-sm font-bold text-navy">
+                {formatPrice(product.displayPrice ?? product.price)}
+              </span>
+            </div>
+          ) : (
+            <Link to="/login" className="text-xs font-semibold text-cyan hover:underline">
+              Login to View Price
+            </Link>
+          )}
+        </div>
+
+        <button
+          type="button"
+          onClick={handleAdd}
+          className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-[#78c6d4] px-3 py-2 text-xs font-bold uppercase tracking-wide text-white transition hover:bg-[#5bb5c6]"
+        >
+          <ShoppingCart size={14} />
+          Add to Cart
+        </button>
+      </div>
+    </div>
+  );
+}

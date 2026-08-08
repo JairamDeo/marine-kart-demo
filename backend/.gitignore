@@ -1,0 +1,7 @@
+node_modules/
+.env
+.vapid-keys.json
+logs/*.log
+uploads/*
+!uploads/.gitkeep
+.DS_Store
