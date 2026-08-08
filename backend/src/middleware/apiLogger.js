@@ -2,9 +2,14 @@ const fs = require('fs');
 const path = require('path');
 
 const logsDir = path.join(__dirname, '../../logs');
+let canWriteLogs = true;
 
-if (!fs.existsSync(logsDir)) {
-  fs.mkdirSync(logsDir, { recursive: true });
+try {
+  if (!fs.existsSync(logsDir)) {
+    fs.mkdirSync(logsDir, { recursive: true });
+  }
+} catch {
+  canWriteLogs = false;
 }
 
 const getLogFileName = () => {
@@ -14,7 +19,7 @@ const getLogFileName = () => {
 
 /**
  * Logs every API call with method, URL, status, and response time (ms).
- * Use logs/ folder to find slow endpoints and optimize.
+ * File logging is skipped on read-only hosts (e.g. Vercel).
  */
 const apiLogger = (req, res, next) => {
   const start = process.hrtime.bigint();
@@ -34,10 +39,15 @@ const apiLogger = (req, res, next) => {
       userId: req.user?._id?.toString() || null,
     };
 
-    const line = JSON.stringify(entry) + '\n';
-    fs.appendFile(getLogFileName(), line, (err) => {
-      if (err) console.error('API logger write failed:', err.message);
-    });
+    if (canWriteLogs) {
+      const line = JSON.stringify(entry) + '\n';
+      fs.appendFile(getLogFileName(), line, (err) => {
+        if (err) {
+          canWriteLogs = false;
+          console.error('API logger write failed:', err.message);
+        }
+      });
+    }
 
     if (envIsDev()) {
       const color = durationMs > 500 ? 'SLOW' : 'OK';

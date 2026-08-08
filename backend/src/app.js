@@ -3,6 +3,7 @@ const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
 const path = require('path');
 
+const connectDB = require('./config/db');
 const corsMiddleware = require('./middleware/cors');
 const apiLogger = require('./middleware/apiLogger');
 const { errorHandler, notFound } = require('./middleware/errorHandler');
@@ -17,6 +18,16 @@ const contentRoutes = require('./routes/content.routes');
 const adminRoutes = require('./routes/admin.routes');
 
 const app = express();
+
+/** Wait for Mongo before handling requests (needed on Vercel cold starts). */
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (err) {
+    next(err);
+  }
+});
 
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.use(corsMiddleware);

@@ -30,22 +30,29 @@ function loadOrCreateVapid() {
   }
 
   const generated = webpush.generateVAPIDKeys();
-  try {
-    fs.writeFileSync(
-      FALLBACK_FILE,
-      JSON.stringify(
-        {
-          publicKey: generated.publicKey,
-          privateKey: generated.privateKey,
-          note: 'Auto-generated. Prefer VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY in .env for production.',
-        },
-        null,
-        2
-      )
+  // Prefer env keys. On Vercel the filesystem is read-only — skip file persist there.
+  if (!process.env.VERCEL) {
+    try {
+      fs.writeFileSync(
+        FALLBACK_FILE,
+        JSON.stringify(
+          {
+            publicKey: generated.publicKey,
+            privateKey: generated.privateKey,
+            note: 'Auto-generated. Prefer VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY in .env for production.',
+          },
+          null,
+          2
+        )
+      );
+      console.warn('[push] Generated VAPID keys → backend/.vapid-keys.json (add to .env for production)');
+    } catch (err) {
+      console.warn('[push] Could not persist VAPID keys:', err.message);
+    }
+  } else {
+    console.warn(
+      '[push] Generated ephemeral VAPID keys on Vercel. Set VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY in project env.'
     );
-    console.warn('[push] Generated VAPID keys → backend/.vapid-keys.json (add to .env for production)');
-  } catch (err) {
-    console.warn('[push] Could not persist VAPID keys:', err.message);
   }
 
   return {
