@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { Anchor, Building2, Lock, ShoppingBag, UserRound } from 'lucide-react';
+import { Anchor, Building2, Loader2, Lock, ShoppingBag, UserRound } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCartUI } from '../context/CartUIContext';
 import PasswordInput from '../components/portal/PasswordInput';
@@ -194,16 +194,7 @@ export default function LoginPage() {
                 />
               </div>
               <div>
-                <div className="mb-1.5 flex items-center justify-between gap-2">
-                  <label className="block text-sm font-medium text-gray-700">Password</label>
-                  <button
-                    type="button"
-                    onClick={() => setForgotOpen(true)}
-                    className="text-xs font-semibold text-navy hover:underline"
-                  >
-                    Forgot password?
-                  </button>
-                </div>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700">Password</label>
                 <PasswordInput
                   required
                   autoComplete="current-password"
@@ -214,12 +205,28 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={busy}
-                className={`w-full rounded-xl py-3.5 text-sm font-bold text-white transition disabled:opacity-60 ${
+                className={`inline-flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-bold text-white transition disabled:opacity-60 ${
                   isCorporate ? 'bg-teal-700 hover:bg-teal-800' : 'btn-cyan hero-cta'
                 }`}
               >
-                {busy ? 'Please wait...' : 'Sign In'}
+                {busy ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    Signing in...
+                  </>
+                ) : (
+                  'Sign In'
+                )}
               </button>
+              <p className="text-center">
+                <button
+                  type="button"
+                  onClick={() => setForgotOpen(true)}
+                  className="text-sm font-semibold text-navy hover:underline"
+                >
+                  Forgot password?
+                </button>
+              </p>
             </form>
 
             <p className="mt-6 text-center text-sm text-gray-500">

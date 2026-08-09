@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import PasswordInput from '../components/portal/PasswordInput';
 import AuthSplitLayout from '../components/portal/AuthSplitLayout';
@@ -73,18 +74,9 @@ export default function AdminLoginPage() {
         </div>
 
         <div>
-          <div className="mb-1.5 flex items-center justify-between gap-2">
-            <label htmlFor="admin-password" className="block text-sm font-medium text-gray-700">
-              Password
-            </label>
-            <button
-              type="button"
-              onClick={() => setForgotOpen(true)}
-              className="text-xs font-semibold text-gray-800 hover:underline"
-            >
-              Forgot password?
-            </button>
-          </div>
+          <label htmlFor="admin-password" className="mb-1.5 block text-sm font-medium text-gray-700">
+            Password
+          </label>
           <PasswordInput
             id="admin-password"
             required
@@ -96,10 +88,26 @@ export default function AdminLoginPage() {
         <button
           type="submit"
           disabled={busy}
-          className="w-full cursor-pointer rounded-xl bg-gray-900 py-3 text-sm font-semibold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-gray-900 py-3 text-sm font-semibold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {busy ? 'Please wait...' : 'Sign In'}
+          {busy ? (
+            <>
+              <Loader2 size={16} className="animate-spin" />
+              Signing in...
+            </>
+          ) : (
+            'Sign In'
+          )}
         </button>
+        <p className="text-center">
+          <button
+            type="button"
+            onClick={() => setForgotOpen(true)}
+            className="text-sm font-semibold text-gray-800 hover:underline"
+          >
+            Forgot password?
+          </button>
+        </p>
       </form>
 
       <ForgotPasswordModal

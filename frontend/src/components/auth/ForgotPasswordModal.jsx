@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
-import { X } from 'lucide-react';
+import { Loader2, X } from 'lucide-react';
 import PasswordInput from '../portal/PasswordInput';
 import { authService } from '../../services/auth.service';
 import { friendlyError } from '../../utils/toastMsg';
@@ -319,13 +319,18 @@ export default function ForgotPasswordModal({
                   type="button"
                   disabled={resendBusy || cooldown > 0}
                   onClick={resend}
-                  className="font-semibold text-[#1a4b8c] hover:underline disabled:cursor-not-allowed disabled:opacity-50 disabled:no-underline"
+                  className="inline-flex items-center gap-1 font-semibold text-[#1a4b8c] hover:underline disabled:cursor-not-allowed disabled:opacity-50 disabled:no-underline"
                 >
-                  {cooldown > 0
-                    ? `Resend in ${cooldown}s`
-                    : resendBusy
-                      ? 'Sending...'
-                      : 'Resend OTP'}
+                  {resendBusy ? (
+                    <>
+                      <Loader2 size={12} className="animate-spin" />
+                      Sending...
+                    </>
+                  ) : cooldown > 0 ? (
+                    `Resend in ${cooldown}s`
+                  ) : (
+                    'Resend OTP'
+                  )}
                 </button>
               </div>
             </div>
@@ -370,15 +375,20 @@ export default function ForgotPasswordModal({
               busy ||
               (step === 2 && (code.length !== DIGITS || expiresIn <= 0))
             }
-            className={`h-11 w-full rounded-xl text-sm font-semibold text-white transition disabled:opacity-50 ${accent}`}
+            className={`inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl text-sm font-semibold text-white transition disabled:opacity-50 ${accent}`}
           >
-            {busy
-              ? 'Please wait...'
-              : step === 1
-                ? 'Send OTP'
-                : step === 2
-                  ? 'Verify OTP'
-                  : 'Update password'}
+            {busy ? (
+              <>
+                <Loader2 size={16} className="animate-spin" />
+                {step === 1 ? 'Sending...' : step === 2 ? 'Verifying...' : 'Updating...'}
+              </>
+            ) : step === 1 ? (
+              'Send OTP'
+            ) : step === 2 ? (
+              'Verify OTP'
+            ) : (
+              'Update password'
+            )}
           </button>
         </form>
       </div>
