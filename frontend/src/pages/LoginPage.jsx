@@ -7,6 +7,7 @@ import { useCartUI } from '../context/CartUIContext';
 import PasswordInput from '../components/portal/PasswordInput';
 import BrandLogo from '../components/common/BrandLogo';
 import OtpVerifyModal from '../components/auth/OtpVerifyModal';
+import ForgotPasswordModal from '../components/auth/ForgotPasswordModal';
 import { authService } from '../services/auth.service';
 import { friendlyError } from '../utils/toastMsg';
 
@@ -22,6 +23,7 @@ export default function LoginPage() {
   const [busy, setBusy] = useState(false);
   const [otpOpen, setOtpOpen] = useState(false);
   const [otpEmail, setOtpEmail] = useState('');
+  const [forgotOpen, setForgotOpen] = useState(false);
 
   const afterLogin = (role) => {
     const wantCheckout = sessionStorage.getItem('mk_open_checkout') === '1';
@@ -192,7 +194,16 @@ export default function LoginPage() {
                 />
               </div>
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-gray-700">Password</label>
+                <div className="mb-1.5 flex items-center justify-between gap-2">
+                  <label className="block text-sm font-medium text-gray-700">Password</label>
+                  <button
+                    type="button"
+                    onClick={() => setForgotOpen(true)}
+                    className="text-xs font-semibold text-navy hover:underline"
+                  >
+                    Forgot password?
+                  </button>
+                </div>
                 <PasswordInput
                   required
                   autoComplete="current-password"
@@ -227,6 +238,13 @@ export default function LoginPage() {
         accountType={accountType}
         onClose={() => setOtpOpen(false)}
         onVerified={onVerified}
+      />
+      <ForgotPasswordModal
+        open={forgotOpen}
+        accountType={accountType}
+        initialEmail={form.email}
+        onClose={() => setForgotOpen(false)}
+        onSuccess={(email) => setForm((f) => ({ ...f, email, password: '' }))}
       />
     </div>
   );

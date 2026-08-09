@@ -61,6 +61,25 @@ function verificationOtpEmail({ name, code }) {
   };
 }
 
+function passwordResetOtpEmail({ name, code }) {
+  const safeName = escapeHtml(name || 'there');
+  const safeCode = escapeHtml(code);
+  return {
+    subject: 'Your MarineKart password reset code',
+    html: wrapEmail({
+      title: 'Reset your password',
+      bodyHtml: `
+        <p style="margin:0 0 12px;">Hi ${safeName},</p>
+        <p style="margin:0 0 16px;">We received a request to reset your MarineKart password. Use this code to continue. It expires in <strong>2 minutes</strong>.</p>
+        <p style="margin:0 0 8px;font-size:12px;color:#71717a;letter-spacing:0.08em;text-transform:uppercase;">Reset code</p>
+        <p style="margin:0 0 20px;font-size:28px;font-weight:700;letter-spacing:0.28em;color:#111111;">${safeCode}</p>
+        <p style="margin:0;color:#71717a;font-size:13px;">If you did not request a password reset, you can ignore this email.</p>
+      `,
+    }),
+    text: `Hi ${name || 'there'},\n\nYour MarineKart password reset code is ${code}. It expires in 2 minutes.\n\nIf you did not request this, ignore this email.`,
+  };
+}
+
 function welcomeEmail({ name, loginUrl, accountType }) {
   const safeName = escapeHtml(name || 'there');
   const typeLabel =
@@ -121,6 +140,7 @@ function adminNewUserEmail({ user }) {
 
 module.exports = {
   verificationOtpEmail,
+  passwordResetOtpEmail,
   welcomeEmail,
   adminNewUserEmail,
   adminNewOrderEmail,

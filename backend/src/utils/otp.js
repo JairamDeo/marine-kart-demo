@@ -1,9 +1,15 @@
 const crypto = require('crypto');
 
-const OTP_TTL_MS = 10 * 60 * 1000; // 10 minutes
+const OTP_TTL_MS = 10 * 60 * 1000; // email verification — 10 minutes
+const RESET_OTP_TTL_MS = 2 * 60 * 1000; // password reset — 2 minutes
 
 function generateOtp() {
   return String(crypto.randomInt(100000, 1000000));
+}
+
+/** 4-digit code for forgot-password flow only. */
+function generateResetOtp() {
+  return String(crypto.randomInt(1000, 10000));
 }
 
 function hashOtp(code) {
@@ -12,6 +18,10 @@ function hashOtp(code) {
 
 function otpExpiresAt(from = Date.now()) {
   return new Date(from + OTP_TTL_MS);
+}
+
+function resetOtpExpiresAt(from = Date.now()) {
+  return new Date(from + RESET_OTP_TTL_MS);
 }
 
 function isOtpExpired(expiresAt) {
@@ -29,9 +39,12 @@ function otpMatches(plainCode, storedHash) {
 
 module.exports = {
   OTP_TTL_MS,
+  RESET_OTP_TTL_MS,
   generateOtp,
+  generateResetOtp,
   hashOtp,
   otpExpiresAt,
+  resetOtpExpiresAt,
   isOtpExpired,
   otpMatches,
 };

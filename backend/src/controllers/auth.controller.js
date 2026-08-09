@@ -5,13 +5,16 @@ const { asyncHandler } = require('../utils/helpers');
 const { sendMail, sendMailToAdmins } = require('../utils/mail');
 const {
   verificationOtpEmail,
+  passwordResetOtpEmail,
   welcomeEmail,
   adminNewUserEmail,
 } = require('../utils/emailTemplates');
 const {
   generateOtp,
+  generateResetOtp,
   hashOtp,
   otpExpiresAt,
+  resetOtpExpiresAt,
   isOtpExpired,
   otpMatches,
 } = require('../utils/otp');
@@ -60,6 +63,22 @@ async function issueAndSendOtp(user) {
   await user.save();
 
   const mail = verificationOtpEmail({ name: displayName(user), code });
+  const result = await sendMail({
+    to: user.email,
+    subject: mail.subject,
+    html: mail.html,
+    text: mail.text,
+  });
+  return result;
+}
+
+async function issueAndSendResetOtp(user) {
+  const code = generateResetOtp();
+  user.passwordResetOtpHash = hashOtp(code);
+  user.passwordResetOtpExpires = resetOtpExpiresAt();
+  await user.save();
+
+  const mail = passwordResetOtpEmail({ name: displayName(user), code });
   const result = await sendMail({
     to: user.email,
     subject: mail.subject,
@@ -354,6 +373,170 @@ exports.resendOtp = asyncHandler(async (req, res) => {
   res.json({
     success: true,
     message: 'A new verification code has been sent to your email.',
+    data: { email: user.email, accountType },
+  });
+});
+
+exports.forgotPassword = asyncHandler(async (req, res) => {
+  const email = String(req.body.email || '').trim().toLowerCase();
+  const accountType = normalizeAccountType(req.body.accountType || req.body.role);
+  if (!email) {
+    return res.status(400).json({ success: false, message: 'Email is required.' });
+  }
+  if (!accountType) {
+    return res.status(400).json({ success: false, message: 'Account type is required.' });
+  }
+
+  const user = await User.findOne({ email, ...roleFilter(accountType) }).select(
+    '+passwordResetOtpHash +passwordResetOtpExpires'
+  );
+  if (!user) {
+    return res.status(404).json({
+      success: false,
+      message: 'No account matches this email for the selected login type.',
+    });
+  }
+  if (!user.isActive) {
+    return res.status(403).json({ success: false, message: 'Account is deactivated.' });
+  }
+
+  const mailResult = await issueAndSendResetOtp(user);
+  if (mailResult.skipped) {
+    return res.status(503).json({
+      success: false,
+      message: 'Email service is not configured. Please contact support.',
+    });
+  }
+  if (!mailResult.ok) {
+    return res.status(502).json({
+      success: false,
+      message: 'Could not send reset code. Please try again.',
+    });
+  }
+
+  res.json({
+    success: true,
+    message: 'A 4-digit reset code has been sent to your email.',
+    data: { email: user.email, accountType, expiresInSeconds: 120 },
+  });
+});
+
+exports.verifyResetOtp = asyncHandler(async (req, res) => {
+  const email = String(req.body.email || '').trim().toLowerCase();
+  const code = String(req.body.code || req.body.otp || '').trim();
+  const accountType = normalizeAccountType(req.body.accountType || req.body.role);
+  if (!email || !code) {
+    return res.status(400).json({ success: false, message: 'Email and OTP are required.' });
+  }
+  if (!accountType) {
+    return res.status(400).json({ success: false, message: 'Account type is required.' });
+  }
+  if (!/^\d{4}$/.test(code)) {
+    return res.status(400).json({ success: false, message: 'Enter the 4-digit code.' });
+  }
+
+  const user = await User.findOne({ email, ...roleFilter(accountType) }).select(
+    '+passwordResetOtpHash +passwordResetOtpExpires'
+  );
+  if (!user) {
+    return res.status(404).json({
+      success: false,
+      message: 'No account matches this email for the selected login type.',
+    });
+  }
+
+  if (isOtpExpired(user.passwordResetOtpExpires)) {
+    return res.status(400).json({
+      success: false,
+      message: 'OTP expired. Please resend a new code.',
+      data: { code: 'OTP_EXPIRED' },
+    });
+  }
+
+  if (!otpMatches(code, user.passwordResetOtpHash)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Invalid OTP.',
+      data: { code: 'OTP_INVALID' },
+    });
+  }
+
+  res.json({
+    success: true,
+    message: 'OTP verified. You can set a new password.',
+    data: { email: user.email, accountType },
+  });
+});
+
+exports.resetPassword = asyncHandler(async (req, res) => {
+  const email = String(req.body.email || '').trim().toLowerCase();
+  const code = String(req.body.code || req.body.otp || '').trim();
+  const password = String(req.body.password || req.body.newPassword || '');
+  const confirmPassword = String(req.body.confirmPassword || '');
+  const accountType = normalizeAccountType(req.body.accountType || req.body.role);
+
+  if (!email || !code || !password) {
+    return res.status(400).json({
+      success: false,
+      message: 'Email, OTP and new password are required.',
+    });
+  }
+  if (!accountType) {
+    return res.status(400).json({ success: false, message: 'Account type is required.' });
+  }
+  if (!/^\d{4}$/.test(code)) {
+    return res.status(400).json({ success: false, message: 'Enter the 4-digit code.' });
+  }
+  if (password.length < 6) {
+    return res.status(400).json({
+      success: false,
+      message: 'Password must be at least 6 characters.',
+    });
+  }
+  if (confirmPassword && password !== confirmPassword) {
+    return res.status(400).json({
+      success: false,
+      message: 'Passwords do not match.',
+    });
+  }
+
+  const user = await User.findOne({ email, ...roleFilter(accountType) }).select(
+    '+password +passwordResetOtpHash +passwordResetOtpExpires'
+  );
+  if (!user) {
+    return res.status(404).json({
+      success: false,
+      message: 'No account matches this email for the selected login type.',
+    });
+  }
+  if (!user.isActive) {
+    return res.status(403).json({ success: false, message: 'Account is deactivated.' });
+  }
+
+  if (isOtpExpired(user.passwordResetOtpExpires)) {
+    return res.status(400).json({
+      success: false,
+      message: 'OTP expired. Please restart forgot password.',
+      data: { code: 'OTP_EXPIRED' },
+    });
+  }
+
+  if (!otpMatches(code, user.passwordResetOtpHash)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Invalid OTP.',
+      data: { code: 'OTP_INVALID' },
+    });
+  }
+
+  user.password = password;
+  user.passwordResetOtpHash = '';
+  user.passwordResetOtpExpires = null;
+  await user.save();
+
+  res.json({
+    success: true,
+    message: 'Password updated successfully. You can sign in now.',
     data: { email: user.email, accountType },
   });
 });

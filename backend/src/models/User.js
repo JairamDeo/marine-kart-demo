@@ -52,6 +52,9 @@ const userSchema = new mongoose.Schema(
     emailVerified: { type: Boolean, default: true },
     emailOtpHash: { type: String, select: false, default: '' },
     emailOtpExpires: { type: Date, select: false, default: null },
+    /** Forgot-password OTP — separate from registration email OTP. */
+    passwordResetOtpHash: { type: String, select: false, default: '' },
+    passwordResetOtpExpires: { type: Date, select: false, default: null },
     pushSubscriptions: [
       {
         endpoint: { type: String, required: true },

@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import PasswordInput from '../components/portal/PasswordInput';
 import AuthSplitLayout from '../components/portal/AuthSplitLayout';
+import ForgotPasswordModal from '../components/auth/ForgotPasswordModal';
 import { friendlyError } from '../utils/toastMsg';
 
 export default function AdminLoginPage() {
@@ -11,6 +12,7 @@ export default function AdminLoginPage() {
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: '', password: '' });
   const [busy, setBusy] = useState(false);
+  const [forgotOpen, setForgotOpen] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated && user?.role === 'admin') {
@@ -71,9 +73,18 @@ export default function AdminLoginPage() {
         </div>
 
         <div>
-          <label htmlFor="admin-password" className="mb-1.5 block text-sm font-medium text-gray-700">
-            Password
-          </label>
+          <div className="mb-1.5 flex items-center justify-between gap-2">
+            <label htmlFor="admin-password" className="block text-sm font-medium text-gray-700">
+              Password
+            </label>
+            <button
+              type="button"
+              onClick={() => setForgotOpen(true)}
+              className="text-xs font-semibold text-gray-800 hover:underline"
+            >
+              Forgot password?
+            </button>
+          </div>
           <PasswordInput
             id="admin-password"
             required
@@ -90,6 +101,14 @@ export default function AdminLoginPage() {
           {busy ? 'Please wait...' : 'Sign In'}
         </button>
       </form>
+
+      <ForgotPasswordModal
+        open={forgotOpen}
+        accountType="admin"
+        initialEmail={form.email}
+        onClose={() => setForgotOpen(false)}
+        onSuccess={(email) => setForm((f) => ({ ...f, email, password: '' }))}
+      />
     </AuthSplitLayout>
   );
 }
