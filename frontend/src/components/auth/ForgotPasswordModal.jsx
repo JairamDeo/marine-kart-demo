@@ -61,15 +61,11 @@ export default function ForgotPasswordModal({
   const accent =
     accountType === 'admin'
       ? 'bg-gray-900 hover:bg-gray-800'
-      : accountType === 'corporate'
-        ? 'bg-teal-700 hover:bg-teal-800'
-        : 'bg-[#1a4b8c] hover:bg-[#143a6e]';
+      : 'bg-[#1a4b8c] hover:bg-[#143a6e]';
   const focusRing =
     accountType === 'admin'
       ? 'focus:border-gray-900 focus:ring-gray-900/15'
-      : accountType === 'corporate'
-        ? 'focus:border-teal-700 focus:ring-teal-700/15'
-        : 'focus:border-[#1a4b8c] focus:ring-[#1a4b8c]/15';
+      : 'focus:border-[#1a4b8c] focus:ring-[#1a4b8c]/15';
   const typeLabel =
     accountType === 'admin'
       ? 'admin'

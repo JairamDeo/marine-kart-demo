@@ -1,4 +1,5 @@
 const Category = require('../models/Category');
+const Subcategory = require('../models/Subcategory');
 const { asyncHandler, slugify } = require('../utils/helpers');
 const {
   withCreateAudit,
@@ -8,26 +9,39 @@ const {
 } = require('../utils/audit');
 const { generateCategoryCode } = require('../utils/generateCategoryCode');
 
+function mapSubAsChild(sub) {
+  return {
+    _id: sub._id,
+    id: sub._id,
+    name: sub.name,
+    slug: sub.slug,
+    description: sub.description,
+    image: sub.image,
+    isActive: sub.isActive,
+    sortOrder: sub.sortOrder,
+  };
+}
+
 exports.getCategories = asyncHandler(async (req, res) => {
-  const categories = await Category.find({ isActive: true, parent: null, ...notDeleted })
+  const categories = await Category.find({ isActive: true, ...notDeleted })
     .sort('sortOrder name')
     .lean();
 
   const ids = categories.map((c) => c._id);
-  const children = await Category.find({
+  const children = await Subcategory.find({
     isActive: true,
-    parent: { $in: ids },
+    category: { $in: ids },
     ...notDeleted,
   })
     .sort('sortOrder name')
     .lean();
 
-  const tree = categories.map((parent) => ({
-    ...parent,
-    id: parent._id,
+  const tree = categories.map((cat) => ({
+    ...cat,
+    id: cat._id,
     children: children
-      .filter((c) => String(c.parent) === String(parent._id))
-      .map((c) => ({ ...c, id: c._id })),
+      .filter((c) => String(c.category) === String(cat._id))
+      .map(mapSubAsChild),
   }));
 
   res.json({ success: true, data: { categories: tree } });
@@ -43,16 +57,22 @@ exports.getCategoryBySlug = asyncHandler(async (req, res) => {
     return res.status(404).json({ success: false, message: 'Category not found.' });
   }
 
-  const children = await Category.find({
-    parent: category._id,
+  const children = await Subcategory.find({
+    category: category._id,
     isActive: true,
     ...notDeleted,
   }).sort('sortOrder name');
 
-  res.json({ success: true, data: { category, children } });
+  res.json({
+    success: true,
+    data: {
+      category,
+      children: children.map((c) => mapSubAsChild(c.toObject ? c.toObject() : c)),
+    },
+  });
 });
 
-/** Create a main category (parent=null). Optional subcategories[] creates children. */
+/** Create a main category. Optional subcategories[] creates Subcategory docs. */
 exports.createCategory = asyncHandler(async (req, res) => {
   const { name, description, image, isActive, sortOrder, subcategories } = req.body;
   if (!name || !String(name).trim()) {
@@ -73,7 +93,6 @@ exports.createCategory = asyncHandler(async (req, res) => {
         slug,
         description: description || '',
         image: image || '',
-        parent: null,
         isActive: isActive !== false,
         sortOrder: Number(sortOrder) || 0,
       },
@@ -89,13 +108,13 @@ exports.createCategory = asyncHandler(async (req, res) => {
   for (const subName of names) {
     const subCode = await generateCategoryCode('sub');
     const subSlug = slugify(`${name}-${subName}-${subCode.replace(/[^a-zA-Z0-9]+/g, '-')}`);
-    const sub = await Category.create(
+    const sub = await Subcategory.create(
       withCreateAudit(
         {
           name: subName,
           code: subCode,
           slug: subSlug,
-          parent: category._id,
+          category: category._id,
           isActive: true,
           sortOrder: createdSubs.length,
         },
@@ -111,25 +130,26 @@ exports.createCategory = asyncHandler(async (req, res) => {
   });
 });
 
-/** Create a single subcategory under an existing category */
+/** Create a subcategory mapped to a category ObjectId */
 exports.createSubcategory = asyncHandler(async (req, res) => {
-  const { name, categoryId, description, image, isActive, sortOrder } = req.body;
+  const { name, categoryId, category, description, image, isActive, sortOrder } = req.body;
+  const catId = categoryId || category;
   if (!name || !String(name).trim()) {
     return res.status(400).json({ success: false, message: 'Subcategory name is required.' });
   }
-  if (!categoryId) {
-    return res.status(400).json({ success: false, message: 'Parent category is required.' });
+  if (!catId) {
+    return res.status(400).json({ success: false, message: 'Category is required.' });
   }
 
-  const parent = await Category.findOne({ _id: categoryId, parent: null, ...notDeleted });
-  if (!parent) {
+  const cat = await Category.findOne({ _id: catId, ...notDeleted });
+  if (!cat) {
     return res.status(404).json({ success: false, message: 'Category not found.' });
   }
 
   const code = await generateCategoryCode('sub');
-  const slug = slugify(`${parent.name}-${name}-${code.replace(/[^a-zA-Z0-9]+/g, '-')}`);
+  const slug = slugify(`${cat.name}-${name}-${code.replace(/[^a-zA-Z0-9]+/g, '-')}`);
 
-  const subcategory = await Category.create(
+  const subcategory = await Subcategory.create(
     withCreateAudit(
       {
         name: String(name).trim(),
@@ -137,7 +157,7 @@ exports.createSubcategory = asyncHandler(async (req, res) => {
         slug,
         description: description || '',
         image: image || '',
-        parent: parent._id,
+        category: cat._id,
         isActive: isActive !== false,
         sortOrder: Number(sortOrder) || 0,
       },
@@ -145,8 +165,63 @@ exports.createSubcategory = asyncHandler(async (req, res) => {
     )
   );
 
-  const populated = await Category.findById(subcategory._id).populate('parent', 'name code');
+  const populated = await Subcategory.findById(subcategory._id).populate('category', 'name code');
   res.status(201).json({ success: true, data: { subcategory: populated } });
+});
+
+exports.updateSubcategory = asyncHandler(async (req, res) => {
+  const existing = await Subcategory.findOne({ _id: req.params.id, ...notDeleted });
+  if (!existing) {
+    return res.status(404).json({ success: false, message: 'Subcategory not found.' });
+  }
+
+  const payload = { ...req.body };
+  delete payload.code;
+  delete payload.slug;
+  delete payload.createdBy;
+  delete payload.updatedBy;
+  delete payload.deletedBy;
+  delete payload.actionHistory;
+  delete payload.isDeleted;
+  delete payload.deletedAt;
+
+  // Accept categoryId / category / legacy parent from older UI payloads
+  const nextCatId = payload.categoryId || payload.category || payload.parent;
+  delete payload.categoryId;
+  delete payload.parent;
+  if (nextCatId) {
+    const cat = await Category.findOne({ _id: nextCatId, ...notDeleted });
+    if (!cat) {
+      return res.status(400).json({ success: false, message: 'Invalid category.' });
+    }
+    payload.category = cat._id;
+  }
+
+  if (payload.name && payload.name !== existing.name) {
+    const catId = payload.category || existing.category;
+    const catDoc = await Category.findById(catId);
+    payload.slug = slugify(
+      `${catDoc?.name || 'cat'}-${payload.name}-${existing.code || existing._id}`
+    );
+  }
+
+  Object.assign(existing, payload);
+  applyUpdateAudit(existing, req.user, 'update');
+  await existing.save();
+
+  const subcategory = await Subcategory.findById(existing._id).populate('category', 'name code');
+  res.json({ success: true, data: { subcategory } });
+});
+
+exports.deleteSubcategory = asyncHandler(async (req, res) => {
+  const subcategory = await Subcategory.findOne({ _id: req.params.id, ...notDeleted });
+  if (!subcategory) {
+    return res.status(404).json({ success: false, message: 'Subcategory not found.' });
+  }
+
+  applyDeleteAudit(subcategory, req.user);
+  await subcategory.save();
+  res.json({ success: true, message: 'Deleted.' });
 });
 
 exports.updateCategory = asyncHandler(async (req, res) => {
@@ -158,39 +233,22 @@ exports.updateCategory = asyncHandler(async (req, res) => {
   const payload = { ...req.body };
   delete payload.code;
   delete payload.slug;
+  delete payload.parent;
   delete payload.createdBy;
   delete payload.updatedBy;
   delete payload.actionHistory;
   delete payload.isDeleted;
   delete payload.deletedAt;
 
-  if (!existing.parent) {
-    payload.parent = null;
-  } else if (payload.parent) {
-    const parent = await Category.findOne({ _id: payload.parent, parent: null, ...notDeleted });
-    if (!parent) {
-      return res.status(400).json({ success: false, message: 'Invalid parent category.' });
-    }
-  }
-
   if (payload.name && payload.name !== existing.name) {
-    const parentId = payload.parent || existing.parent;
-    if (parentId) {
-      const parentDoc = await Category.findById(parentId);
-      payload.slug = slugify(
-        `${parentDoc?.name || 'cat'}-${payload.name}-${existing.code || existing._id}`
-      );
-    } else {
-      payload.slug = slugify(`${payload.name}-${existing.code || existing._id}`);
-    }
+    payload.slug = slugify(`${payload.name}-${existing.code || existing._id}`);
   }
 
   Object.assign(existing, payload);
   applyUpdateAudit(existing, req.user, 'update');
   await existing.save();
 
-  const category = await Category.findById(existing._id).populate('parent', 'name code');
-  res.json({ success: true, data: { category } });
+  res.json({ success: true, data: { category: existing } });
 });
 
 exports.deleteCategory = asyncHandler(async (req, res) => {
@@ -199,13 +257,10 @@ exports.deleteCategory = asyncHandler(async (req, res) => {
     return res.status(404).json({ success: false, message: 'Category not found.' });
   }
 
-  // Soft-delete main category and its subcategories (history kept)
-  if (!category.parent) {
-    const children = await Category.find({ parent: category._id, ...notDeleted });
-    for (const child of children) {
-      applyDeleteAudit(child, req.user, `Deleted with parent ${category.name}`);
-      await child.save();
-    }
+  const children = await Subcategory.find({ category: category._id, ...notDeleted });
+  for (const child of children) {
+    applyDeleteAudit(child, req.user, `Deleted with category ${category.name}`);
+    await child.save();
   }
 
   applyDeleteAudit(category, req.user);
@@ -213,31 +268,29 @@ exports.deleteCategory = asyncHandler(async (req, res) => {
   res.json({ success: true, message: 'Deleted.' });
 });
 
-/** Admin: main categories only */
+/** Admin: main categories with nested subcategory summaries */
 exports.adminListCategories = asyncHandler(async (req, res) => {
-  const categories = await Category.find({ parent: null, ...notDeleted })
-    .sort('sortOrder name')
-    .lean();
+  const categories = await Category.find(notDeleted).sort('sortOrder name').lean();
   const ids = categories.map((c) => c._id);
-  const children = await Category.find({ parent: { $in: ids }, ...notDeleted })
-    .select('name parent code isActive')
+  const children = await Subcategory.find({ category: { $in: ids }, ...notDeleted })
+    .select('name category code isActive')
     .lean();
 
   const withSubs = categories.map((c) => ({
     ...c,
-    subcategoryCount: children.filter((ch) => String(ch.parent) === String(c._id)).length,
+    subcategoryCount: children.filter((ch) => String(ch.category) === String(c._id)).length,
     subcategories: children
-      .filter((ch) => String(ch.parent) === String(c._id))
+      .filter((ch) => String(ch.category) === String(c._id))
       .map((ch) => ({ _id: ch._id, name: ch.name, code: ch.code, isActive: ch.isActive })),
   }));
 
   res.json({ success: true, data: { categories: withSubs } });
 });
 
-/** Admin: subcategories only (parent set), with category populated */
+/** Admin: subcategories collection, with category populated */
 exports.adminListSubcategories = asyncHandler(async (req, res) => {
-  const filter = { parent: { $ne: null }, ...notDeleted };
-  if (req.query.category) filter.parent = req.query.category;
+  const filter = { ...notDeleted };
+  if (req.query.category) filter.category = req.query.category;
   if (req.query.status === 'active') filter.isActive = true;
   if (req.query.status === 'inactive') filter.isActive = false;
 
@@ -250,9 +303,16 @@ exports.adminListSubcategories = asyncHandler(async (req, res) => {
   };
   const sort = sortMap[req.query.sort] || { sortOrder: 1, name: 1 };
 
-  const subcategories = await Category.find(filter)
-    .populate('parent', 'name code')
+  const subcategories = await Subcategory.find(filter)
+    .populate('category', 'name code')
     .sort(sort);
 
-  res.json({ success: true, data: { subcategories } });
+  // Keep legacy `parent` alias so older UI code still works
+  const mapped = subcategories.map((doc) => {
+    const o = doc.toObject();
+    o.parent = o.category;
+    return o;
+  });
+
+  res.json({ success: true, data: { subcategories: mapped } });
 });

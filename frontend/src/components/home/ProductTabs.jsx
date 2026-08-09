@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 import ProductCard from '../product/ProductCard';
 import { productService } from '../../services/product.service';
 import { refreshAos } from '../../hooks/useAos';
@@ -15,14 +14,11 @@ export default function ProductTabs() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [page, setPage] = useState(0);
-  const perPage = 6;
 
   useEffect(() => {
     const tab = TABS.find((t) => t.key === active);
     setLoading(true);
     setError('');
-    setPage(0);
     productService
       .list({ ...tab.params, limit: 24 })
       .then((res) => setProducts(res.data.data.products || []))
@@ -35,14 +31,15 @@ export default function ProductTabs() {
 
   useEffect(() => {
     if (!loading) refreshAos();
-  }, [loading, products, page]);
+  }, [loading, products]);
 
-  const maxPage = Math.max(0, Math.ceil(products.length / perPage) - 1);
-  const visible = products.slice(page * perPage, page * perPage + perPage);
+  const loop = products.length > 0 ? [...products, ...products] : [];
+  // ~2s per product card width for a calm scroll
+  const durationSec = Math.max(40, products.length * 2.4);
 
   return (
-    <section className="container-mk py-12" data-aos="fade-up">
-      <div className="mb-8 text-center">
+    <section className="py-12" data-aos="fade-up">
+      <div className="container-mk mb-8 text-center">
         <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-cyan">Catalog</p>
         <h2 className="text-2xl font-bold uppercase tracking-wide text-navy md:text-3xl">
           Our Products
@@ -50,7 +47,7 @@ export default function ProductTabs() {
         <div className="mx-auto mt-3 h-1 w-16 rounded-full bg-cyan" />
       </div>
 
-      <div className="mb-8 flex flex-wrap items-center justify-center gap-2 sm:gap-3">
+      <div className="container-mk mb-8 flex flex-wrap items-center justify-center gap-2 sm:gap-3">
         {TABS.map((tab) => {
           const isActive = active === tab.key;
           return (
@@ -70,52 +67,35 @@ export default function ProductTabs() {
         })}
       </div>
 
-      {!loading && products.length > perPage && (
-        <div className="mb-5 flex justify-end gap-1">
-          <button
-            type="button"
-            disabled={page === 0}
-            onClick={() => setPage((p) => Math.max(0, p - 1))}
-            className="rounded-lg border border-gray-200 bg-white p-2 text-navy transition hover:border-cyan hover:bg-cyan hover:text-white disabled:opacity-30"
-            aria-label="Previous products"
-          >
-            <ChevronLeft size={18} />
-          </button>
-          <button
-            type="button"
-            disabled={page >= maxPage}
-            onClick={() => setPage((p) => Math.min(maxPage, p + 1))}
-            className="rounded-lg border border-gray-200 bg-white p-2 text-navy transition hover:border-cyan hover:bg-cyan hover:text-white disabled:opacity-30"
-            aria-label="Next products"
-          >
-            <ChevronRight size={18} />
-          </button>
-        </div>
-      )}
-
       {loading ? (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+        <div className="container-mk grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="aspect-[3/4] animate-pulse rounded-xl bg-gray-200/70" />
           ))}
         </div>
       ) : error ? (
-        <p className="rounded-xl bg-red-50 py-10 text-center text-red-600">
+        <p className="container-mk rounded-xl bg-red-50 py-10 text-center text-red-600">
           Could not load products: {error}
-          <br />
-          <span className="text-sm text-gray-500">
-            Check backend is running on port 5000, then refresh.
-          </span>
         </p>
       ) : products.length === 0 ? (
-        <p className="py-10 text-center text-gray-500">No products found. Run backend seed.</p>
+        <p className="container-mk py-10 text-center text-gray-500">No products found.</p>
       ) : (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-          {visible.map((p, i) => (
-            <div key={p.id || p._id || p.sku} data-aos="fade-up" data-aos-delay={Math.min(i * 60, 300)}>
-              <ProductCard product={p} />
-            </div>
-          ))}
+        <div className="mk-marquee group relative overflow-hidden">
+          <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-10 bg-gradient-to-r from-[#f9f9f9] to-transparent sm:w-16" />
+          <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-gradient-to-l from-[#f9f9f9] to-transparent sm:w-16" />
+          <div
+            className="mk-marquee-track flex w-max gap-4 py-1 pl-4 group-hover:[animation-play-state:paused]"
+            style={{ animationDuration: `${durationSec}s` }}
+          >
+            {loop.map((p, i) => (
+              <div
+                key={`${p.id || p._id || p.sku}-${i}`}
+                className="w-[160px] shrink-0 sm:w-[180px] lg:w-[200px]"
+              >
+                <ProductCard product={p} />
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </section>

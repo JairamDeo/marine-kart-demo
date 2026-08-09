@@ -3,6 +3,7 @@ const connectDB = require('../config/db');
 const env = require('../config/env');
 const User = require('../models/User');
 const Category = require('../models/Category');
+const Subcategory = require('../models/Subcategory');
 const Product = require('../models/Product');
 const Banner = require('../models/Banner');
 const Page = require('../models/Page');
@@ -18,6 +19,7 @@ const seed = async () => {
   await Promise.all([
     User.deleteMany({}),
     Category.deleteMany({}),
+    Subcategory.deleteMany({}),
     Product.deleteMany({}),
     Banner.deleteMany({}),
     Page.deleteMany({}),
@@ -135,14 +137,13 @@ const seed = async () => {
   for (const [parentName, list] of Object.entries(subMap)) {
     for (let i = 0; i < list.length; i++) {
       const name = list[i];
-      // Unique slug per subcategory (same names can exist under different parents)
       const code = await generateCategoryCode('sub');
       const uniqueSlug = slugify(`${parentName}-${name}`);
-      subs[`${parentName}::${name}`] = await Category.create({
+      subs[`${parentName}::${name}`] = await Subcategory.create({
         name,
         code,
         slug: uniqueSlug,
-        parent: parents[parentName]._id,
+        category: parents[parentName]._id,
         sortOrder: i + 1,
       });
     }
@@ -200,10 +201,11 @@ const seed = async () => {
       isBestSeller: true,
       isFeatured: len <= 22,
       isNewArrival: len >= 28,
-      specifications: [
-        { key: 'Cable Length', value: `${len} ft` },
-        { key: 'Model', value: `MKMS-1.2-${len}` },
-      ],
+      specifications: {
+        mode: 'markdown',
+        markdown: `**Cable Length:** ${len} ft\n\n**Model:** MKMS-1.2-${len}`,
+        image: '',
+      },
     });
   }
 
@@ -243,10 +245,11 @@ const seed = async () => {
       price: 890,
       isBestSeller: true,
       isFeatured: true,
-      specifications: [
-        { key: 'Material', value: 'SS 316' },
-        { key: 'Size', value: '6 inch' },
-      ],
+      specifications: {
+        mode: 'markdown',
+        markdown: '**Material:** SS 316\n\n**Size:** 6 inch',
+        image: '',
+      },
     },
     {
       name: 'SS Boat Cleat 8 inch',

@@ -14,6 +14,16 @@ const mapProducts = (products, user) => products.map((p) => p.toPublicJSON(user)
 
 const STRIP_ON_WRITE = ['sku', 'stock', 'stockStatus', 'lowStockThreshold', 'actionHistory', 'createdBy', 'isDeleted', 'deletedAt'];
 
+function prepareProductPayload(body) {
+  const payload = { ...body };
+  STRIP_ON_WRITE.forEach((k) => delete payload[k]);
+  delete payload.updatedBy;
+  if (Object.prototype.hasOwnProperty.call(body, 'specifications')) {
+    payload.specifications = Product.sanitizeSpecificationsInput(body.specifications);
+  }
+  return payload;
+}
+
 exports.getProducts = asyncHandler(async (req, res) => {
   const {
     page = 1,
@@ -86,7 +96,45 @@ exports.getProductBySlug = asyncHandler(async (req, res) => {
     return res.status(404).json({ success: false, message: 'Product not found.' });
   }
 
-  const related = (product.relatedProducts || []).map((p) =>
+  let relatedDocs = (product.relatedProducts || []).filter(
+    (p) => p && p.isActive !== false && p.isDeleted !== true
+  );
+
+  // If none linked manually, pull related items from same subcategory / category
+  if (!relatedDocs.length) {
+    const filter = {
+      _id: { $ne: product._id },
+      isActive: true,
+      ...notDeleted,
+    };
+    if (product.subcategory) {
+      filter.subcategory = product.subcategory._id || product.subcategory;
+    } else if (product.category) {
+      filter.category = product.category._id || product.category;
+    }
+
+    relatedDocs = await Product.find(filter)
+      .populate('category', 'name slug')
+      .populate('subcategory', 'name slug')
+      .sort('-isBestSeller -isFeatured -createdAt')
+      .limit(8);
+  }
+
+  // Still empty? fall back to same category
+  if (!relatedDocs.length && product.category) {
+    relatedDocs = await Product.find({
+      _id: { $ne: product._id },
+      category: product.category._id || product.category,
+      isActive: true,
+      ...notDeleted,
+    })
+      .populate('category', 'name slug')
+      .populate('subcategory', 'name slug')
+      .sort('-isBestSeller -isFeatured -createdAt')
+      .limit(8);
+  }
+
+  const related = relatedDocs.map((p) =>
     typeof p.toPublicJSON === 'function' ? p.toPublicJSON(req.user) : p
   );
 
@@ -99,9 +147,7 @@ exports.getProductBySlug = asyncHandler(async (req, res) => {
 });
 
 exports.createProduct = asyncHandler(async (req, res) => {
-  const payload = { ...req.body };
-  STRIP_ON_WRITE.forEach((k) => delete payload[k]);
-  delete payload.updatedBy;
+  const payload = prepareProductPayload(req.body);
 
   payload.sku = await generateProductSku();
   if (!payload.slug && payload.name) {
@@ -119,9 +165,7 @@ exports.updateProduct = asyncHandler(async (req, res) => {
     return res.status(404).json({ success: false, message: 'Product not found.' });
   }
 
-  const payload = { ...req.body };
-  STRIP_ON_WRITE.forEach((k) => delete payload[k]);
-  delete payload.updatedBy;
+  const payload = prepareProductPayload(req.body);
 
   Object.assign(product, payload);
   applyUpdateAudit(product, req.user, 'update');

@@ -27,6 +27,8 @@ router.post('/categories/bulk', adminController.bulkUpsertCategories);
 router.post('/subcategories/bulk', adminController.bulkUpsertSubcategories);
 router.post('/categories', categoryController.createCategory);
 router.post('/subcategories', categoryController.createSubcategory);
+router.put('/subcategories/:id', categoryController.updateSubcategory);
+router.delete('/subcategories/:id', categoryController.deleteSubcategory);
 router.put('/categories/:id', categoryController.updateCategory);
 router.delete('/categories/:id', categoryController.deleteCategory);
 

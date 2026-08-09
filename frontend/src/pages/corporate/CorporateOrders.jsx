@@ -158,7 +158,7 @@ export default function CorporateOrders() {
   if (loading && !orders.length) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-teal-500 border-t-transparent" />
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-navy border-t-transparent" />
       </div>
     );
   }
@@ -179,7 +179,7 @@ export default function CorporateOrders() {
         </div>
         <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
           <p className="text-xs font-medium uppercase tracking-wide text-gray-400">On this page · open</p>
-          <p className="mt-1 text-2xl font-bold text-teal-700">{summary.open}</p>
+          <p className="mt-1 text-2xl font-bold text-navy">{summary.open}</p>
         </div>
         <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
           <p className="text-xs font-medium uppercase tracking-wide text-gray-400">Page value</p>

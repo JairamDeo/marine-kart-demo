@@ -1,13 +1,11 @@
-/** Stable placeholder image when a product has no photo yet */
+/** Stable placeholder image when a product has no photo yet (gray 154x154-style) */
 export function productImageUrl(product, size = 600) {
   const src = product?.images?.[0];
   if (src) return src;
-  const seed = encodeURIComponent(product?.sku || product?.slug || product?.name || 'marine');
-  return `https://picsum.photos/seed/${seed}/${size}/${size}`;
+  return `https://placehold.co/${size}x${size}/e5e7eb/111111?text=154x154`;
 }
 
 export function categoryImageUrl(category, size = 300) {
   if (category?.image) return category.image;
-  const seed = encodeURIComponent(category?.slug || category?.name || 'category');
-  return `https://picsum.photos/seed/cat-${seed}/${size}/${size}`;
+  return `https://placehold.co/${size}x${size}/e5e7eb/111111?text=154x154`;
 }

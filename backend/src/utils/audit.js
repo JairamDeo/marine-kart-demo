@@ -89,6 +89,9 @@ function applyDeleteAudit(doc, user, note = '') {
   applyUpdateAudit(doc, user, 'delete', note);
   doc.isDeleted = true;
   doc.deletedAt = new Date();
+  if (doc.schema?.path?.('deletedBy')) {
+    doc.deletedBy = stampFromUser(user);
+  }
   if (typeof doc.isActive === 'boolean') doc.isActive = false;
   return doc;
 }

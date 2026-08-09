@@ -324,13 +324,6 @@ export default function AdminOrders() {
                       {row.user?.email ? (
                         <p className="text-[11px] text-gray-400">{row.user.email}</p>
                       ) : null}
-                      {row.user?.role ? (
-                        <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-                          {row.user.role === 'dealer' || row.user.role === 'corporate'
-                            ? 'Corporate'
-                            : 'Normal'}
-                        </p>
-                      ) : null}
                     </td>
                     <td className="px-4 py-3.5 text-gray-500">{formatDate(row.createdAt)}</td>
                     <td className="px-4 py-3.5 font-semibold text-gray-900">

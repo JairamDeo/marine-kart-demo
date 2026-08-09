@@ -85,7 +85,7 @@ export default function AdminSubcategories() {
     setEditing(row);
     setForm({
       name: row.name || '',
-      categoryId: row.parent?._id || row.parent || '',
+      categoryId: row.category?._id || row.category || row.parent?._id || row.parent || '',
       sortOrder: row.sortOrder ?? 0,
       description: row.description || '',
       isActive: row.isActive !== false,
@@ -102,9 +102,9 @@ export default function AdminSubcategories() {
     setBusy(true);
     try {
       if (editing) {
-        await adminService.updateCategory(editing._id, {
+        await adminService.updateSubcategory(editing._id, {
           name: form.name,
-          parent: form.categoryId,
+          categoryId: form.categoryId,
           sortOrder: Number(form.sortOrder) || 0,
           description: form.description,
           isActive: form.isActive,
@@ -134,7 +134,7 @@ export default function AdminSubcategories() {
     if (!deleteTarget) return;
     setBusy(true);
     try {
-      await adminService.deleteCategory(deleteTarget._id);
+      await adminService.deleteSubcategory(deleteTarget._id);
       toast.success('Subcategory deleted successfully');
       setDeleteTarget(null);
       load();
@@ -186,13 +186,12 @@ export default function AdminSubcategories() {
       render: (row) => (
         <div className="min-w-0">
           <p className="font-medium text-gray-900">{row.name}</p>
-          {row.code ? <p className="text-[11px] text-gray-400">{row.code}</p> : null}
         </div>
       ),
     },
     {
       header: 'Category',
-      render: (row) => row.parent?.name || '—',
+      render: (row) => row.category?.name || row.parent?.name || '—',
     },
     { header: 'Sort', key: 'sortOrder' },
     {
@@ -238,7 +237,7 @@ export default function AdminSubcategories() {
       <DataTable
         columns={columns}
         data={subcategories}
-        searchKeys={['name', 'code']}
+        searchKeys={['name']}
         searchPlaceholder="Search subcategories..."
         sortOptions={[
           { label: 'Name A–Z', value: 'name:asc' },

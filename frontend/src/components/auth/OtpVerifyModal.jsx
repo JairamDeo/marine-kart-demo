@@ -167,11 +167,7 @@ export default function OtpVerifyModal({
           <button
             type="submit"
             disabled={busy || code.length !== DIGITS}
-            className={`mt-5 h-11 w-full rounded-xl text-sm font-semibold text-white transition disabled:opacity-50 ${
-              accountType === 'corporate'
-                ? 'bg-teal-700 hover:bg-teal-800'
-                : 'bg-[#1a4b8c] hover:bg-[#143a6e]'
-            }`}
+            className="mt-5 h-11 w-full rounded-xl bg-[#1a4b8c] text-sm font-semibold text-white transition hover:bg-[#143a6e] disabled:opacity-50"
           >
             {busy ? 'Verifying...' : 'Verify email'}
           </button>

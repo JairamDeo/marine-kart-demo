@@ -1,6 +1,10 @@
 const mongoose = require('mongoose');
 const { auditFields } = require('../utils/audit');
 
+/**
+ * Specs are either markdown text OR a single image (mutually exclusive modes).
+ * Legacy products may still have specifications as [{ key, value }] — normalized in toPublicJSON.
+ */
 const productSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
@@ -9,18 +13,17 @@ const productSchema = new mongoose.Schema(
     sku: { type: String, required: true, unique: true, trim: true },
     shortDescription: { type: String, default: '' },
     description: { type: String, default: '' },
-    specifications: [
-      {
-        key: String,
-        value: String,
-      },
-    ],
+    /** Markdown text OR image. Legacy: [{ key, value }] arrays still normalize in toPublicJSON. */
+    specifications: {
+      type: mongoose.Schema.Types.Mixed,
+      default: () => ({ mode: 'none', markdown: '', image: '' }),
+    },
     /** Max quantity a user may select for this product in one cart/order. 0 = unlimited. */
     maxOrderQty: { type: Number, default: 0, min: 0 },
     images: [{ type: String }],
     imagePublicIds: [{ type: String }],
     category: { type: mongoose.Schema.Types.ObjectId, ref: 'Category', required: true },
-    subcategory: { type: mongoose.Schema.Types.ObjectId, ref: 'Category', default: null },
+    subcategory: { type: mongoose.Schema.Types.ObjectId, ref: 'Subcategory', default: null },
     price: { type: Number, required: true, min: 0 },
     salePrice: { type: Number, min: 0, default: null },
     isFeatured: { type: Boolean, default: false },
@@ -43,6 +46,58 @@ productSchema.index({ category: 1, subcategory: 1 });
 productSchema.index({ isFeatured: 1, isBestSeller: 1, isNewArrival: 1 });
 productSchema.index({ name: 1 });
 
+/** Normalize legacy key/value arrays or partial objects into the public shape. */
+function normalizeSpecifications(raw) {
+  if (!raw) {
+    return { mode: 'none', markdown: '', image: '' };
+  }
+  if (Array.isArray(raw)) {
+    const rows = raw
+      .map((s) => ({
+        key: String(s?.key || '').trim(),
+        value: String(s?.value ?? '').trim(),
+      }))
+      .filter((s) => s.key);
+    if (!rows.length) return { mode: 'none', markdown: '', image: '' };
+    const markdown = rows.map((s) => `**${s.key}:** ${s.value}`).join('\n\n');
+    return { mode: 'markdown', markdown, image: '' };
+  }
+
+  const mode = ['markdown', 'image', 'none'].includes(raw.mode) ? raw.mode : 'none';
+  const markdown = String(raw.markdown || '').trim();
+  const image = String(raw.image || '').trim();
+
+  if (mode === 'image' && image) {
+    return { mode: 'image', markdown: '', image };
+  }
+  if (mode === 'markdown' && markdown) {
+    return { mode: 'markdown', markdown, image: '' };
+  }
+  if (image && !markdown) {
+    return { mode: 'image', markdown: '', image };
+  }
+  if (markdown) {
+    return { mode: 'markdown', markdown, image: '' };
+  }
+  return { mode: 'none', markdown: '', image: '' };
+}
+
+/** Sanitize write payload for specifications. */
+function sanitizeSpecificationsInput(raw) {
+  const normalized = normalizeSpecifications(raw);
+  if (normalized.mode === 'none') {
+    return { mode: 'none', markdown: '', image: '' };
+  }
+  if (normalized.mode === 'image') {
+    return { mode: 'image', markdown: '', image: normalized.image.slice(0, 2000) };
+  }
+  return {
+    mode: 'markdown',
+    markdown: normalized.markdown.slice(0, 20000),
+    image: '',
+  };
+}
+
 /**
  * Apply login-to-view-price rules.
  * Guest → price hidden. Logged-in → list/sale price × user multiplier.
@@ -55,7 +110,7 @@ productSchema.methods.toPublicJSON = function toPublicJSON(user) {
     slug: this.slug,
     shortDescription: this.shortDescription,
     description: this.description,
-    specifications: this.specifications,
+    specifications: normalizeSpecifications(this.specifications),
     maxOrderQty: this.maxOrderQty || 0,
     images: this.images,
     category: this.category,
@@ -87,3 +142,5 @@ productSchema.methods.toPublicJSON = function toPublicJSON(user) {
 };
 
 module.exports = mongoose.model('Product', productSchema);
+module.exports.normalizeSpecifications = normalizeSpecifications;
+module.exports.sanitizeSpecificationsInput = sanitizeSpecificationsInput;

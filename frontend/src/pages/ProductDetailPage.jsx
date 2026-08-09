@@ -11,6 +11,7 @@ import { productImageUrl } from '../utils/productImage';
 import { friendlyError } from '../utils/toastMsg';
 import { clampOrderQty, getMaxOrderQty } from '../utils/maxOrderQty';
 import ProductCard from '../components/product/ProductCard';
+import MarkdownContent from '../components/product/MarkdownContent';
 
 export default function ProductDetailPage() {
   const { slug } = useParams();
@@ -404,38 +405,43 @@ export default function ProductDetailPage() {
             </div>
           </section>
 
-          {product.specifications?.length > 0 && (
-            <section className="overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-gray-100">
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[480px] border-collapse text-sm">
-                  <thead>
-                    <tr className="bg-[#1a4b8c] text-white">
-                      {product.specifications.map((s, i) => (
-                        <th
-                          key={`h-${s.key || i}`}
-                          className="border border-[#163d73] px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide sm:px-5"
-                        >
-                          {s.key}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr className="bg-white">
-                      {product.specifications.map((s, i) => (
-                        <td
-                          key={`v-${s.key || i}`}
-                          className="border border-gray-200 px-4 py-3.5 text-gray-800 sm:px-5"
-                        >
-                          {s.value}
-                        </td>
-                      ))}
-                    </tr>
-                  </tbody>
-                </table>
+          {product.specifications?.mode === 'markdown' && product.specifications?.markdown ? (
+            <section className="overflow-hidden rounded-3xl bg-white p-5 shadow-sm ring-1 ring-gray-100 sm:p-7">
+              <div className="mb-5 flex items-end justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-cyan">
+                    Details
+                  </p>
+                  <h2 className="mt-1 text-xl font-extrabold tracking-tight text-navy sm:text-2xl">
+                    Product Specifications
+                  </h2>
+                </div>
+              </div>
+              <MarkdownContent content={product.specifications.markdown} />
+            </section>
+          ) : null}
+
+          {product.specifications?.mode === 'image' && product.specifications?.image ? (
+            <section className="overflow-hidden rounded-3xl bg-white p-4 shadow-sm ring-1 ring-gray-100 sm:p-6">
+              <div className="mb-5">
+                <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-cyan">
+                  Details
+                </p>
+                <h2 className="mt-1 text-xl font-extrabold tracking-tight text-navy sm:text-2xl">
+                  Product Specifications
+                </h2>
+              </div>
+              <div className="overflow-hidden rounded-2xl border border-sky-100 bg-gradient-to-b from-sky-50/50 to-white p-3 sm:p-4">
+                <img
+                  src={product.specifications.image}
+                  alt={`${product.name} specifications`}
+                  className="mx-auto max-h-[640px] w-full rounded-xl object-contain"
+                  loading="lazy"
+                  decoding="async"
+                />
               </div>
             </section>
-          )}
+          ) : null}
         </div>
 
         {related.length > 0 && (

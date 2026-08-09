@@ -20,7 +20,6 @@ const navItems = [
 export default function AdminLayout() {
   return (
     <PortalShell
-      title="MarineKart"
       navItems={navItems}
       loginPath="/admin-login"
     />

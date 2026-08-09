@@ -9,89 +9,96 @@ const Product = require('../models/Product');
 
 const DEFAULT_MAX_QTY = 5;
 
+function rowsToSpec(rows) {
+  return {
+    mode: 'markdown',
+    markdown: rows.map((s) => `**${s.key}:** ${s.value}`).join('\n\n'),
+    image: '',
+  };
+}
+
 function specsForProduct(product) {
   const name = String(product.name || '');
   const sku = String(product.sku || '');
   const part = sku || name.split(/\s+/).slice(-1)[0] || 'N/A';
 
-  // Ladder-style row matching the admin screenshot layout
   if (/ladder/i.test(name)) {
     const stepMatch = name.match(/(\d+)\s*step/i);
     const step = stepMatch ? stepMatch[1] : '4';
-    return [
+    return rowsToSpec([
       { key: 'Part Number', value: part.includes('prd-') ? `MK-L${step}042` : part },
       { key: 'Step', value: step },
       { key: 'Length', value: '600mm(23.5")' },
       { key: 'Width', value: '344mm(13.5")' },
       { key: 'Centrum W', value: '255mm(10")' },
-    ];
+    ]);
   }
 
   if (/steering kit/i.test(name)) {
     const lenMatch = name.match(/(\d+)$/);
     const cable = lenMatch ? `${lenMatch[1]} ft` : '—';
-    return [
+    return rowsToSpec([
       { key: 'Part Number', value: part },
       { key: 'Type', value: 'Mechanical Steering' },
       { key: 'Cable Length', value: cable },
       { key: 'Material', value: 'Marine grade' },
-    ];
+    ]);
   }
 
   if (/cleat/i.test(name)) {
     const sizeMatch = name.match(/(\d+)\s*inch/i);
-    return [
+    return rowsToSpec([
       { key: 'Part Number', value: part },
       { key: 'Material', value: 'SS 316' },
       { key: 'Size', value: sizeMatch ? `${sizeMatch[1]} inch` : '—' },
       { key: 'Finish', value: 'Polished' },
-    ];
+    ]);
   }
 
   if (/cable/i.test(name)) {
     const ftMatch = name.match(/(\d+)\s*ft/i);
-    return [
+    return rowsToSpec([
       { key: 'Part Number', value: part },
       { key: 'Length', value: ftMatch ? `${ftMatch[1]} ft` : '—' },
       { key: 'Type', value: 'Push-pull control' },
       { key: 'Fitment', value: 'Universal' },
-    ];
+    ]);
   }
 
   if (/helm/i.test(name)) {
-    return [
+    return rowsToSpec([
       { key: 'Part Number', value: part },
       { key: 'Type', value: 'Mechanical Helm' },
       { key: 'Mount', value: 'Dash / console' },
       { key: 'Material', value: 'Marine grade alloy' },
-    ];
+    ]);
   }
 
   if (/hatch/i.test(name)) {
     const mmMatch = name.match(/(\d+)\s*mm/i);
-    return [
+    return rowsToSpec([
       { key: 'Part Number', value: part },
       { key: 'Opening', value: mmMatch ? `${mmMatch[1]}mm` : '—' },
       { key: 'Frame', value: 'SS' },
       { key: 'Seal', value: 'Watertight' },
-    ];
+    ]);
   }
 
   if (/switch|panel|horn|pump|light|battery/i.test(name)) {
-    return [
+    return rowsToSpec([
       { key: 'Part Number', value: part },
       { key: 'Category', value: 'Electrical' },
       { key: 'Voltage', value: '12V / 24V compatible' },
       { key: 'Use', value: 'Marine' },
-    ];
+    ]);
   }
 
-  return [
+  return rowsToSpec([
     { key: 'Part Number', value: part },
     { key: 'Brand', value: 'MarineKart' },
     { key: 'Use', value: 'Marine' },
     { key: 'Availability', value: 'In catalog' },
-  ];
+  ]);
 }
 
 function maxQtyForProduct(product) {
@@ -113,10 +120,18 @@ async function main() {
 
   for (const product of products) {
     let changed = false;
-    const hasSpecs = Array.isArray(product.specifications) && product.specifications.length > 0;
+    const raw = product.specifications;
+    const hasNewSpecs =
+      raw &&
+      typeof raw === 'object' &&
+      !Array.isArray(raw) &&
+      ((raw.mode === 'markdown' && raw.markdown) || (raw.mode === 'image' && raw.image));
+    const hasLegacyArray = Array.isArray(raw) && raw.length > 0;
 
-    if (!hasSpecs) {
-      product.specifications = specsForProduct(product);
+    if (!hasNewSpecs) {
+      product.specifications = hasLegacyArray
+        ? Product.sanitizeSpecificationsInput(raw)
+        : specsForProduct(product);
       specsUpdated += 1;
       changed = true;
     }

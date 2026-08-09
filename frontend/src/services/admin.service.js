@@ -18,6 +18,8 @@ export const adminService = {
   bulkCategories: (categories) => apiClient.post(API.ADMIN_CATEGORIES_BULK, { categories }),
   subcategories: (params) => apiClient.get(API.ADMIN_SUBCATEGORIES, { params }),
   createSubcategory: (payload) => apiClient.post(API.ADMIN_SUBCATEGORY_CREATE, payload),
+  updateSubcategory: (id, payload) => apiClient.put(API.ADMIN_SUBCATEGORY_UPDATE(id), payload),
+  deleteSubcategory: (id) => apiClient.delete(API.ADMIN_SUBCATEGORY_DELETE(id)),
   bulkSubcategories: (subcategories) =>
     apiClient.post(API.ADMIN_SUBCATEGORIES_BULK, { subcategories }),
   orders: (params) => apiClient.get(API.ADMIN_ORDERS, { params }),

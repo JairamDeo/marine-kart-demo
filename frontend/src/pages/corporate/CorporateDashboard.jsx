@@ -14,17 +14,17 @@ import { formatOrderStatus } from '../../utils/orderStatusShared';
 
 export default function CorporateDashboard() {
   const { user, wishlistCount } = useAuth();
-  const { openWishlist } = useCartUI();
+  const { openWishlist, openCart } = useCartUI();
   const [orderCount, setOrderCount] = useState(0);
   const [recentOrders, setRecentOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     orderService
-      .getMyOrders()
+      .getMyOrders({ limit: 20 })
       .then((res) => {
         const list = res.data.data.orders || [];
-        setOrderCount(list.length);
+        setOrderCount(res.data.data.pagination?.total ?? list.length);
         setRecentOrders(list.slice(0, 4));
       })
       .catch(() => {
@@ -37,7 +37,7 @@ export default function CorporateDashboard() {
   if (loading) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-teal-500 border-t-transparent" />
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-navy border-t-transparent" />
       </div>
     );
   }
@@ -61,41 +61,48 @@ export default function CorporateDashboard() {
       label: 'My Profile',
       value: 'Profile',
       icon: UserCircle,
-      tone: 'bg-teal-50 text-teal-600',
+      tone: 'bg-indigo-50 text-indigo-600',
       to: '/account/profile',
     },
   ];
 
   return (
     <div className="space-y-7">
-      <div className="portal-fade-in relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0f766e] via-[#1a4b8c] to-[#0f172a] p-7 text-white shadow-xl sm:p-9">
+      <div className="portal-fade-in relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#1a4b8c] via-[#1e5a9e] to-[#0f172a] p-7 text-white shadow-xl sm:p-9">
         <div className="pointer-events-none absolute -right-10 -top-10 h-48 w-48 rounded-full bg-cyan/20 blur-2xl" />
-        <div className="pointer-events-none absolute bottom-0 left-1/3 h-32 w-32 rounded-full bg-teal-400/10 blur-2xl" />
+        <div className="pointer-events-none absolute bottom-0 left-1/3 h-32 w-32 rounded-full bg-white/5 blur-2xl" />
 
         <div className="relative max-w-xl">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-cyan">
             <Sparkles size={12} />
-            Corporate workspace
+            My account
           </span>
           <h1 className="mt-3 text-3xl font-extrabold tracking-tight sm:text-4xl">
             Welcome back, {user?.firstName}!
           </h1>
           <p className="mt-3 text-sm leading-relaxed text-white/75 sm:text-base">
-            Track your orders and manage your corporate account from here.
+            Track orders, update your profile, and continue shopping from your console.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link
               to="/account/orders"
-              className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-2.5 text-sm font-bold !text-[#0f766e] shadow-lg transition hover:bg-teal-50"
+              className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-2.5 text-sm font-bold !text-[#1a4b8c] shadow-lg transition hover:bg-sky-50"
             >
               View orders
               <ArrowRight className="h-4 w-4" />
             </Link>
+            <button
+              type="button"
+              onClick={openCart}
+              className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-white/25 bg-white/10 px-5 py-2.5 text-sm font-semibold text-white backdrop-blur transition hover:bg-white/15"
+            >
+              Open cart
+            </button>
             <Link
-              to="/"
+              to="/shop"
               className="inline-flex items-center gap-2 rounded-xl border border-white/25 bg-white/10 px-5 py-2.5 text-sm font-semibold text-white backdrop-blur transition hover:bg-white/15"
             >
-              Back to Home
+              Continue shopping
             </Link>
           </div>
         </div>
@@ -127,7 +134,7 @@ export default function CorporateDashboard() {
                 key={s.label}
                 type="button"
                 onClick={s.onClick}
-                className={className}
+                className={`${className} cursor-pointer`}
                 style={{ animationDelay: `${i * 60}ms` }}
               >
                 {inner}
@@ -151,7 +158,7 @@ export default function CorporateDashboard() {
       <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-base font-bold text-navy">Recent orders</h3>
-          <Link to="/account/orders" className="text-xs font-semibold text-teal-700 hover:underline">
+          <Link to="/account/orders" className="text-xs font-semibold text-navy hover:underline">
             See all
           </Link>
         </div>
@@ -159,6 +166,9 @@ export default function CorporateDashboard() {
           <div className="flex flex-col items-center py-10 text-center">
             <ShoppingBag className="mb-2 text-gray-300" size={36} />
             <p className="text-sm font-medium text-gray-500">No orders yet</p>
+            <Link to="/shop" className="mt-3 text-sm font-semibold text-navy hover:underline">
+              Browse shop →
+            </Link>
           </div>
         ) : (
           <ul className="divide-y divide-gray-50">
@@ -177,7 +187,7 @@ export default function CorporateDashboard() {
                     })}
                   </p>
                 </div>
-                <span className="rounded-full bg-teal-50 px-2.5 py-1 text-[11px] font-semibold text-teal-700">
+                <span className="rounded-full bg-sky-50 px-2.5 py-1 text-[11px] font-semibold text-navy">
                   {formatOrderStatus(o.orderStatus)}
                 </span>
               </li>

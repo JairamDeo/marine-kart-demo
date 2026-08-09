@@ -78,6 +78,8 @@ export const API = {
   ADMIN_CATEGORIES_BULK: '/admin/categories/bulk',
   ADMIN_SUBCATEGORIES: '/admin/subcategories',
   ADMIN_SUBCATEGORY_CREATE: '/admin/subcategories',
+  ADMIN_SUBCATEGORY_UPDATE: (id) => `/admin/subcategories/${id}`,
+  ADMIN_SUBCATEGORY_DELETE: (id) => `/admin/subcategories/${id}`,
   ADMIN_SUBCATEGORIES_BULK: '/admin/subcategories/bulk',
   ADMIN_ORDERS: '/orders',
   ADMIN_ORDER_UPDATE: (id) => `/orders/${id}`,

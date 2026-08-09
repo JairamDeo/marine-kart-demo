@@ -10,12 +10,8 @@ export default function AuthSplitLayout({
   subtitle,
   children,
   footerLinks = [],
-  accent = 'navy',
 }) {
-  const panel =
-    accent === 'teal'
-      ? 'from-[#0f766e] via-[#134e4a] to-[#0f172a]'
-      : 'from-[#1a4b8c] via-[#143a6e] to-[#0f172a]';
+  const panel = 'from-[#1a4b8c] via-[#143a6e] to-[#0f172a]';
 
   return (
     <div className="flex min-h-screen bg-[#f5f6f8]">

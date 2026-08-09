@@ -163,7 +163,7 @@ export default function LoginPage() {
                 type="button"
                 onClick={() => setAccountType('corporate')}
                 className={`flex items-center justify-center gap-1.5 rounded-lg px-3 py-2.5 text-xs font-bold transition sm:text-sm ${
-                  isCorporate ? 'bg-white text-teal-800 shadow' : 'text-gray-500'
+                  isCorporate ? 'bg-white text-navy shadow' : 'text-gray-500'
                 }`}
               >
                 <Building2 size={16} />
@@ -205,9 +205,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={busy}
-                className={`inline-flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-bold text-white transition disabled:opacity-60 ${
-                  isCorporate ? 'bg-teal-700 hover:bg-teal-800' : 'btn-cyan hero-cta'
-                }`}
+                className="btn-cyan hero-cta inline-flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-bold text-white transition disabled:opacity-60"
               >
                 {busy ? (
                   <>

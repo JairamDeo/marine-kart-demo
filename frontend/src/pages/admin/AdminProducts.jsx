@@ -5,6 +5,7 @@ import DataTable from '../../components/portal/DataTable';
 import Modal from '../../components/portal/Modal';
 import ConfirmDialog from '../../components/portal/ConfirmDialog';
 import ProductImagesField from '../../components/portal/ProductImagesField';
+import ImageUpload from '../../components/portal/ImageUpload';
 import BulkUploadPanel from '../../components/portal/BulkUploadPanel';
 import { FilterSelect } from '../../components/portal/FilterBar';
 import ActionIcon, { ActionGroup } from '../../components/portal/ActionIcon';
@@ -21,7 +22,9 @@ const emptyProduct = {
   salePrice: '',
   shortDescription: '',
   description: '',
-  specifications: [{ key: '', value: '' }],
+  specMode: 'none',
+  specMarkdown: '',
+  specImage: '',
   maxOrderQty: '',
   imageUrl: '',
   thumbnails: ['', '', '', ''],
@@ -33,47 +36,74 @@ const emptyProduct = {
 
 const PRODUCT_SAMPLE_CSV_ROWS = [
   {
-    name: 'Sample Ladder Step',
-    price: 2500,
+    name: 'AISI316 Stainless Steel Bow Roller MK4242',
+    price: 4500,
     categoryId: '',
-    salePrice: 2200,
-    shortDescription: 'Marine grade ladder step',
-    description: 'Stainless steel ladder step for marine use',
-    specifications: 'Part Number:MK-L1042|Step:2|Length:600mm(23.5")|Width:344mm(13.5")|Centrum W:255mm(10")',
-    maxOrderQty: 5,
+    salePrice: 4200,
+    shortDescription: 'AISI316 stainless steel bow roller',
+    description: 'AISI316 stainless steel bow / anchor roller for marine deck use. Product Id MK4242.',
+    specifications:
+      '**Product Id:** MK4242\n\n**Material:** AISI 316 Stainless Steel\n\n**Finish:** Polished marine grade\n\n- Bow / anchor roller\n- Deck mount',
+    specificationImage: '',
+    maxOrderQty: 3,
+    isFeatured: true,
+    isBestSeller: false,
+    isNewArrival: false,
+    isActive: true,
+  },
+  {
+    name: 'Mechanical Steering Kit 22 ft',
+    price: 9600,
+    categoryId: '',
+    salePrice: '',
+    shortDescription: 'Mechanical Steering Kit 22 ft',
+    description: 'Mechanical steering kit for outboard applications, 22 ft cable.',
+    specifications:
+      '**Product Id:** MKMS-22\n\n**Cable Length:** 22 ft\n\n- Outboard compatible\n- Marine grade',
+    specificationImage: '',
+    maxOrderQty: 2,
+    isFeatured: false,
+    isBestSeller: true,
+    isNewArrival: false,
     isActive: true,
   },
 ];
 
-function normalizeSpecs(list) {
-  return (Array.isArray(list) ? list : [])
-    .map((s) => ({
-      key: String(s?.key || '').trim(),
-      value: String(s?.value ?? '').trim(),
-    }))
-    .filter((s) => s.key);
+function specsFromProduct(product) {
+  const raw = product?.specifications;
+  if (!raw) return { mode: 'none', markdown: '', image: '' };
+  if (Array.isArray(raw)) {
+    const rows = raw
+      .map((s) => ({
+        key: String(s?.key || '').trim(),
+        value: String(s?.value ?? '').trim(),
+      }))
+      .filter((s) => s.key);
+    if (!rows.length) return { mode: 'none', markdown: '', image: '' };
+    return {
+      mode: 'markdown',
+      markdown: rows.map((s) => `**${s.key}:** ${s.value}`).join('\n\n'),
+      image: '',
+    };
+  }
+  const mode = ['markdown', 'image', 'none'].includes(raw.mode) ? raw.mode : 'none';
+  const markdown = String(raw.markdown || '').trim();
+  const image = String(raw.image || '').trim();
+  if (mode === 'image' && image) return { mode: 'image', markdown: '', image };
+  if (mode === 'markdown' && markdown) return { mode: 'markdown', markdown, image: '' };
+  if (image) return { mode: 'image', markdown: '', image };
+  if (markdown) return { mode: 'markdown', markdown, image: '' };
+  return { mode: 'none', markdown: '', image: '' };
 }
 
-function parseBulkSpecs(raw) {
-  if (!raw) return [];
-  if (Array.isArray(raw)) return normalizeSpecs(raw);
-  const text = String(raw).trim();
-  if (!text) return [];
-  try {
-    const parsed = JSON.parse(text);
-    if (Array.isArray(parsed)) return normalizeSpecs(parsed);
-  } catch {
-    /* pipe format */
+function buildSpecsPayload(form) {
+  if (form.specMode === 'image' && form.specImage?.trim()) {
+    return { mode: 'image', markdown: '', image: form.specImage.trim() };
   }
-  return text
-    .split('|')
-    .map((pair) => {
-      const idx = pair.indexOf(':');
-      if (idx < 0) return null;
-      return { key: pair.slice(0, idx).trim(), value: pair.slice(idx + 1).trim() };
-    })
-    .filter(Boolean)
-    .filter((s) => s.key);
+  if (form.specMode === 'markdown' && form.specMarkdown?.trim()) {
+    return { mode: 'markdown', markdown: form.specMarkdown.trim(), image: '' };
+  }
+  return { mode: 'none', markdown: '', image: '' };
 }
 
 export default function AdminProducts() {
@@ -132,7 +162,7 @@ export default function AdminProducts() {
   const openEdit = (product) => {
     setEditing(product);
     const imgs = Array.isArray(product.images) ? product.images : [];
-    const specs = normalizeSpecs(product.specifications);
+    const specs = specsFromProduct(product);
     setForm({
       name: product.name || '',
       category: product.category?._id || product.category || '',
@@ -141,7 +171,9 @@ export default function AdminProducts() {
       salePrice: product.salePrice ?? '',
       shortDescription: product.shortDescription || '',
       description: product.description || '',
-      specifications: specs.length ? specs : [{ key: '', value: '' }],
+      specMode: specs.mode === 'none' ? 'markdown' : specs.mode,
+      specMarkdown: specs.markdown,
+      specImage: specs.image,
       maxOrderQty:
         product.maxOrderQty != null && Number(product.maxOrderQty) > 0
           ? String(product.maxOrderQty)
@@ -169,7 +201,7 @@ export default function AdminProducts() {
         salePrice: form.salePrice !== '' ? Number(form.salePrice) : null,
         shortDescription: form.shortDescription,
         description: form.description,
-        specifications: normalizeSpecs(form.specifications),
+        specifications: buildSpecsPayload(form),
         maxOrderQty:
           form.maxOrderQty === '' || form.maxOrderQty == null
             ? 0
@@ -239,9 +271,19 @@ export default function AdminProducts() {
               : undefined,
           shortDescription: row.shortdescription || row.short_description || '',
           description: row.description || '',
-          specifications: parseBulkSpecs(
-            row.specifications || row.specification || row.specs || ''
-          ),
+          specifications: (() => {
+            const image = String(
+              row.specificationimage ||
+                row.specimage ||
+                row.specification_image ||
+                row.specificationImage ||
+                ''
+            ).trim();
+            if (image) return { mode: 'image', markdown: '', image };
+            const text = String(row.specifications || row.specification || row.specs || '').trim();
+            if (!text) return { mode: 'none', markdown: '', image: '' };
+            return { mode: 'markdown', markdown: text, image: '' };
+          })(),
         };
         const maxRaw = row.maxorderqty ?? row.max_order_qty ?? row.maxqty;
         if (maxRaw !== undefined && maxRaw !== '') {
@@ -540,65 +582,58 @@ export default function AdminProducts() {
             />
           </div>
           <div>
-            <div className="mb-2 flex items-center justify-between gap-3">
-              <div>
-                <label className="block text-sm font-medium">Product Specifications</label>
-                <p className="text-xs text-gray-400">
-                  Optional. Shown as a table (e.g. Part Number, Step, Length, Width).
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() =>
-                  setForm({
-                    ...form,
-                    specifications: [...(form.specifications || []), { key: '', value: '' }],
-                  })
-                }
-                className="rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
-              >
-                Add row
-              </button>
+            <div className="mb-2">
+              <label className="block text-sm font-medium">Product Specifications</label>
+              <p className="text-xs text-gray-400">
+                Optional — choose either a Markdown paragraph/table text, or one specification image.
+              </p>
             </div>
-            <div className="space-y-2">
-              {(form.specifications || []).map((row, idx) => (
-                <div key={idx} className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
-                  <input
-                    className="input-mk rounded-lg"
-                    placeholder="Label (e.g. Part Number)"
-                    value={row.key}
-                    onChange={(e) => {
-                      const next = [...form.specifications];
-                      next[idx] = { ...next[idx], key: e.target.value };
-                      setForm({ ...form, specifications: next });
-                    }}
-                  />
-                  <input
-                    className="input-mk rounded-lg"
-                    placeholder='Value (e.g. MK-L1042)'
-                    value={row.value}
-                    onChange={(e) => {
-                      const next = [...form.specifications];
-                      next[idx] = { ...next[idx], value: e.target.value };
-                      setForm({ ...form, specifications: next });
-                    }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const next = form.specifications.filter((_, i) => i !== idx);
-                      setForm({
-                        ...form,
-                        specifications: next.length ? next : [{ key: '', value: '' }],
-                      });
-                    }}
-                    className="rounded-lg border border-gray-200 px-3 py-2 text-xs text-gray-500 hover:bg-gray-50"
-                  >
-                    Remove
-                  </button>
-                </div>
+            <div className="mb-3 inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5">
+              {[
+                { id: 'markdown', label: 'Markdown text' },
+                { id: 'image', label: 'Image' },
+                { id: 'none', label: 'None' },
+              ].map((opt) => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => setForm({ ...form, specMode: opt.id })}
+                  className={`rounded-md px-3 py-1.5 text-xs font-semibold transition ${
+                    form.specMode === opt.id
+                      ? 'bg-[#1a4b8c] text-white'
+                      : 'text-gray-600 hover:bg-white'
+                  }`}
+                >
+                  {opt.label}
+                </button>
               ))}
             </div>
+            {form.specMode === 'markdown' ? (
+              <div>
+                <textarea
+                  rows={8}
+                  className="input-mk rounded-lg font-mono text-sm"
+                  value={form.specMarkdown}
+                  onChange={(e) => setForm({ ...form, specMarkdown: e.target.value })}
+                  placeholder={
+                    'Supports Markdown, for example:\n\n**Part Number:** MK-L1042\n\n- Length: 600mm\n- Width: 344mm\n\n| Spec | Value |\n| --- | --- |\n| Material | SS 316 |'
+                  }
+                />
+                <p className="mt-1 text-[11px] text-gray-400">
+                  Use headings, lists, bold, tables — shown as formatted text on the product page.
+                </p>
+              </div>
+            ) : null}
+            {form.specMode === 'image' ? (
+              <ImageUpload
+                section="products"
+                label="Specification image"
+                value={form.specImage}
+                onChange={(url) => setForm({ ...form, specImage: url || '' })}
+                hint="Upload a chart / datasheet image (max 1MB). Shown on the product page."
+                previewClassName="h-36 w-full max-w-md"
+              />
+            ) : null}
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium">
@@ -660,8 +695,8 @@ export default function AdminProducts() {
         size="lg"
       >
         <BulkUploadPanel
-          instructions="Upload an Excel (.xlsx) or CSV (.csv) file. Row 1 must be headers. Each following row is one product."
-          exampleHeaders="name, price, categoryId, salePrice, shortDescription, description, specifications, maxOrderQty, isActive"
+          instructions="Upload Excel (.xlsx) or CSV. Row 1 = headers. Required: name, price, categoryId. Specifications: put Markdown text in the specifications column, OR an image URL in specificationImage (image wins if both). Leave specificationImage empty for markdown-only."
+          exampleHeaders="name, price, categoryId, salePrice, shortDescription, description, specifications, specificationImage, maxOrderQty, isFeatured, isBestSeller, isNewArrival, isActive"
           sampleCsvRows={PRODUCT_SAMPLE_CSV_ROWS}
           sampleFileName="products-sample.csv"
           onParsed={(rows) => {

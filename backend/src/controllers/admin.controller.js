@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const Product = require('../models/Product');
 const Category = require('../models/Category');
+const Subcategory = require('../models/Subcategory');
 const Order = require('../models/Order');
 const { asyncHandler, slugify } = require('../utils/helpers');
 const {
@@ -125,47 +126,23 @@ exports.bulkUpsertProducts = asyncHandler(async (req, res) => {
         continue;
       }
 
-      const parseSpecs = (rawSpecs) => {
-        if (Array.isArray(rawSpecs)) {
-          return rawSpecs
-            .map((s) => ({
-              key: String(s.key || s.name || '').trim(),
-              value: String(s.value ?? '').trim(),
-            }))
-            .filter((s) => s.key);
-        }
-        const text = String(rawSpecs || '').trim();
-        if (!text) return [];
-        try {
-          const parsed = JSON.parse(text);
-          if (Array.isArray(parsed)) return parseSpecs(parsed);
-        } catch {
-          /* pipe format: Part Number:MK-L1042|Step:2|Length:600mm */
-        }
-        return text
-          .split('|')
-          .map((pair) => {
-            const idx = pair.indexOf(':');
-            if (idx < 0) return null;
-            return {
-              key: pair.slice(0, idx).trim(),
-              value: pair.slice(idx + 1).trim(),
-            };
-          })
-          .filter(Boolean)
-          .filter((s) => s.key);
-      };
-
       const maxRaw = raw.maxOrderQty ?? raw.maxorderqty ?? raw.max_order_qty ?? raw.maxqty;
       const maxOrderQty =
         maxRaw === '' || maxRaw == null ? 0 : Math.max(0, Math.floor(Number(maxRaw) || 0));
 
+      const { parseBulkSpecifications } = require('../utils/parseBulkSpecifications');
       const payload = {
         name,
         shortDescription: raw.shortDescription || raw.shortdescription || raw.short_description || '',
         description: raw.description || '',
-        specifications: parseSpecs(
-          raw.specifications || raw.specification || raw.specs || ''
+        specifications: parseBulkSpecifications(
+          raw.specifications || raw.specification || raw.specs || '',
+          raw.specificationImage ||
+            raw.specificationimage ||
+            raw.specImage ||
+            raw.specimage ||
+            raw.specification_image ||
+            ''
         ),
         maxOrderQty,
         price: Number(raw.price) || 0,
@@ -227,9 +204,9 @@ exports.bulkUpsertCategories = asyncHandler(async (req, res) => {
         continue;
       }
 
-      // Bulk import is for main categories only (no parent)
+      // Bulk import is for main categories only
       const slug = raw.slug ? slugify(raw.slug) : slugify(name);
-      const existing = await Category.findOne({ slug, parent: null, ...notDeleted });
+      const existing = await Category.findOne({ slug, ...notDeleted });
       if (existing) {
         existing.name = name;
         existing.description = raw.description || existing.description || '';
@@ -249,7 +226,6 @@ exports.bulkUpsertCategories = asyncHandler(async (req, res) => {
               slug: slugify(`${name}-${code.replace(/[^a-zA-Z0-9]+/g, '-')}`),
               description: raw.description || '',
               image: raw.image || '',
-              parent: null,
               sortOrder: Number(raw.sortOrder) || 0,
               isActive: raw.isActive !== false,
             },
@@ -294,25 +270,24 @@ exports.bulkUpsertSubcategories = asyncHandler(async (req, res) => {
         continue;
       }
 
-      let parent = null;
+      let cat = null;
       if (mongoose.isValidObjectId(categoryRef)) {
-        parent = await Category.findOne({ _id: categoryRef, parent: null, ...notDeleted });
+        cat = await Category.findOne({ _id: categoryRef, ...notDeleted });
       }
-      if (!parent) {
-        parent = await Category.findOne({
+      if (!cat) {
+        cat = await Category.findOne({
           name: new RegExp(`^${categoryRef.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i'),
-          parent: null,
           ...notDeleted,
         });
       }
-      if (!parent) {
+      if (!cat) {
         errors.push({ name, message: `Category not found: ${categoryRef}` });
         continue;
       }
 
-      const existing = await Category.findOne({
+      const existing = await Subcategory.findOne({
         name,
-        parent: parent._id,
+        category: cat._id,
         ...notDeleted,
       });
 
@@ -326,14 +301,14 @@ exports.bulkUpsertSubcategories = asyncHandler(async (req, res) => {
         updated += 1;
       } else {
         const code = await generateCategoryCode('sub');
-        await Category.create(
+        await Subcategory.create(
           withCreateAudit(
             {
               name,
               code,
-              slug: slugify(`${parent.name}-${name}-${code.replace(/[^a-zA-Z0-9]+/g, '-')}`),
+              slug: slugify(`${cat.name}-${name}-${code.replace(/[^a-zA-Z0-9]+/g, '-')}`),
               description: raw.description || '',
-              parent: parent._id,
+              category: cat._id,
               sortOrder: Number(raw.sortOrder ?? raw.sortorder) || 0,
               isActive: String(raw.isActive ?? raw.isactive ?? 'true').toLowerCase() !== 'false',
             },

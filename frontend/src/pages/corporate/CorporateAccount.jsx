@@ -60,7 +60,7 @@ export default function CorporateAccount() {
         <p className="mt-1 text-sm text-gray-500">Manage your corporate profile</p>
       </div>
 
-      <div className="portal-fade-in overflow-hidden rounded-2xl bg-gradient-to-br from-[#1a4b8c] via-[#16407a] to-teal-800 text-white shadow-lg">
+      <div className="portal-fade-in overflow-hidden rounded-2xl bg-gradient-to-br from-[#1a4b8c] via-[#16407a] to-[#0f172a] text-white shadow-lg">
         <div className="flex flex-col gap-6 p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8">
           <div className="flex items-center gap-4">
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/15 text-xl font-bold ring-2 ring-white/20 backdrop-blur">

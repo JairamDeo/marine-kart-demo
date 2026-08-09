@@ -157,11 +157,7 @@ export default function RegisterPage() {
       <div className="mx-auto grid max-w-4xl gap-5 px-4 py-6 sm:px-6 lg:grid-cols-[220px_1fr] lg:items-start lg:gap-6 lg:py-8">
         <aside className="hidden lg:block">
           <div
-            className={`rounded-xl p-4 text-white ${
-              isCorporate
-                ? 'bg-gradient-to-b from-teal-800 to-teal-950'
-                : 'bg-gradient-to-b from-[#1a4b8c] to-[#0f2d54]'
-            }`}
+            className="rounded-xl bg-gradient-to-b from-[#1a4b8c] to-[#0f2d54] p-4 text-white"
           >
             <Link to="/" className="mb-4 inline-flex rounded-lg bg-black/80 px-2 py-1.5">
               <BrandLogo className="h-8 w-auto" />
@@ -207,7 +203,7 @@ export default function RegisterPage() {
               type="button"
               onClick={() => setAccountType('corporate')}
               className={`inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md px-3 text-xs font-semibold transition ${
-                isCorporate ? 'bg-teal-700 text-white' : 'text-gray-600 hover:bg-gray-50'
+                isCorporate ? 'bg-[#1a4b8c] text-white' : 'text-gray-600 hover:bg-gray-50'
               }`}
             >
               <Building2 size={13} />
@@ -481,9 +477,7 @@ export default function RegisterPage() {
               <button
                 type="submit"
                 disabled={busy}
-                className={`h-9 w-full cursor-pointer rounded-md text-[13px] font-semibold text-white transition disabled:opacity-60 ${
-                  isCorporate ? 'bg-teal-700 hover:bg-teal-800' : 'bg-[#1a4b8c] hover:bg-[#143a6e]'
-                }`}
+                className="h-9 w-full cursor-pointer rounded-md bg-[#1a4b8c] text-[13px] font-semibold text-white transition hover:bg-[#143a6e] disabled:opacity-60"
               >
                 {busy ? 'Please wait...' : isCorporate ? 'Create corporate account' : 'Create account'}
               </button>

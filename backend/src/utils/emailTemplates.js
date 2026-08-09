@@ -1,3 +1,16 @@
+const env = require('../config/env');
+
+const BRAND = {
+  navy: '#1a4b8c',
+  navyDark: '#143a6e',
+  cyan: '#78c6d4',
+  ink: '#0f172a',
+  muted: '#64748b',
+  line: '#e2e8f0',
+  soft: '#f0f7fb',
+  white: '#ffffff',
+};
+
 function escapeHtml(value) {
   return String(value ?? '')
     .replace(/&/g, '&amp;')
@@ -6,32 +19,65 @@ function escapeHtml(value) {
     .replace(/"/g, '&quot;');
 }
 
-function wrapEmail({ title, bodyHtml }) {
+function siteUrl(path = '/') {
+  const base = String(env.frontendUrl || 'https://marinekart.com').replace(/\/$/, '');
+  if (!path || path === '/') return base;
+  return `${base}${path.startsWith('/') ? path : `/${path}`}`;
+}
+
+function ctaButton(href, label) {
+  return `<a href="${escapeHtml(href)}" style="display:inline-block;padding:12px 22px;background:${BRAND.navy};color:${BRAND.white};text-decoration:none;font-size:14px;font-weight:700;border-radius:10px;letter-spacing:0.01em;">${escapeHtml(label)}</a>`;
+}
+
+function metaRow(label, value) {
+  return `<tr>
+    <td style="padding:8px 0;border-bottom:1px solid ${BRAND.line};width:34%;font-size:12px;font-weight:700;color:${BRAND.muted};text-transform:uppercase;letter-spacing:0.04em;vertical-align:top;">${escapeHtml(label)}</td>
+    <td style="padding:8px 0;border-bottom:1px solid ${BRAND.line};font-size:14px;color:${BRAND.ink};vertical-align:top;">${value}</td>
+  </tr>`;
+}
+
+function wrapEmail({ title, eyebrow, bodyHtml, preheader = '' }) {
+  const year = new Date().getFullYear();
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light" />
   <title>${escapeHtml(title)}</title>
 </head>
-<body style="margin:0;padding:0;background:#f4f4f5;font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:32px 16px;">
+<body style="margin:0;padding:0;background:${BRAND.soft};font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:${BRAND.ink};">
+  ${preheader ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0;">${escapeHtml(preheader)}</div>` : ''}
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${BRAND.soft};padding:28px 12px;">
     <tr>
       <td align="center">
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:#ffffff;border:1px solid #e4e4e7;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:${BRAND.white};border-radius:16px;overflow:hidden;box-shadow:0 12px 40px rgba(26,75,140,0.12);border:1px solid #dbe7f2;">
           <tr>
-            <td style="padding:28px 28px 12px;">
-              <p style="margin:0;font-size:18px;font-weight:700;color:#111111;letter-spacing:-0.02em;">MarineKart</p>
+            <td style="background:linear-gradient(135deg,${BRAND.navy} 0%,${BRAND.navyDark} 55%,#0f172a 100%);padding:22px 28px;">
+              <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:${BRAND.cyan};">MarineKart</p>
+              <p style="margin:6px 0 0;font-size:20px;font-weight:800;color:${BRAND.white};letter-spacing:-0.02em;">${escapeHtml(title)}</p>
+              ${eyebrow ? `<p style="margin:8px 0 0;font-size:13px;color:rgba(255,255,255,0.72);">${escapeHtml(eyebrow)}</p>` : ''}
             </td>
           </tr>
           <tr>
-            <td style="padding:8px 28px 28px;font-size:14px;line-height:1.6;color:#3f3f46;">
+            <td style="height:4px;background:linear-gradient(90deg,${BRAND.cyan},${BRAND.navy},${BRAND.cyan});font-size:0;line-height:0;">&nbsp;</td>
+          </tr>
+          <tr>
+            <td style="padding:28px 28px 8px;font-size:14px;line-height:1.65;color:#334155;">
               ${bodyHtml}
             </td>
           </tr>
           <tr>
-            <td style="padding:16px 28px 24px;border-top:1px solid #f4f4f5;font-size:12px;color:#a1a1aa;">
-              © MarineKart · Please do not reply to this email.
+            <td style="padding:20px 28px 28px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${BRAND.soft};border-radius:12px;border:1px solid ${BRAND.line};">
+                <tr>
+                  <td style="padding:14px 16px;font-size:12px;line-height:1.55;color:${BRAND.muted};">
+                    Need help? Reply is not monitored on this address.<br />
+                    Visit <a href="${escapeHtml(siteUrl('/'))}" style="color:${BRAND.navy};font-weight:600;text-decoration:none;">marinekart.com</a>
+                    · © ${year} MarineKart
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
         </table>
@@ -42,19 +88,30 @@ function wrapEmail({ title, bodyHtml }) {
 </html>`;
 }
 
+function otpBox(code) {
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:8px 0 20px;">
+    <tr>
+      <td align="center" style="background:${BRAND.soft};border:1px dashed ${BRAND.cyan};border-radius:14px;padding:18px 12px;">
+        <p style="margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:${BRAND.muted};">Your code</p>
+        <p style="margin:0;font-size:32px;font-weight:800;letter-spacing:0.35em;color:${BRAND.navy};font-family:Consolas,Monaco,monospace;">${escapeHtml(code)}</p>
+      </td>
+    </tr>
+  </table>`;
+}
+
 function verificationOtpEmail({ name, code }) {
   const safeName = escapeHtml(name || 'there');
-  const safeCode = escapeHtml(code);
   return {
     subject: 'Your MarineKart verification code',
     html: wrapEmail({
       title: 'Verify your email',
+      eyebrow: 'Almost there — confirm your account',
+      preheader: `Your MarineKart verification code is ${code}`,
       bodyHtml: `
         <p style="margin:0 0 12px;">Hi ${safeName},</p>
-        <p style="margin:0 0 16px;">Thanks for registering with MarineKart. Use this code to verify your email. It expires in <strong>10 minutes</strong>.</p>
-        <p style="margin:0 0 8px;font-size:12px;color:#71717a;letter-spacing:0.08em;text-transform:uppercase;">Verification code</p>
-        <p style="margin:0 0 20px;font-size:28px;font-weight:700;letter-spacing:0.28em;color:#111111;">${safeCode}</p>
-        <p style="margin:0;color:#71717a;font-size:13px;">If you did not create this account, you can ignore this email.</p>
+        <p style="margin:0 0 16px;">Thanks for registering with MarineKart. Enter this code to verify your email. It expires in <strong>10 minutes</strong>.</p>
+        ${otpBox(code)}
+        <p style="margin:0;color:${BRAND.muted};font-size:13px;">If you did not create this account, you can safely ignore this email.</p>
       `,
     }),
     text: `Hi ${name || 'there'},\n\nYour MarineKart verification code is ${code}. It expires in 10 minutes.\n\nIf you did not register, ignore this email.`,
@@ -63,17 +120,17 @@ function verificationOtpEmail({ name, code }) {
 
 function passwordResetOtpEmail({ name, code }) {
   const safeName = escapeHtml(name || 'there');
-  const safeCode = escapeHtml(code);
   return {
     subject: 'Your MarineKart password reset code',
     html: wrapEmail({
       title: 'Reset your password',
+      eyebrow: 'Security code for your account',
+      preheader: `Your MarineKart password reset code is ${code}`,
       bodyHtml: `
         <p style="margin:0 0 12px;">Hi ${safeName},</p>
         <p style="margin:0 0 16px;">We received a request to reset your MarineKart password. Use this code to continue. It expires in <strong>2 minutes</strong>.</p>
-        <p style="margin:0 0 8px;font-size:12px;color:#71717a;letter-spacing:0.08em;text-transform:uppercase;">Reset code</p>
-        <p style="margin:0 0 20px;font-size:28px;font-weight:700;letter-spacing:0.28em;color:#111111;">${safeCode}</p>
-        <p style="margin:0;color:#71717a;font-size:13px;">If you did not request a password reset, you can ignore this email.</p>
+        ${otpBox(code)}
+        <p style="margin:0;color:${BRAND.muted};font-size:13px;">If you did not request a password reset, you can ignore this email — your password will stay the same.</p>
       `,
     }),
     text: `Hi ${name || 'there'},\n\nYour MarineKart password reset code is ${code}. It expires in 2 minutes.\n\nIf you did not request this, ignore this email.`,
@@ -87,21 +144,22 @@ function welcomeEmail({ name, loginUrl, accountType }) {
       ? 'corporate customer'
       : accountType === 'admin'
         ? 'admin'
-        : 'normal customer';
+        : 'customer';
+  const href = loginUrl || siteUrl('/login');
   return {
     subject: 'Welcome to MarineKart',
     html: wrapEmail({
-      title: 'Welcome',
+      title: 'Welcome aboard',
+      eyebrow: 'Your account is verified and ready',
+      preheader: 'Welcome to MarineKart — your account is ready.',
       bodyHtml: `
         <p style="margin:0 0 12px;">Hi ${safeName},</p>
-        <p style="margin:0 0 16px;">Thank you for registering with MarineKart. Your ${typeLabel} account is verified and ready to use.</p>
-        <p style="margin:0 0 20px;">
-          <a href="${escapeHtml(loginUrl)}" style="display:inline-block;padding:10px 16px;background:#1a4b8c;color:#ffffff;text-decoration:none;font-size:13px;font-weight:600;">Sign in</a>
-        </p>
-        <p style="margin:0;color:#71717a;font-size:13px;">Or open: ${escapeHtml(loginUrl)}</p>
+        <p style="margin:0 0 18px;">Thank you for joining MarineKart. Your <strong>${escapeHtml(typeLabel)}</strong> account is verified — browse marine hardware, unlock pricing, and checkout with ease.</p>
+        <p style="margin:0 0 22px;">${ctaButton(href, 'Sign in to MarineKart')}</p>
+        <p style="margin:0;color:${BRAND.muted};font-size:12px;">Or open: ${escapeHtml(href)}</p>
       `,
     }),
-    text: `Hi ${name || 'there'},\n\nThank you for registering with MarineKart. Your ${typeLabel} account is verified.\n\nSign in: ${loginUrl}`,
+    text: `Hi ${name || 'there'},\n\nThank you for registering with MarineKart. Your ${typeLabel} account is verified.\n\nSign in: ${href}`,
   };
 }
 
@@ -119,35 +177,28 @@ function adminNewUserEmail({ user }) {
   const typeLabel = accountTypeLabel(user.role);
   const typeSafe = escapeHtml(typeLabel);
   const company = user.companyName
-    ? `<p style="margin:0 0 6px;"><strong>Company:</strong> ${escapeHtml(user.companyName)}</p>`
+    ? metaRow('Company', escapeHtml(user.companyName))
     : '';
   return {
     subject: `New ${typeLabel} registration — MarineKart`,
     html: wrapEmail({
       title: 'New registration',
+      eyebrow: 'A new user joined the storefront',
+      preheader: `New ${typeLabel}: ${user.email}`,
       bodyHtml: `
-        <p style="margin:0 0 16px;">A new user has registered on MarineKart.</p>
-        <p style="margin:0 0 6px;"><strong>Name:</strong> ${name}</p>
-        <p style="margin:0 0 6px;"><strong>Email:</strong> ${email}</p>
-        <p style="margin:0 0 6px;"><strong>Mobile:</strong> ${phone}</p>
-        <p style="margin:0 0 6px;"><strong>Account type:</strong> ${typeSafe}</p>
-        ${company}
+        <p style="margin:0 0 16px;">A new account was created on MarineKart.</p>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+          ${metaRow('Name', name)}
+          ${metaRow('Email', email)}
+          ${metaRow('Mobile', phone)}
+          ${metaRow('Account type', typeSafe)}
+          ${company}
+        </table>
       `,
     }),
     text: `New MarineKart registration\n\nName: ${user.firstName} ${user.lastName}\nEmail: ${user.email}\nMobile: ${user.phone}\nAccount type: ${typeLabel}${user.companyName ? `\nCompany: ${user.companyName}` : ''}`,
   };
 }
-
-module.exports = {
-  verificationOtpEmail,
-  passwordResetOtpEmail,
-  welcomeEmail,
-  adminNewUserEmail,
-  adminNewOrderEmail,
-  customerOrderStatusEmail,
-  adminNewEnquiryEmail,
-  enquiryThankYouEmail,
-};
 
 function adminNewOrderEmail({ order, customer, when }) {
   const name = escapeHtml(customer?.name || 'Customer');
@@ -167,9 +218,9 @@ function adminNewOrderEmail({ order, customer, when }) {
     .map(
       (item) => `
       <tr>
-        <td style="padding:8px 0;border-bottom:1px solid #f4f4f5;color:#3f3f46;">${escapeHtml(item.name)}</td>
-        <td style="padding:8px 0;border-bottom:1px solid #f4f4f5;text-align:center;color:#3f3f46;">${escapeHtml(item.quantity)}</td>
-        <td style="padding:8px 0;border-bottom:1px solid #f4f4f5;text-align:right;color:#3f3f46;">₹${Number(item.totalPrice || 0).toLocaleString('en-IN')}</td>
+        <td style="padding:10px 8px;border-bottom:1px solid ${BRAND.line};color:#334155;">${escapeHtml(item.name)}</td>
+        <td style="padding:10px 8px;border-bottom:1px solid ${BRAND.line};text-align:center;color:#334155;">${escapeHtml(item.quantity)}</td>
+        <td style="padding:10px 8px;border-bottom:1px solid ${BRAND.line};text-align:right;color:${BRAND.ink};font-weight:600;">₹${Number(item.totalPrice || 0).toLocaleString('en-IN')}</td>
       </tr>`
     )
     .join('');
@@ -177,24 +228,28 @@ function adminNewOrderEmail({ order, customer, when }) {
   return {
     subject: `New order ${order.orderNumber} — MarineKart`,
     html: wrapEmail({
-      title: 'New order',
+      title: 'New order received',
+      eyebrow: `Order ${order.orderNumber || ''}`,
+      preheader: `New order ${order.orderNumber} from ${customer?.name || 'customer'}`,
       bodyHtml: `
-        <p style="margin:0 0 12px;">A new order was placed.</p>
-        <p style="margin:0 0 6px;"><strong>Order:</strong> ${orderNumber}</p>
-        <p style="margin:0 0 6px;"><strong>Time:</strong> ${whenSafe}</p>
-        <p style="margin:0 0 6px;"><strong>Customer:</strong> ${name}</p>
-        <p style="margin:0 0 6px;"><strong>Email:</strong> ${email}</p>
-        <p style="margin:0 0 6px;"><strong>Mobile:</strong> ${phone}</p>
-        <p style="margin:0 0 16px;"><strong>Address:</strong> ${addressLine}</p>
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:13px;">
-          <tr>
-            <th align="left" style="padding:0 0 8px;border-bottom:1px solid #e4e4e7;color:#71717a;font-weight:600;">Item</th>
-            <th style="padding:0 0 8px;border-bottom:1px solid #e4e4e7;color:#71717a;font-weight:600;">Qty</th>
-            <th align="right" style="padding:0 0 8px;border-bottom:1px solid #e4e4e7;color:#71717a;font-weight:600;">Total</th>
+        <p style="margin:0 0 16px;">A customer just placed an order on MarineKart.</p>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:18px;">
+          ${metaRow('Order', orderNumber)}
+          ${metaRow('Time', whenSafe)}
+          ${metaRow('Customer', name)}
+          ${metaRow('Email', email)}
+          ${metaRow('Mobile', phone)}
+          ${metaRow('Address', addressLine)}
+        </table>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:13px;background:${BRAND.soft};border-radius:12px;overflow:hidden;border:1px solid ${BRAND.line};">
+          <tr style="background:${BRAND.navy};">
+            <th align="left" style="padding:10px 8px;color:${BRAND.white};font-weight:600;">Item</th>
+            <th style="padding:10px 8px;color:${BRAND.white};font-weight:600;">Qty</th>
+            <th align="right" style="padding:10px 8px;color:${BRAND.white};font-weight:600;">Total</th>
           </tr>
           ${rows}
         </table>
-        <p style="margin:16px 0 0;"><strong>Order total:</strong> ${total}</p>
+        <p style="margin:18px 0 0;font-size:16px;"><strong style="color:${BRAND.navy};">Order total:</strong> ${total}</p>
       `,
     }),
     text: `New order ${order.orderNumber}\nTime: ${when}\nCustomer: ${customer?.name}\nEmail: ${customer?.email}\nPhone: ${customer?.phone}\nTotal: ${order.total}`,
@@ -215,8 +270,8 @@ function customerOrderStatusEmail({ order, customerName, status, when }) {
     .map(
       (item) =>
         `<tr>
-          <td style="padding:6px 0;border-bottom:1px solid #f4f4f5;">${escapeHtml(item.name)}</td>
-          <td style="padding:6px 0;border-bottom:1px solid #f4f4f5;text-align:center;">×${escapeHtml(item.quantity)}</td>
+          <td style="padding:8px;border-bottom:1px solid ${BRAND.line};">${escapeHtml(item.name)}</td>
+          <td style="padding:8px;border-bottom:1px solid ${BRAND.line};text-align:center;">×${escapeHtml(item.quantity)}</td>
         </tr>`
     )
     .join('');
@@ -225,18 +280,26 @@ function customerOrderStatusEmail({ order, customerName, status, when }) {
     subject: `Order ${order.orderNumber} — ${status}`,
     html: wrapEmail({
       title: 'Order update',
+      eyebrow: `Status: ${status}`,
+      preheader: `Order ${order.orderNumber} is now ${status}`,
       bodyHtml: `
         <p style="margin:0 0 12px;">Hi ${name},</p>
         <p style="margin:0 0 16px;">Your MarineKart order status has been updated.</p>
-        <p style="margin:0 0 6px;"><strong>Order:</strong> ${orderNumber}</p>
-        <p style="margin:0 0 6px;"><strong>Status:</strong> ${statusSafe}</p>
-        <p style="margin:0 0 6px;"><strong>Updated:</strong> ${whenSafe}</p>
-        <p style="margin:0 0 16px;"><strong>Total:</strong> ${total}</p>
-        <p style="margin:0 0 8px;font-size:12px;color:#71717a;text-transform:uppercase;letter-spacing:0.06em;">Items</p>
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:13px;">
+        <div style="margin:0 0 18px;padding:14px 16px;border-radius:12px;background:rgba(120,198,212,0.15);border:1px solid ${BRAND.cyan};">
+          <p style="margin:0;font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:${BRAND.muted};">Current status</p>
+          <p style="margin:4px 0 0;font-size:18px;font-weight:800;color:${BRAND.navy};">${statusSafe}</p>
+        </div>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:16px;">
+          ${metaRow('Order', orderNumber)}
+          ${metaRow('Updated', whenSafe)}
+          ${metaRow('Total', total)}
+        </table>
+        <p style="margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:${BRAND.muted};">Items</p>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:13px;border:1px solid ${BRAND.line};border-radius:12px;overflow:hidden;">
           ${rows}
         </table>
-        <p style="margin:16px 0 0;color:#71717a;font-size:13px;">Thank you for shopping with MarineKart.</p>
+        <p style="margin:20px 0 0;">${ctaButton(siteUrl('/account/orders'), 'View my orders')}</p>
+        <p style="margin:16px 0 0;color:${BRAND.muted};font-size:13px;">Thank you for shopping with MarineKart.</p>
       `,
     }),
     text: `Hi ${customerName},\n\nOrder ${order.orderNumber} is now ${status}.\nUpdated: ${when}\nTotal: ${order.total}\n\n— MarineKart`,
@@ -252,13 +315,17 @@ function adminNewEnquiryEmail({ name, email, subject, message }) {
     subject: `New enquiry — ${subject || 'MarineKart'}`,
     html: wrapEmail({
       title: 'New enquiry',
+      eyebrow: 'Contact form submission',
+      preheader: `Enquiry from ${name || 'visitor'}: ${subject || 'General'}`,
       bodyHtml: `
         <p style="margin:0 0 16px;">A new enquiry was submitted from the Contact Us form.</p>
-        <p style="margin:0 0 6px;"><strong>Name:</strong> ${safeName}</p>
-        <p style="margin:0 0 6px;"><strong>Email:</strong> ${safeEmail}</p>
-        <p style="margin:0 0 6px;"><strong>Subject:</strong> ${safeSubject}</p>
-        <p style="margin:16px 0 8px;font-size:12px;color:#71717a;text-transform:uppercase;letter-spacing:0.06em;">Message</p>
-        <p style="margin:0;padding:12px 14px;background:#fafafa;border:1px solid #f4f4f5;color:#3f3f46;line-height:1.6;">${safeMessage}</p>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:16px;">
+          ${metaRow('Name', safeName)}
+          ${metaRow('Email', safeEmail)}
+          ${metaRow('Subject', safeSubject)}
+        </table>
+        <p style="margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:${BRAND.muted};">Message</p>
+        <div style="padding:14px 16px;background:${BRAND.soft};border:1px solid ${BRAND.line};border-radius:12px;color:#334155;line-height:1.65;">${safeMessage}</div>
       `,
     }),
     text: `New enquiry\n\nName: ${name}\nEmail: ${email}\nSubject: ${subject || 'General enquiry'}\n\n${message}`,
@@ -270,13 +337,27 @@ function enquiryThankYouEmail({ name }) {
   return {
     subject: 'Thank you for your enquiry — MarineKart',
     html: wrapEmail({
-      title: 'Enquiry received',
+      title: 'We received your message',
+      eyebrow: 'Thanks for contacting MarineKart',
+      preheader: 'Thank you for your enquiry — we will connect with you shortly.',
       bodyHtml: `
         <p style="margin:0 0 12px;">Hi ${safeName},</p>
-        <p style="margin:0 0 16px;">Thank you for making an enquiry with MarineKart. We have received your message and will connect with you shortly.</p>
-        <p style="margin:0;color:#71717a;font-size:13px;">Our team typically responds as soon as possible during business hours.</p>
+        <p style="margin:0 0 16px;">Thank you for making an enquiry with MarineKart. Our team has received your message and will connect with you shortly.</p>
+        <p style="margin:0 0 20px;color:${BRAND.muted};font-size:13px;">We typically respond as soon as possible during business hours.</p>
+        <p style="margin:0;">${ctaButton(siteUrl('/shop'), 'Continue shopping')}</p>
       `,
     }),
     text: `Hi ${name || 'there'},\n\nThank you for making an enquiry with MarineKart. We have received your message and will connect with you shortly.\n\n— MarineKart`,
   };
 }
+
+module.exports = {
+  verificationOtpEmail,
+  passwordResetOtpEmail,
+  welcomeEmail,
+  adminNewUserEmail,
+  adminNewOrderEmail,
+  customerOrderStatusEmail,
+  adminNewEnquiryEmail,
+  enquiryThankYouEmail,
+};
