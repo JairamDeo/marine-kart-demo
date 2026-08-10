@@ -5,7 +5,6 @@ import { Anchor, Building2, Loader2, Lock, ShoppingBag, UserRound } from 'lucide
 import { useAuth } from '../context/AuthContext';
 import { useCartUI } from '../context/CartUIContext';
 import PasswordInput from '../components/portal/PasswordInput';
-import BrandLogo from '../components/common/BrandLogo';
 import OtpVerifyModal from '../components/auth/OtpVerifyModal';
 import ForgotPasswordModal from '../components/auth/ForgotPasswordModal';
 import { authService } from '../services/auth.service';
@@ -106,9 +105,8 @@ export default function LoginPage() {
       <div className="pointer-events-none absolute -left-24 top-10 h-72 w-72 rounded-full bg-cyan/20 blur-3xl" />
       <div className="pointer-events-none absolute -right-16 bottom-0 h-80 w-80 rounded-full bg-navy/10 blur-3xl" />
 
-      <div className="container-mk relative grid items-center gap-6 py-8 sm:gap-10 sm:py-12 lg:grid-cols-2 lg:py-16">
+      <div className="container-mk relative grid items-center gap-6 py-6 sm:gap-8 sm:py-8 lg:grid-cols-2 lg:py-10">
         <div className="hidden lg:block" data-aos="fade-right">
-          <BrandLogo className="mb-6 h-36 w-auto sm:h-40" />
           <h1 className="max-w-md text-3xl font-extrabold leading-tight tracking-tight text-navy xl:text-4xl">
             {isCorporate ? 'Corporate customer access' : 'Your marine storefront, ready when you are'}
           </h1>
@@ -117,7 +115,7 @@ export default function LoginPage() {
               ? 'Sign in with your corporate account to view prices and manage orders.'
               : 'Sign in to unlock prices, manage your cart & wishlist, and checkout in minutes.'}
           </p>
-          <ul className="mt-8 space-y-4">
+          <ul className="mt-6 space-y-3">
             {[
               { icon: ShoppingBag, text: 'View live product pricing' },
               { icon: Lock, text: 'Secure account & order history' },
@@ -137,13 +135,12 @@ export default function LoginPage() {
         </div>
 
         <div className="mx-auto w-full max-w-md" data-aos="fade-left">
-          <div className="mb-6 lg:hidden">
-            <BrandLogo className="mb-4 h-28 w-auto" />
+          <div className="mb-4 lg:hidden">
             <h1 className="text-2xl font-bold text-navy">Sign In</h1>
             <p className="mt-1 text-sm text-gray-500">Login to view prices and shop</p>
           </div>
 
-          <div className="rounded-2xl border border-white/80 bg-white/90 p-5 shadow-[0_20px_50px_rgba(26,75,140,0.12)] backdrop-blur sm:p-8">
+          <div className="rounded-2xl border border-white/80 bg-white/90 p-5 shadow-[0_20px_50px_rgba(26,75,140,0.12)] backdrop-blur sm:p-6">
             <div className="mb-6 grid grid-cols-2 gap-2 rounded-xl bg-gray-100 p-1">
               <button
                 type="button"

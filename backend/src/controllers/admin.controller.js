@@ -113,9 +113,9 @@ exports.bulkUpsertProducts = asyncHandler(async (req, res) => {
 
   for (const raw of items) {
     try {
-      const name = String(raw.name || '').trim();
+      const name = String(raw.productId || raw.productid || raw.name || '').trim();
       if (!name) {
-        errors.push({ name: raw.name, message: 'Name is required.' });
+        errors.push({ name: raw.name || raw.productId, message: 'Product Id is required.' });
         continue;
       }
 
@@ -132,9 +132,10 @@ exports.bulkUpsertProducts = asyncHandler(async (req, res) => {
 
       const { parseBulkSpecifications } = require('../utils/parseBulkSpecifications');
       const payload = {
+        productId: name,
         name,
-        shortDescription: raw.shortDescription || raw.shortdescription || raw.short_description || '',
-        description: raw.description || '',
+        shortDescription: '',
+        description: raw.description || raw.productDescription || raw.product_description || '',
         specifications: parseBulkSpecifications(
           raw.specifications || raw.specification || raw.specs || '',
           raw.specificationImage ||
@@ -162,8 +163,12 @@ exports.bulkUpsertProducts = asyncHandler(async (req, res) => {
         payload.subcategory = raw.subcategory || raw.subcategoryid;
       }
 
-      // Match existing by name + category (SKU is auto-generated, not in CSV)
-      const existing = await Product.findOne({ name, category: payload.category, ...notDeleted });
+      // Match existing by productId + category (SKU is auto-generated, not in CSV)
+      const existing = await Product.findOne({
+        $or: [{ productId: name }, { name }],
+        category: payload.category,
+        ...notDeleted,
+      });
       if (existing) {
         Object.assign(existing, payload);
         applyUpdateAudit(existing, req.user, 'bulk_update');
@@ -333,15 +338,29 @@ exports.getCustomers = asyncHandler(async (req, res) => {
 });
 
 exports.updateCustomer = asyncHandler(async (req, res) => {
-  const { role, priceMultiplier, isActive } = req.body;
+  const { role, isActive, corporateDiscountType, corporateDiscountValue } = req.body;
   const customer = await User.findById(req.params.id);
   if (!customer) {
     return res.status(404).json({ success: false, message: 'Customer not found.' });
   }
 
   if (role != null) customer.role = role;
-  if (priceMultiplier != null) customer.priceMultiplier = priceMultiplier;
   if (isActive != null) customer.isActive = isActive;
+
+  const resolvedRole = role != null ? role : customer.role === 'dealer' ? 'corporate' : customer.role;
+  if (resolvedRole === 'corporate') {
+    if (corporateDiscountType != null) {
+      const t = String(corporateDiscountType);
+      customer.corporateDiscountType = t === 'percent' || t === 'cash' ? t : '';
+    }
+    if (corporateDiscountValue != null) {
+      customer.corporateDiscountValue = Math.max(0, Number(corporateDiscountValue) || 0);
+    }
+  } else {
+    customer.corporateDiscountType = '';
+    customer.corporateDiscountValue = 0;
+  }
+
   applyUpdateAudit(customer, req.user, 'update');
   await customer.save();
 

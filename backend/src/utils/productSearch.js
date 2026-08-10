@@ -3,7 +3,7 @@
  * - Trims + length-caps input
  * - Escapes regex metacharacters
  * - Multi-word AND: every term must match somewhere
- * - Searches name, sku, shortDescription, description
+ * - Searches name, productId, sku, shortDescription, description
  */
 function escapeRegex(str) {
   return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -29,6 +29,7 @@ function buildProductSearchFilter(rawSearch) {
       return {
         $or: [
           { name: rx },
+          { productId: rx },
           { sku: rx },
           { shortDescription: rx },
           { description: rx },

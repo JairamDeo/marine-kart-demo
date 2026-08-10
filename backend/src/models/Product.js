@@ -7,6 +7,9 @@ const { auditFields } = require('../utils/audit');
  */
 const productSchema = new mongoose.Schema(
   {
+    /** Catalog product id from sheet (e.g. MK4242) — primary display identifier */
+    productId: { type: String, trim: true, default: '' },
+    /** Kept for search/slug; typically mirrors productId when no separate name */
     name: { type: String, required: true, trim: true },
     slug: { type: String, required: true, unique: true, lowercase: true },
     /** Auto-generated: prd-mm/yy-0001 — stored only, not shown in storefront UI */
@@ -24,7 +27,7 @@ const productSchema = new mongoose.Schema(
     imagePublicIds: [{ type: String }],
     category: { type: mongoose.Schema.Types.ObjectId, ref: 'Category', required: true },
     subcategory: { type: mongoose.Schema.Types.ObjectId, ref: 'Subcategory', default: null },
-    price: { type: Number, required: true, min: 0 },
+    price: { type: Number, required: true, min: 0, default: 0 },
     salePrice: { type: Number, min: 0, default: null },
     isFeatured: { type: Boolean, default: false },
     isBestSeller: { type: Boolean, default: false },
@@ -41,10 +44,11 @@ const productSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-productSchema.index({ name: 'text', sku: 'text', shortDescription: 'text' });
+productSchema.index({ name: 'text', sku: 'text', productId: 'text', shortDescription: 'text', description: 'text' });
 productSchema.index({ category: 1, subcategory: 1 });
 productSchema.index({ isFeatured: 1, isBestSeller: 1, isNewArrival: 1 });
 productSchema.index({ name: 1 });
+productSchema.index({ productId: 1 });
 
 /** Normalize legacy key/value arrays or partial objects into the public shape. */
 function normalizeSpecifications(raw) {
@@ -106,6 +110,7 @@ function sanitizeSpecificationsInput(raw) {
 productSchema.methods.toPublicJSON = function toPublicJSON(user) {
   const base = {
     id: this._id,
+    productId: this.productId || '',
     name: this.name,
     slug: this.slug,
     shortDescription: this.shortDescription,

@@ -7,9 +7,12 @@ import Modal from '../../components/portal/Modal';
 import { FilterSelect } from '../../components/portal/FilterBar';
 import { adminService } from '../../services/admin.service';
 
-function discountPercent(multiplier) {
-  if (multiplier == null) return '0%';
-  return `${Math.round((1 - multiplier) * 100)}%`;
+function formatCorporateDiscount(row) {
+  const type = row.corporateDiscountType;
+  const value = Number(row.corporateDiscountValue) || 0;
+  if (!type || value <= 0) return '—';
+  if (type === 'cash') return `₹${value.toLocaleString('en-IN')} off`;
+  return `${value}% off`;
 }
 
 export default function AdminCustomers() {
@@ -18,7 +21,12 @@ export default function AdminCustomers() {
   const [roleFilter, setRoleFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [editTarget, setEditTarget] = useState(null);
-  const [form, setForm] = useState({ role: 'customer', priceMultiplier: 1, isActive: true });
+  const [form, setForm] = useState({
+    role: 'customer',
+    isActive: true,
+    discountType: 'percent',
+    discountValue: '',
+  });
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
@@ -49,10 +57,15 @@ export default function AdminCustomers() {
 
   const openEdit = (customer) => {
     setEditTarget(customer);
+    const role = customer.role === 'dealer' ? 'corporate' : customer.role || 'customer';
     setForm({
-      role: customer.role === 'dealer' ? 'corporate' : customer.role || 'customer',
-      priceMultiplier: customer.priceMultiplier ?? 1,
+      role,
       isActive: customer.isActive !== false,
+      discountType: customer.corporateDiscountType === 'cash' ? 'cash' : 'percent',
+      discountValue:
+        customer.corporateDiscountValue != null && Number(customer.corporateDiscountValue) > 0
+          ? String(customer.corporateDiscountValue)
+          : '',
     });
   };
 
@@ -61,7 +74,19 @@ export default function AdminCustomers() {
     if (!editTarget) return;
     setBusy(true);
     try {
-      await adminService.updateCustomer(editTarget._id, form);
+      const payload = {
+        role: form.role,
+        isActive: form.isActive,
+      };
+      if (form.role === 'corporate') {
+        payload.corporateDiscountType = form.discountType || 'percent';
+        payload.corporateDiscountValue =
+          form.discountValue === '' ? 0 : Math.max(0, Number(form.discountValue) || 0);
+      } else {
+        payload.corporateDiscountType = '';
+        payload.corporateDiscountValue = 0;
+      }
+      await adminService.updateCustomer(editTarget._id, payload);
       toast.success('Customer updated successfully');
       setEditTarget(null);
       load();
@@ -113,7 +138,11 @@ export default function AdminCustomers() {
     },
     {
       header: 'Discount',
-      render: (row) => discountPercent(row.priceMultiplier),
+      render: (row) => {
+        const role = row.role === 'dealer' ? 'corporate' : row.role;
+        if (role !== 'corporate') return <span className="text-gray-300">—</span>;
+        return formatCorporateDiscount(row);
+      },
     },
     {
       header: 'Status',
@@ -210,24 +239,45 @@ export default function AdminCustomers() {
               <option value="corporate">Corporate</option>
             </select>
           </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium">
-              Price Multiplier ({discountPercent(form.priceMultiplier)} off list)
-            </label>
-            <input
-              type="number"
-              min="0.1"
-              max="1"
-              step="0.01"
-              className="input-mk rounded-lg"
-              value={form.priceMultiplier}
-              onChange={(e) => setForm({ ...form, priceMultiplier: Number(e.target.value) })}
-            />
-            <p className="mt-1 text-xs text-gray-500">
-              1 = list price. For corporate, set e.g. 0.85 for custom rate. Activate pending
-              corporate accounts with the checkbox below.
-            </p>
-          </div>
+
+          {form.role === 'corporate' ? (
+            <div>
+              <label className="mb-1 block text-sm font-medium">Discount off</label>
+              <div className="mb-2 grid grid-cols-2 gap-2 rounded-lg bg-gray-100 p-1">
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, discountType: 'percent' })}
+                  className={`rounded-md px-3 py-2 text-xs font-semibold transition ${
+                    form.discountType === 'percent'
+                      ? 'bg-white text-navy shadow'
+                      : 'text-gray-500'
+                  }`}
+                >
+                  Percent (%)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, discountType: 'cash' })}
+                  className={`rounded-md px-3 py-2 text-xs font-semibold transition ${
+                    form.discountType === 'cash' ? 'bg-white text-navy shadow' : 'text-gray-500'
+                  }`}
+                >
+                  Cash (₹)
+                </button>
+              </div>
+              <input
+                type="number"
+                min="0"
+                step={form.discountType === 'percent' ? '1' : '0.01'}
+                max={form.discountType === 'percent' ? '100' : undefined}
+                className="input-mk rounded-lg"
+                placeholder={form.discountType === 'percent' ? 'e.g. 15' : 'e.g. 500'}
+                value={form.discountValue}
+                onChange={(e) => setForm({ ...form, discountValue: e.target.value })}
+              />
+            </div>
+          ) : null}
+
           <label className="flex items-center gap-2 text-sm">
             <input
               type="checkbox"

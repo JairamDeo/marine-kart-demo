@@ -27,9 +27,14 @@ export default function CategoryGrid() {
         </h2>
         <div className="mx-auto mt-3 h-1 w-16 rounded-full bg-cyan" />
       </div>
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7">
+      <div className="flex flex-wrap justify-center gap-4">
         {categories.map((c, i) => (
-          <div key={c._id || c.id} data-aos="fade-up" data-aos-delay={Math.min(i * 50, 350)}>
+          <div
+            key={c._id || c.id}
+            className="w-[calc(50%-0.5rem)] max-w-[160px] sm:w-[140px] md:w-[150px]"
+            data-aos="fade-up"
+            data-aos-delay={Math.min(i * 50, 350)}
+          >
             <CategoryCard category={c} />
           </div>
         ))}

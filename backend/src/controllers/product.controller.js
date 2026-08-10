@@ -149,10 +149,23 @@ exports.getProductBySlug = asyncHandler(async (req, res) => {
 exports.createProduct = asyncHandler(async (req, res) => {
   const payload = prepareProductPayload(req.body);
 
-  payload.sku = await generateProductSku();
-  if (!payload.slug && payload.name) {
-    payload.slug = slugify(`${payload.name}-${payload.sku.replace(/[^a-zA-Z0-9]+/g, '-')}`);
+  const productId = String(payload.productId || '').trim();
+  if (productId) {
+    payload.productId = productId;
+    if (!payload.name) payload.name = productId;
   }
+  if (!payload.name) {
+    return res.status(400).json({ success: false, message: 'Product Id is required.' });
+  }
+
+  payload.sku = await generateProductSku();
+  if (!payload.slug) {
+    payload.slug = slugify(
+      `${payload.productId || payload.name}-${payload.sku.replace(/[^a-zA-Z0-9]+/g, '-')}`
+    );
+  }
+  if (payload.price == null || payload.price === '') payload.price = 0;
+  if (payload.shortDescription == null) payload.shortDescription = '';
 
   const product = await Product.create(withCreateAudit(payload, req.user));
 
@@ -166,6 +179,12 @@ exports.updateProduct = asyncHandler(async (req, res) => {
   }
 
   const payload = prepareProductPayload(req.body);
+  if (Object.prototype.hasOwnProperty.call(payload, 'productId')) {
+    const productId = String(payload.productId || '').trim();
+    payload.productId = productId;
+    if (productId && !payload.name) payload.name = productId;
+  }
+  if (payload.price == null || payload.price === '') payload.price = 0;
 
   Object.assign(product, payload);
   applyUpdateAudit(product, req.user, 'update');

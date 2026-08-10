@@ -36,7 +36,7 @@ async function convertToWebpAsIs(buffer) {
  * Upload a buffer to Cloudinary as WebP (already converted).
  * No Cloudinary compression / transformation — store as-is.
  */
-async function uploadBuffer(buffer, { section = 'other', publicId } = {}) {
+async function uploadBuffer(buffer, { section = 'other', publicId, folder, skipSizeLimit = false } = {}) {
   if (!configured) {
     throw new Error(
       'Cloudinary is not configured. Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET in backend/.env'
@@ -47,22 +47,22 @@ async function uploadBuffer(buffer, { section = 'other', publicId } = {}) {
     throw new Error('Empty image file.');
   }
 
-  if (buffer.length > MAX_UPLOAD_BYTES) {
+  if (!skipSizeLimit && buffer.length > MAX_UPLOAD_BYTES) {
     throw new Error('Image must be 1MB or smaller.');
   }
 
+  // High-fidelity WebP (lossless) — no resize / no quality crush
   const webpBuffer = await convertToWebpAsIs(buffer);
-  const folder = resolveFolder(section);
+  const targetFolder = folder || resolveFolder(section);
 
   return new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
       {
-        folder,
+        folder: targetFolder,
         resource_type: 'image',
         format: 'webp',
         overwrite: true,
-        unique_filename: true,
-        // Do not apply Cloudinary quality/compression transforms
+        unique_filename: !publicId,
         ...(publicId ? { public_id: publicId } : {}),
       },
       (error, result) => {
@@ -70,7 +70,7 @@ async function uploadBuffer(buffer, { section = 'other', publicId } = {}) {
         return resolve({
           url: result.secure_url,
           publicId: result.public_id,
-          folder: result.folder || folder,
+          folder: result.folder || targetFolder,
           width: result.width,
           height: result.height,
           format: result.format,

@@ -171,7 +171,9 @@ export default function ProductDetailPage() {
             </>
           )}
           <ChevronRight size={14} className="text-gray-300" />
-          <span className="line-clamp-1 font-medium text-navy">{product.name}</span>
+          <span className="line-clamp-1 font-medium text-navy">
+            {product.productId || product.name}
+          </span>
         </nav>
 
         <div className="grid items-stretch gap-5 lg:grid-cols-12 lg:gap-6">
@@ -181,7 +183,7 @@ export default function ProductDetailPage() {
               <div className="flex min-h-0 flex-1 flex-col gap-2 sm:flex-row sm:items-stretch sm:gap-2">
                 {gallery.length > 0 && (
                   <div
-                    className="flex shrink-0 gap-1.5 overflow-x-auto sm:w-[52px] sm:flex-col sm:overflow-y-auto sm:overflow-x-hidden"
+                    className="flex shrink-0 gap-2 overflow-x-auto p-0.5 sm:w-[56px] sm:flex-col sm:overflow-y-auto sm:overflow-x-hidden"
                     role="listbox"
                     aria-label="Product images"
                   >
@@ -197,8 +199,8 @@ export default function ProductDetailPage() {
                           onClick={() => setActiveImg(i)}
                           className={`relative h-11 w-11 shrink-0 overflow-hidden rounded-lg bg-[#f3f7fa] p-0.5 transition duration-200 sm:h-[48px] sm:w-[48px] ${
                             selected
-                              ? 'ring-2 ring-cyan ring-offset-1 ring-offset-white'
-                              : 'ring-1 ring-gray-200/80 hover:ring-cyan/50'
+                              ? 'border-2 border-cyan'
+                              : 'border border-gray-200/80 hover:border-cyan/50'
                           }`}
                         >
                           <img
@@ -272,31 +274,9 @@ export default function ProductDetailPage() {
           {/* Buy box — equal height with gallery */}
           <div className="flex lg:col-span-7">
             <div className="flex h-full w-full flex-col justify-center rounded-2xl bg-white p-4 shadow-sm ring-1 ring-gray-100 sm:p-5">
-              <div className="mb-2 flex flex-wrap gap-1.5">
-                {category?.name && (
-                  <Link
-                    to={`/category/${category.slug}`}
-                    className="rounded-full bg-[#e8f4f8] px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-navy"
-                  >
-                    {category.name}
-                  </Link>
-                )}
-                {subcategory?.name && (
-                  <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-gray-600">
-                    {subcategory.name}
-                  </span>
-                )}
-              </div>
-
               <h1 className="text-xl font-extrabold leading-snug tracking-tight text-navy sm:text-2xl">
-                {product.name}
+                {product.productId || product.name}
               </h1>
-
-              {product.shortDescription ? (
-                <p className="mt-1.5 text-sm leading-relaxed text-gray-600">
-                  {product.shortDescription}
-                </p>
-              ) : null}
 
               <div className="mt-3 rounded-xl bg-gradient-to-br from-[#f3f8fb] to-[#eaf3f7] px-3.5 py-3">
                 {product.priceVisible ? (
@@ -403,16 +383,8 @@ export default function ProductDetailPage() {
                 id: 'specifications',
                 label: 'Specification',
                 labelSm: 'Product specification',
-                hidden:
-                  !(
-                    (product.specifications?.mode === 'markdown' &&
-                      product.specifications?.markdown) ||
-                    (product.specifications?.mode === 'image' && product.specifications?.image)
-                  ),
               },
-            ]
-              .filter((t) => !t.hidden)
-              .map((tab) => {
+            ].map((tab) => {
                 const active = detailTab === tab.id;
                 return (
                   <button
@@ -438,25 +410,26 @@ export default function ProductDetailPage() {
           <div className="p-4 sm:p-5">
             {detailTab === 'description' ? (
               <div className="whitespace-pre-line text-sm leading-6 text-gray-600">
-                {product.description ||
-                  product.shortDescription ||
-                  'No detailed description available for this product yet.'}
+                {product.description || 'No detailed description available for this product yet.'}
               </div>
             ) : product.specifications?.mode === 'image' && product.specifications?.image ? (
               <div className="overflow-hidden rounded-xl border border-sky-100 bg-sky-50/40 p-2 sm:p-3">
                 <img
                   src={product.specifications.image}
-                  alt={`${product.name} specifications`}
+                  alt={`${product.productId || product.name} specifications`}
                   className="mx-auto max-h-[420px] w-full rounded-lg object-contain"
                   loading="lazy"
                   decoding="async"
                 />
               </div>
-            ) : (
+            ) : product.specifications?.mode === 'markdown' &&
+              product.specifications?.markdown ? (
               <MarkdownContent
-                content={product.specifications?.markdown || ''}
+                content={product.specifications.markdown}
                 className="mk-specs-compact"
               />
+            ) : (
+              <p className="text-sm text-gray-500">No specifications available</p>
             )}
           </div>
         </div>

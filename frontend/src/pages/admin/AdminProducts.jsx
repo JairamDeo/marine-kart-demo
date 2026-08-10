@@ -15,12 +15,11 @@ import { friendlyError } from '../../utils/toastMsg';
 import { productImageUrl } from '../../utils/productImage';
 
 const emptyProduct = {
-  name: '',
+  productId: '',
   category: '',
   subcategory: '',
   price: '',
   salePrice: '',
-  shortDescription: '',
   description: '',
   specMode: 'none',
   specMarkdown: '',
@@ -36,34 +35,30 @@ const emptyProduct = {
 
 const PRODUCT_SAMPLE_CSV_ROWS = [
   {
-    name: 'AISI316 Stainless Steel Bow Roller MK4242',
-    price: 4500,
+    productId: 'MK4242',
+    price: '',
     categoryId: '',
-    salePrice: 4200,
-    shortDescription: 'AISI316 stainless steel bow roller',
-    description: 'AISI316 stainless steel bow / anchor roller for marine deck use. Product Id MK4242.',
-    specifications:
-      '**Product Id:** MK4242\n\n**Material:** AISI 316 Stainless Steel\n\n**Finish:** Polished marine grade\n\n- Bow / anchor roller\n- Deck mount',
+    salePrice: '',
+    description: 'AISI316 STAINLESS STEEL BOW ROLLER',
+    specifications: '',
     specificationImage: '',
-    maxOrderQty: 3,
-    isFeatured: true,
+    maxOrderQty: '',
+    isFeatured: false,
     isBestSeller: false,
     isNewArrival: false,
     isActive: true,
   },
   {
-    name: 'Mechanical Steering Kit 22 ft',
-    price: 9600,
+    productId: 'MKMS-1.2-22',
+    price: '',
     categoryId: '',
     salePrice: '',
-    shortDescription: 'Mechanical Steering Kit 22 ft',
-    description: 'Mechanical steering kit for outboard applications, 22 ft cable.',
-    specifications:
-      '**Product Id:** MKMS-22\n\n**Cable Length:** 22 ft\n\n- Outboard compatible\n- Marine grade',
+    description: 'Complete Package Mechanical Steering Kit 22 Feet',
+    specifications: '',
     specificationImage: '',
-    maxOrderQty: 2,
+    maxOrderQty: '',
     isFeatured: false,
-    isBestSeller: true,
+    isBestSeller: false,
     isNewArrival: false,
     isActive: true,
   },
@@ -164,12 +159,11 @@ export default function AdminProducts() {
     const imgs = Array.isArray(product.images) ? product.images : [];
     const specs = specsFromProduct(product);
     setForm({
-      name: product.name || '',
+      productId: product.productId || product.name || '',
       category: product.category?._id || product.category || '',
       subcategory: product.subcategory?._id || product.subcategory || '',
-      price: product.price ?? '',
+      price: product.price != null && Number(product.price) > 0 ? product.price : '',
       salePrice: product.salePrice ?? '',
-      shortDescription: product.shortDescription || '',
       description: product.description || '',
       specMode: specs.mode === 'none' ? 'markdown' : specs.mode,
       specMarkdown: specs.markdown,
@@ -193,13 +187,15 @@ export default function AdminProducts() {
     setBusy(true);
     try {
       const gallery = [form.imageUrl, ...(form.thumbnails || [])].filter(Boolean);
+      const productId = String(form.productId || '').trim();
       const payload = {
-        name: form.name,
+        productId,
+        name: productId,
         category: form.category,
         subcategory: form.subcategory || null,
-        price: Number(form.price),
+        price: form.price !== '' ? Number(form.price) : 0,
         salePrice: form.salePrice !== '' ? Number(form.salePrice) : null,
-        shortDescription: form.shortDescription,
+        shortDescription: '',
         description: form.description,
         specifications: buildSpecsPayload(form),
         maxOrderQty:
@@ -260,17 +256,21 @@ export default function AdminProducts() {
     const toastId = toast.loading('Uploading products...');
     try {
       const items = bulkRows.map((row) => {
+        const productId = String(
+          row.productid || row.product_id || row.productId || row.name || row.productname || ''
+        ).trim();
         const item = {
-          name: row.name || row.productname,
-          price: Number(row.price) || 0,
+          productId,
+          name: productId,
+          price: row.price !== undefined && row.price !== '' ? Number(row.price) : 0,
           category: row.categoryid || row.category || row.category_id,
           subcategory: row.subcategory || row.subcategoryid || row.subcategory_id || undefined,
           salePrice:
             row.saleprice !== undefined && row.saleprice !== ''
               ? Number(row.saleprice)
               : undefined,
-          shortDescription: row.shortdescription || row.short_description || '',
-          description: row.description || '',
+          shortDescription: '',
+          description: row.description || row.productdescription || row.product_description || '',
           specifications: (() => {
             const image = String(
               row.specificationimage ||
@@ -333,7 +333,10 @@ export default function AdminProducts() {
             decoding="async"
           />
           <div className="min-w-0">
-            <p className="truncate font-medium text-gray-900">{row.name}</p>
+            <p className="truncate font-medium text-gray-900">{row.productId || row.name}</p>
+            {row.description ? (
+              <p className="truncate text-xs text-gray-400">{row.description}</p>
+            ) : null}
           </div>
         </div>
       ),
@@ -412,11 +415,11 @@ export default function AdminProducts() {
       <DataTable
         columns={columns}
         data={filteredProducts}
-        searchKeys={['name']}
-        searchPlaceholder="Search by name..."
+        searchKeys={['name', 'productId', 'description']}
+        searchPlaceholder="Search by product id..."
         sortOptions={[
-          { label: 'Name A–Z', value: 'name:asc' },
-          { label: 'Name Z–A', value: 'name:desc' },
+          { label: 'Product Id A–Z', value: 'name:asc' },
+          { label: 'Product Id Z–A', value: 'name:desc' },
           { label: 'Price ↑', value: 'price:asc' },
           { label: 'Price ↓', value: 'price:desc' },
         ]}
@@ -493,12 +496,13 @@ export default function AdminProducts() {
         <form onSubmit={handleSave} className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="mb-1 block text-sm font-medium">Product Name *</label>
+              <label className="mb-1 block text-sm font-medium">Product Id *</label>
               <input
                 required
                 className="input-mk rounded-lg"
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                value={form.productId}
+                onChange={(e) => setForm({ ...form, productId: e.target.value })}
+                placeholder="e.g. MK4242"
               />
             </div>
             <div>
@@ -533,14 +537,14 @@ export default function AdminProducts() {
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium">Price *</label>
+              <label className="mb-1 block text-sm font-medium">Price</label>
               <input
-                required
                 type="number"
                 min="0"
                 className="input-mk rounded-lg"
                 value={form.price}
                 onChange={(e) => setForm({ ...form, price: e.target.value })}
+                placeholder="Optional"
               />
             </div>
             <div>
@@ -561,16 +565,6 @@ export default function AdminProducts() {
                 onThumbnailsChange={(thumbs) => setForm({ ...form, thumbnails: thumbs })}
               />
             </div>
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium">Short Description</label>
-            <textarea
-              rows={2}
-              className="input-mk rounded-lg"
-              value={form.shortDescription}
-              onChange={(e) => setForm({ ...form, shortDescription: e.target.value })}
-              placeholder="Brief summary shown on the product page"
-            />
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium">Description</label>
@@ -695,8 +689,8 @@ export default function AdminProducts() {
         size="lg"
       >
         <BulkUploadPanel
-          instructions="Upload Excel (.xlsx) or CSV. Row 1 = headers. Required: name, price, categoryId. Specifications: put Markdown text in the specifications column, OR an image URL in specificationImage (image wins if both). Leave specificationImage empty for markdown-only."
-          exampleHeaders="name, price, categoryId, salePrice, shortDescription, description, specifications, specificationImage, maxOrderQty, isFeatured, isBestSeller, isNewArrival, isActive"
+          instructions="Upload Excel (.xlsx) or CSV. Row 1 = headers. Required: productId, categoryId. Optional: description, price, salePrice, specifications / specificationImage, maxOrderQty, flags."
+          exampleHeaders="productId, price, categoryId, salePrice, description, specifications, specificationImage, maxOrderQty, isFeatured, isBestSeller, isNewArrival, isActive"
           sampleCsvRows={PRODUCT_SAMPLE_CSV_ROWS}
           sampleFileName="products-sample.csv"
           onParsed={(rows) => {
@@ -735,7 +729,7 @@ export default function AdminProducts() {
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleDelete}
         busy={busy}
-        message={`Delete "${deleteTarget?.name}"? This cannot be undone.`}
+        message={`Delete "${deleteTarget?.productId || deleteTarget?.name}"? This cannot be undone.`}
       />
     </div>
   );

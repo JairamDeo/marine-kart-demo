@@ -6,6 +6,10 @@ import { useAuth } from '../context/AuthContext';
 import BrandLogo from '../components/common/BrandLogo';
 import PasswordInput from '../components/portal/PasswordInput';
 import OtpVerifyModal from '../components/auth/OtpVerifyModal';
+import AddressLocationFields, {
+  Field,
+  inputCls,
+} from '../components/auth/AddressLocationFields';
 import { friendlyError } from '../utils/toastMsg';
 
 const emptyIndividual = {
@@ -19,7 +23,10 @@ const emptyIndividual = {
   line2: '',
   city: '',
   state: '',
+  stateCode: '',
   postalCode: '',
+  country: 'India',
+  countryCode: 'IN',
 };
 
 const emptyCorporate = {
@@ -29,7 +36,10 @@ const emptyCorporate = {
   officeAddress: '',
   city: '',
   state: '',
+  stateCode: '',
   postalCode: '',
+  country: 'India',
+  countryCode: 'IN',
   designation: '',
   fullName: '',
   email: '',
@@ -37,22 +47,6 @@ const emptyCorporate = {
   password: '',
   confirmPassword: '',
 };
-
-/** Compact field control */
-const inputCls =
-  'input-mk !h-9 !rounded-md !px-2.5 !py-1.5 text-[13px] leading-tight';
-
-function Field({ label, required, children, className = '' }) {
-  return (
-    <div className={className}>
-      <label className="mb-0.5 block text-[10px] font-medium text-gray-500">
-        {label}
-        {required ? <span className="text-rose-500"> *</span> : null}
-      </label>
-      {children}
-    </div>
-  );
-}
 
 function Section({ title, children }) {
   return (
@@ -103,6 +97,7 @@ export default function RegisterPage() {
             city: corporate.city,
             state: corporate.state,
             postalCode: corporate.postalCode,
+            country: corporate.country,
             designation: corporate.designation,
             fullName: corporate.fullName,
             email: corporate.email,
@@ -121,6 +116,7 @@ export default function RegisterPage() {
             city: individual.city,
             state: individual.state,
             postalCode: individual.postalCode,
+            country: individual.country,
           };
 
       const result = await register(payload);
@@ -154,9 +150,7 @@ export default function RegisterPage() {
     <div className="min-h-[calc(100vh-5rem)] bg-[#f0f4f8]">
       <div className="mx-auto grid max-w-4xl gap-5 px-4 py-6 sm:px-6 lg:grid-cols-[220px_1fr] lg:items-start lg:gap-6 lg:py-8">
         <aside className="hidden lg:block">
-          <div
-            className="rounded-xl bg-gradient-to-b from-[#1a4b8c] to-[#0f2d54] p-4 text-white"
-          >
+          <div className="rounded-xl bg-gradient-to-b from-[#1a4b8c] to-[#0f2d54] p-4 text-white">
             <Link to="/" className="mb-4 inline-block">
               <BrandLogo className="h-8 w-auto" />
             </Link>
@@ -229,7 +223,7 @@ export default function RegisterPage() {
               {!isCorporate ? (
                 <>
                   <Section title="Personal">
-                    <Field label="Full name" required className="sm:col-span-2">
+                    <Field label="Full name" required>
                       <input
                         required
                         className={inputCls}
@@ -285,47 +279,14 @@ export default function RegisterPage() {
                   </Section>
 
                   <Section title="Address">
-                    <Field label="Address line 1" required className="sm:col-span-2">
-                      <input
-                        required
-                        className={inputCls}
-                        value={individual.line1}
-                        onChange={(e) => setIndividual({ ...individual, line1: e.target.value })}
-                      />
-                    </Field>
-                    <Field label="Address line 2" className="sm:col-span-2">
-                      <input
-                        className={inputCls}
-                        value={individual.line2}
-                        onChange={(e) => setIndividual({ ...individual, line2: e.target.value })}
-                      />
-                    </Field>
-                    <Field label="City" required>
-                      <input
-                        required
-                        className={inputCls}
-                        value={individual.city}
-                        onChange={(e) => setIndividual({ ...individual, city: e.target.value })}
-                      />
-                    </Field>
-                    <Field label="State" required>
-                      <input
-                        required
-                        className={inputCls}
-                        value={individual.state}
-                        onChange={(e) => setIndividual({ ...individual, state: e.target.value })}
-                      />
-                    </Field>
-                    <Field label="Pincode" required>
-                      <input
-                        required
-                        className={inputCls}
-                        value={individual.postalCode}
-                        onChange={(e) =>
-                          setIndividual({ ...individual, postalCode: e.target.value })
-                        }
-                      />
-                    </Field>
+                    <AddressLocationFields
+                      value={individual}
+                      onChange={(next) => setIndividual({ ...individual, ...next })}
+                      addressLine1={individual.line1}
+                      addressLine2={individual.line2}
+                      onAddressLine1Change={(line1) => setIndividual({ ...individual, line1 })}
+                      onAddressLine2Change={(line2) => setIndividual({ ...individual, line2 })}
+                    />
                   </Section>
                 </>
               ) : (
@@ -341,10 +302,10 @@ export default function RegisterPage() {
                         }
                       />
                     </Field>
-                    <Field label="GST number" required>
+                    <Field label="GST number">
                       <input
-                        required
                         className={`${inputCls} uppercase`}
+                        placeholder="Optional"
                         value={corporate.gstNumber}
                         onChange={(e) =>
                           setCorporate({ ...corporate, gstNumber: e.target.value.toUpperCase() })
@@ -361,42 +322,16 @@ export default function RegisterPage() {
                         }
                       />
                     </Field>
-                    <Field label="Office address" required className="sm:col-span-2">
-                      <input
-                        required
-                        className={inputCls}
-                        value={corporate.officeAddress}
-                        onChange={(e) =>
-                          setCorporate({ ...corporate, officeAddress: e.target.value })
-                        }
-                      />
-                    </Field>
-                    <Field label="City" required>
-                      <input
-                        required
-                        className={inputCls}
-                        value={corporate.city}
-                        onChange={(e) => setCorporate({ ...corporate, city: e.target.value })}
-                      />
-                    </Field>
-                    <Field label="State" required>
-                      <input
-                        required
-                        className={inputCls}
-                        value={corporate.state}
-                        onChange={(e) => setCorporate({ ...corporate, state: e.target.value })}
-                      />
-                    </Field>
-                    <Field label="Pincode" required>
-                      <input
-                        required
-                        className={inputCls}
-                        value={corporate.postalCode}
-                        onChange={(e) =>
-                          setCorporate({ ...corporate, postalCode: e.target.value })
-                        }
-                      />
-                    </Field>
+                    <AddressLocationFields
+                      value={corporate}
+                      onChange={(next) => setCorporate({ ...corporate, ...next })}
+                      addressLine1={corporate.officeAddress}
+                      onAddressLine1Change={(officeAddress) =>
+                        setCorporate({ ...corporate, officeAddress })
+                      }
+                      addressLine1Label="Office address"
+                      showAddressLines
+                    />
                   </Section>
 
                   <Section title="Contact">
@@ -408,13 +343,13 @@ export default function RegisterPage() {
                         onChange={(e) => setCorporate({ ...corporate, fullName: e.target.value })}
                       />
                     </Field>
-                    <Field label="Designation">
+                    <Field label="Email" required>
                       <input
+                        type="email"
+                        required
                         className={inputCls}
-                        value={corporate.designation}
-                        onChange={(e) =>
-                          setCorporate({ ...corporate, designation: e.target.value })
-                        }
+                        value={corporate.email}
+                        onChange={(e) => setCorporate({ ...corporate, email: e.target.value })}
                       />
                     </Field>
                     <Field label="Mobile" required>
@@ -425,18 +360,18 @@ export default function RegisterPage() {
                         onChange={(e) => setCorporate({ ...corporate, phone: e.target.value })}
                       />
                     </Field>
+                    <Field label="Designation">
+                      <input
+                        className={inputCls}
+                        value={corporate.designation}
+                        onChange={(e) =>
+                          setCorporate({ ...corporate, designation: e.target.value })
+                        }
+                      />
+                    </Field>
                   </Section>
 
                   <Section title="Login">
-                    <Field label="Email" required className="sm:col-span-2">
-                      <input
-                        type="email"
-                        required
-                        className={inputCls}
-                        value={corporate.email}
-                        onChange={(e) => setCorporate({ ...corporate, email: e.target.value })}
-                      />
-                    </Field>
                     <Field label="Password" required>
                       <PasswordInput
                         required

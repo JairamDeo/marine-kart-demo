@@ -1,11 +1,21 @@
-/** Stable placeholder image when a product has no photo yet (gray 154x154-style) */
+/** Stable placeholder when a product/category has no photo yet */
+export const PRODUCT_PLACEHOLDER = '/images/product-placeholder.webp';
+
 export function productImageUrl(product, size = 600) {
   const src = product?.images?.[0];
-  if (src) return src;
-  return `https://placehold.co/${size}x${size}/e5e7eb/111111?text=154x154`;
+  if (src && !String(src).includes('placehold.co') && !String(src).includes('154x154')) {
+    return src;
+  }
+  return PRODUCT_PLACEHOLDER;
 }
 
 export function categoryImageUrl(category, size = 300) {
-  if (category?.image) return category.image;
-  return `https://placehold.co/${size}x${size}/e5e7eb/111111?text=154x154`;
+  if (
+    category?.image &&
+    !String(category.image).includes('placehold.co') &&
+    !String(category.image).includes('154x154')
+  ) {
+    return category.image;
+  }
+  return PRODUCT_PLACEHOLDER;
 }

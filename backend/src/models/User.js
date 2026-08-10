@@ -33,8 +33,18 @@ const userSchema = new mongoose.Schema(
       enum: ['customer', 'corporate', 'dealer', 'admin'],
       default: 'customer',
     },
-    /** 1 = list price; lower = corporate custom rate (admin-set) */
+    /** 1 = list price; lower = corporate custom rate (admin-set). Kept for legacy; not driven by display discount UI. */
     priceMultiplier: { type: Number, default: 1, min: 0.1, max: 1 },
+    /**
+     * Admin display-only corporate discount (not applied to storefront pricing).
+     * type: percent | cash
+     */
+    corporateDiscountType: {
+      type: String,
+      enum: ['percent', 'cash', ''],
+      default: '',
+    },
+    corporateDiscountValue: { type: Number, default: 0, min: 0 },
     companyName: { type: String, trim: true, default: '' },
     gstNumber: { type: String, trim: true, default: '' },
     annualVolume: { type: String, trim: true, default: '' },
@@ -113,6 +123,8 @@ userSchema.methods.toSafeObject = function toSafeObject() {
     altPhone: this.altPhone || '',
     role,
     priceMultiplier: this.priceMultiplier,
+    corporateDiscountType: this.corporateDiscountType || '',
+    corporateDiscountValue: this.corporateDiscountValue || 0,
     companyName: this.companyName || '',
     gstNumber: this.gstNumber || '',
     annualVolume: this.annualVolume || '',

@@ -14,6 +14,11 @@ export default function ProductCard({ product }) {
   const img = productImageUrl(product);
   const productId = String(product.id || product._id || '');
   const inWishlist = productId && wishlistIds?.includes(productId);
+  const title = product.productId || product.name;
+  const subcategoryLabel = product.subcategory?.name || '';
+  const line2 = subcategoryLabel
+    ? `${subcategoryLabel} - ${title}`
+    : title;
 
   const handleAdd = async (e) => {
     e.preventDefault();
@@ -51,7 +56,7 @@ export default function ProductCard({ product }) {
         <Link to={`/product/${product.slug}`} className="absolute inset-0 block">
           <img
             src={img}
-            alt={product.name}
+            alt={title}
             className="h-full w-full object-contain p-2 transition duration-500 group-hover:scale-110"
             loading="lazy"
             decoding="async"
@@ -70,7 +75,7 @@ export default function ProductCard({ product }) {
         <Link
           to={`/product/${product.slug}`}
           className="absolute inset-0 z-[5] flex items-center justify-center bg-navy/0 opacity-0 transition hover:bg-navy/10 group-hover:opacity-100"
-          aria-label={`View ${product.name}`}
+          aria-label={`View ${title}`}
           tabIndex={-1}
         >
           <span className="flex h-10 w-10 items-center justify-center rounded bg-navy text-white shadow-lg">
@@ -80,11 +85,11 @@ export default function ProductCard({ product }) {
       </div>
 
       <Link to={`/product/${product.slug}`}>
-        <p className="text-[10px] font-medium uppercase tracking-wide text-cyan">
-          {product.category?.name || product.shortDescription || 'Marine Product'}
+        <p className="line-clamp-1 text-[10px] font-medium uppercase tracking-wide text-cyan">
+          {product.category?.name || 'Marine Product'}
         </p>
-        <h3 className="mt-1 line-clamp-2 min-h-[2.5rem] text-sm font-semibold text-gray-800 transition group-hover:text-navy">
-          {product.name}
+        <h3 className="mt-1 line-clamp-2 min-h-[2.5rem] text-sm font-bold text-navy transition group-hover:text-[#143a6e]">
+          {line2}
         </h3>
       </Link>
 

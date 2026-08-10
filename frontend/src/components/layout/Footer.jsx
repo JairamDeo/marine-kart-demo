@@ -61,27 +61,11 @@ export default function Footer() {
           </div>
 
           <div>
-            <h3 className="mb-4 text-sm font-bold uppercase tracking-wider">Contact Info</h3>
-            <p className="mb-2 text-sm text-white/80">
-              Hotline Free 24/24:
-              <br />
-              <strong className="text-lg text-cyan">{SITE.phone}</strong>
-            </p>
-            <p className="text-sm text-white/70">{SITE.address}</p>
-            <p className="mt-1 text-sm text-cyan">{SITE.email}</p>
-          </div>
-
-          <div>
-            <h3 className="mb-4 text-sm font-bold uppercase tracking-wider">Information</h3>
+            <h3 className="mb-4 text-sm font-bold uppercase tracking-wider">Quick Links</h3>
             <ul className="space-y-2 text-sm text-white/80">
               <li>
                 <Link to="/about-us" className="hover:text-cyan">
                   About Us
-                </Link>
-              </li>
-              <li>
-                <Link to="/delivery-information" className="hover:text-cyan">
-                  Delivery Information
                 </Link>
               </li>
               <li>
@@ -131,6 +115,17 @@ export default function Footer() {
                 </Link>
               </li>
             </ul>
+          </div>
+
+          <div>
+            <h3 className="mb-4 text-sm font-bold uppercase tracking-wider">Contact Info</h3>
+            <p className="mb-2 text-sm text-white/80">
+              Hotline Free 24/24:
+              <br />
+              <strong className="text-lg text-cyan">{SITE.phone}</strong>
+            </p>
+            <p className="text-sm text-white/70">{SITE.address}</p>
+            <p className="mt-1 text-sm text-cyan">{SITE.email}</p>
           </div>
         </div>
 

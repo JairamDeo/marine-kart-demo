@@ -50,7 +50,7 @@ export default function ProductListItem({ product }) {
       >
         <img
           src={img}
-          alt={product.name}
+          alt={product.productId || product.name}
           className="h-full w-full object-contain p-2 transition duration-500 group-hover:scale-105"
           loading="lazy"
           decoding="async"
@@ -61,14 +61,16 @@ export default function ProductListItem({ product }) {
       </Link>
 
       <div className="min-w-0 flex-1 text-center sm:border-r sm:border-gray-100 sm:pr-5 sm:text-left">
-        <p className="text-[11px] font-medium uppercase tracking-wide text-gray-400">
-          {product.subcategory?.name || product.category?.name || 'Marine'}
+        <p className="text-[11px] font-medium uppercase tracking-wide text-cyan">
+          {product.category?.name || 'Marine'}
         </p>
         <Link
           to={`/product/${product.slug}`}
           className="mt-1 block text-base font-bold uppercase leading-snug text-gray-900 transition hover:text-navy"
         >
-          {product.name}
+          {product.subcategory?.name
+            ? `${product.subcategory.name} - ${product.productId || product.name}`
+            : product.productId || product.name}
         </Link>
         <div className="mt-2">
           {product.priceVisible ? (
@@ -88,11 +90,6 @@ export default function ProductListItem({ product }) {
             </Link>
           )}
         </div>
-        {(product.shortDescription || product.description) && (
-          <p className="mt-2 line-clamp-2 text-xs uppercase leading-relaxed text-gray-500">
-            {product.shortDescription || product.description}
-          </p>
-        )}
       </div>
 
       <div className="flex w-full shrink-0 flex-col items-center justify-center gap-2 sm:w-44 sm:items-stretch">

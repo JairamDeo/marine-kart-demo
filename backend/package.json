@@ -8,6 +8,10 @@
     "dev": "nodemon src/server.js",
     "seed": "node src/seeders/seed.js",
     "seed:catalog": "node src/seeders/seedTestCatalog.js",
+    "seed:excel": "node src/seeders/seedFromExcel.js",
+    "seed:images": "node src/seeders/uploadLocalProductImages.js",
+    "seed:category-images": "node src/seeders/assignCategoryImages.js",
+    "seed:placeholder": "node src/seeders/createPlaceholderWebp.js",
     "seed:related": "node src/seeders/linkRelatedProducts.js",
     "seed:product-images": "node src/seeders/assignProductWebpImages.js",
     "migrate:order-statuses": "node src/seeders/migrateOrderStatuses.js",
@@ -38,7 +42,8 @@
     "nodemailer": "^9.0.5",
     "sharp": "^0.35.3",
     "streamifier": "^0.1.1",
-    "web-push": "^3.6.7"
+    "web-push": "^3.6.7",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"

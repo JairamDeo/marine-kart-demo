@@ -1,24 +1,52 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { contentService } from '../../services/content.service';
-import heroFallback from '../../assets/hero.png';
+import leftBanner1 from '../../assets/HomeLeftBanner1.jpg.jpeg';
+import leftBanner2 from '../../assets/HomeLeftBanner2.jpeg';
+import leftBanner3 from '../../assets/HomeLeftBanner3.jpg.jpeg';
+import rightBanner1 from '../../assets/HomeRightBanner1.jpg.jpeg';
+import rightBanner2 from '../../assets/HomeRightBanner2.jpg.jpeg';
 
-const HERO_IMAGES = [
-  heroFallback,
-  'https://picsum.photos/seed/navlight/900/500',
-  'https://picsum.photos/seed/steering/900/500',
-  'https://picsum.photos/seed/sshardware/900/500',
+/** Left carousel slides (HomeLeftBanner 1 → 3) */
+const LEFT_BANNERS = [
+  {
+    image: leftBanner1,
+    title: 'NAVIGATION LIGHT',
+    subtitle: 'Exclusive Offer -30% Off This Week',
+    link: '/shop',
+  },
+  {
+    image: leftBanner2,
+    title: 'STEERING WHEEL',
+    subtitle: 'Sport & basic models for every helm',
+    link: '/category/steering-wheel',
+  },
+  {
+    image: leftBanner3,
+    title: 'SS FITTINGS 316',
+    subtitle: 'Marine-grade stainless hardware',
+    link: '/category/ss-fiitings-316',
+  },
 ];
 
-const SIDE_IMAGES = {
-  top: 'https://picsum.photos/seed/electrical-gauge/500/280',
-  bottom: 'https://picsum.photos/seed/engine-lever/500/280',
+/** Right stack: top = RightBanner1, bottom = RightBanner2 */
+const RIGHT_BANNERS = {
+  top: {
+    image: rightBanner1,
+    link: '/category/electrical-accessories',
+    alt: 'Electrical Accessories — Instrumentation',
+  },
+  bottom: {
+    image: rightBanner2,
+    link: '/category/engine-control-cables-levers',
+    alt: 'Outboard Steering — Engine Control Lever',
+  },
 };
 
 export default function HeroSection() {
-  const [hero, setHero] = useState([]);
-  const [sideTop, setSideTop] = useState(null);
-  const [sideBottom, setSideBottom] = useState(null);
+  const [hero, setHero] = useState(LEFT_BANNERS);
+  const [sideTop, setSideTop] = useState(RIGHT_BANNERS.top);
+  const [sideBottom, setSideBottom] = useState(RIGHT_BANNERS.bottom);
   const [index, setIndex] = useState(0);
 
   useEffect(() => {
@@ -26,9 +54,29 @@ export default function HeroSection() {
       .getBanners()
       .then((res) => {
         const banners = res.data.data.banners || [];
-        setHero(banners.filter((b) => b.position === 'hero'));
-        setSideTop(banners.find((b) => b.position === 'side_top') || null);
-        setSideBottom(banners.find((b) => b.position === 'side_bottom') || null);
+        const apiHero = banners.filter((b) => b.position === 'hero');
+        // Keep local carousel images; merge API title/subtitle/link when present
+        if (apiHero.length) {
+          setHero(
+            LEFT_BANNERS.map((local, i) => {
+              const api = apiHero[i] || apiHero[i % apiHero.length];
+              return {
+                ...local,
+                title: api?.title || local.title,
+                subtitle: api?.subtitle || local.subtitle,
+                link: api?.link || local.link,
+              };
+            })
+          );
+        }
+        const top = banners.find((b) => b.position === 'side_top');
+        const bottom = banners.find((b) => b.position === 'side_bottom');
+        if (top?.link) {
+          setSideTop((prev) => ({ ...prev, link: top.link }));
+        }
+        if (bottom?.link) {
+          setSideBottom((prev) => ({ ...prev, link: bottom.link }));
+        }
       })
       .catch(() => {});
   }, []);
@@ -39,31 +87,25 @@ export default function HeroSection() {
     return () => clearInterval(t);
   }, [hero.length]);
 
-  const current = hero[index] || {
-    title: 'NAVIGATION LIGHT',
-    subtitle: 'Exclusive Offer -30% Off This Week',
-    link: '/shop',
-  };
-
-  const heroImg = current.image || HERO_IMAGES[index % HERO_IMAGES.length];
+  const current = hero[index] || LEFT_BANNERS[0];
 
   return (
     <section className="container-mk py-6 md:py-8">
       <div className="grid gap-4 lg:grid-cols-3">
         <div
-          className="group relative min-h-[300px] overflow-hidden rounded-2xl bg-white shadow-sm lg:col-span-2 lg:min-h-[400px]"
+          className="group relative min-h-[280px] overflow-hidden rounded-2xl bg-white shadow-sm sm:min-h-[320px] lg:col-span-2 lg:min-h-[400px]"
           data-aos="fade-right"
         >
           <img
-            key={heroImg}
-            src={heroImg}
+            key={current.image}
+            src={current.image}
             alt={current.title}
-            className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-105"
+            className="absolute inset-0 h-full w-full object-cover object-right transition duration-700 group-hover:scale-[1.03]"
             loading="lazy"
             decoding="async"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-white via-white/92 to-transparent" />
-          <div className="relative z-10 flex h-full min-h-[240px] max-w-lg flex-col justify-center p-5 sm:min-h-[300px] sm:p-8 lg:min-h-[400px] lg:p-10">
+          <div className="absolute inset-0 bg-gradient-to-r from-white via-white/85 to-transparent sm:via-white/70" />
+          <div className="relative z-10 flex h-full min-h-[280px] max-w-lg flex-col justify-center p-5 sm:min-h-[320px] sm:p-8 lg:min-h-[400px] lg:p-10">
             <span className="mb-3 inline-flex w-fit rounded-full bg-cyan/20 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-navy">
               Featured
             </span>
@@ -71,15 +113,9 @@ export default function HeroSection() {
               {current.title}
             </h1>
             <p className="mt-3 max-w-sm text-base leading-relaxed text-gray-600">{current.subtitle}</p>
-            <Link
-              to={current.link || '/shop'}
-              className="btn-cyan hero-cta mt-7 inline-block w-fit rounded-xl px-6 py-3 text-sm"
-            >
-              Shop Now
-            </Link>
           </div>
           {hero.length > 1 && (
-            <div className="absolute bottom-5 left-8 z-10 flex gap-2 lg:left-10">
+            <div className="absolute bottom-5 left-5 z-10 flex gap-2 sm:left-8 lg:left-10">
               {hero.map((_, i) => (
                 <button
                   key={i}
@@ -96,46 +132,28 @@ export default function HeroSection() {
         </div>
 
         <div className="grid gap-4" data-aos="fade-left" data-aos-delay="120">
-          <PromoCard
-            title={sideTop?.title || 'ELECTRICAL ACCESSORIES'}
-            subtitle={sideTop?.subtitle || 'Instrumentation'}
-            link={sideTop?.link || '/category/electrical-accessories'}
-            image={sideTop?.image || SIDE_IMAGES.top}
-          />
-          <PromoCard
-            title={sideBottom?.title || 'OUTBOARD STEERING AND CONTROL SYSTEM'}
-            subtitle={sideBottom?.subtitle || 'Engine Control Lever'}
-            link={sideBottom?.link || '/category/engine-control-cables-levers'}
-            image={sideBottom?.image || SIDE_IMAGES.bottom}
-          />
+          <PromoBannerCard {...sideTop} />
+          <PromoBannerCard {...sideBottom} />
         </div>
       </div>
     </section>
   );
 }
 
-function PromoCard({ title, subtitle, link, image }) {
+/** Right banners already include title + Shop Now in the artwork */
+function PromoBannerCard({ image, link, alt }) {
   return (
     <Link
-      to={link}
-      className="promo-card group relative flex min-h-[175px] flex-col justify-between overflow-hidden rounded-2xl bg-white p-5 shadow-sm"
+      to={link || '/shop'}
+      className="promo-card group relative block min-h-[175px] overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-gray-100/80"
     >
       <img
         src={image}
-        alt=""
-        className="absolute inset-0 h-full w-full object-cover opacity-35 transition duration-500 group-hover:scale-110 group-hover:opacity-45"
+        alt={alt || ''}
+        className="absolute inset-0 h-full w-full object-cover object-right transition duration-500 group-hover:scale-[1.04]"
         loading="lazy"
         decoding="async"
       />
-      <div className="absolute inset-0 bg-gradient-to-r from-white via-white/90 to-transparent" />
-      <div className="relative z-10">
-        <h3 className="text-sm font-bold uppercase leading-snug text-navy">{title}</h3>
-        <p className="mt-1 text-xs text-gray-500">{subtitle}</p>
-      </div>
-      <span className="relative z-10 inline-flex items-center gap-1 text-sm font-semibold text-cyan transition group-hover:gap-2">
-        Shop Now
-        <span aria-hidden>→</span>
-      </span>
     </Link>
   );
 }

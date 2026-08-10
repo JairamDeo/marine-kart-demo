@@ -162,10 +162,10 @@ exports.register = asyncHandler(async (req, res) => {
     const contactPersonName = String(body.contactPersonName || '').trim();
     const fullName = String(body.fullName || body.contactPersonName || '').trim();
 
-    if (!companyName || !gstNumber || !officeAddress || !city || !state || !postalCode) {
+    if (!companyName || !officeAddress || !city || !state || !postalCode) {
       return res.status(400).json({
         success: false,
-        message: 'Company name, GST, office address, city, state and pincode are required.',
+        message: 'Company name, office address, city, state and pincode are required.',
       });
     }
     if (!contactPersonName && !fullName) {
@@ -177,6 +177,7 @@ exports.register = asyncHandler(async (req, res) => {
 
     const { firstName, lastName } = splitFullName(fullName || contactPersonName);
     const resolvedName = fullName || contactPersonName || `${firstName} ${lastName}`.trim();
+    const country = String(body.country || 'India').trim() || 'India';
 
     user = await User.create({
       firstName,
@@ -196,7 +197,7 @@ exports.register = asyncHandler(async (req, res) => {
         city,
         state,
         postalCode,
-        country: 'India',
+        country,
       },
       addresses: [
         {
@@ -208,7 +209,7 @@ exports.register = asyncHandler(async (req, res) => {
           city,
           state,
           postalCode,
-          country: 'India',
+          country,
           isDefault: true,
         },
       ],
@@ -229,6 +230,7 @@ exports.register = asyncHandler(async (req, res) => {
     const city = String(body.city || '').trim();
     const state = String(body.state || '').trim();
     const postalCode = String(body.postalCode || body.pincode || '').trim();
+    const country = String(body.country || 'India').trim() || 'India';
 
     if (!line1 || !city || !state || !postalCode) {
       return res.status(400).json({
@@ -257,7 +259,7 @@ exports.register = asyncHandler(async (req, res) => {
           city,
           state,
           postalCode,
-          country: 'India',
+          country,
           isDefault: true,
         },
       ],
