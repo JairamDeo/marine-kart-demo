@@ -203,7 +203,7 @@ export default function CorporateOrders() {
                 setPage(1);
                 setStatusFilter(e.target.value);
               }}
-              className="w-[140px]"
+              className="w-full min-[480px]:w-[140px]"
             >
               <option value="">Status</option>
               {ORDER_STATUSES.map((s) => (
@@ -219,7 +219,7 @@ export default function CorporateOrders() {
                 setPage(1);
                 setPaymentFilter(e.target.value);
               }}
-              className="w-[140px]"
+              className="w-full min-[480px]:w-[140px]"
             >
               <option value="">Payment</option>
               {PAYMENT_STATUSES.map((s) => (
@@ -235,7 +235,7 @@ export default function CorporateOrders() {
                 setPage(1);
                 setDateFilter(e.target.value);
               }}
-              className="w-[140px]"
+              className="w-full min-[480px]:w-[140px]"
             >
               <option value="">All time</option>
               <option value="7d">Last 7 days</option>
@@ -249,7 +249,7 @@ export default function CorporateOrders() {
                 setPage(1);
                 setSort(e.target.value);
               }}
-              className="w-[140px]"
+              className="w-full min-[480px]:w-[140px]"
             >
               <option value="newest">Newest</option>
               <option value="oldest">Oldest</option>

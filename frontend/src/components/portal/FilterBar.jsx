@@ -4,7 +4,7 @@ import { Icon } from '@iconify/react';
 export function FilterSelect({ value, onChange, children, className = '', ariaLabel }) {
   return (
     <label
-      className={`relative inline-block h-10 shrink-0 cursor-pointer ${className}`}
+      className={`relative inline-block h-10 shrink-0 cursor-pointer max-[479px]:w-full ${className}`}
     >
       <select
         aria-label={ariaLabel}
@@ -27,7 +27,7 @@ export function FilterSelect({ value, onChange, children, className = '', ariaLa
 /** Search field with non-overlapping icon */
 export function SearchField({ value, onChange, placeholder = 'Search...' }) {
   return (
-    <div className="relative w-full min-w-[180px] max-w-[240px] shrink-0 sm:w-[220px]">
+    <div className="relative w-full min-w-0 max-w-none shrink-0 sm:min-w-[180px] sm:max-w-[240px] sm:w-[220px]">
       <span className="pointer-events-none absolute inset-y-0 left-0 flex w-10 items-center justify-center text-gray-400">
         <Icon icon="bx:search" width={18} height={18} />
       </span>

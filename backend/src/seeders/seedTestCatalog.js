@@ -77,6 +77,15 @@ const CATALOG = [
       'Wipers',
     ],
   },
+  {
+    name: 'Fuel Systems',
+    subs: [
+      'Fuel Filters',
+      'Fuel Tank Fittings',
+      'Fuel Hose & Connectors',
+      'Primer Bulbs',
+    ],
+  },
 ];
 
 const ANCHOR_BASE = [
@@ -459,6 +468,31 @@ function buildProducts({ parents, subs }, nextSku) {
         isNewArrival: i === count,
         maxOrderQty: 10,
         notes: ['12V / 24V compatible'],
+      });
+    }
+  }
+
+  // --- Fuel Systems (7th category) ---
+  const fuelSets = [
+    ['Fuel Filters', 'MARINE FUEL FILTER WATER SEPARATOR', 5, 1850],
+    ['Fuel Tank Fittings', 'MARINE FUEL TANK FITTING', 4, 980],
+    ['Fuel Hose & Connectors', 'MARINE FUEL HOSE CONNECTOR', 5, 720],
+    ['Primer Bulbs', 'MARINE FUEL PRIMER BULB', 4, 450],
+  ];
+  for (const [subName, baseDesc, count, basePrice] of fuelSets) {
+    for (let i = 1; i <= count; i++) {
+      push({
+        id: `FS-${subName.slice(0, 3).toUpperCase()}${i}`,
+        description: `${baseDesc} ${i}`,
+        categoryName: 'Fuel Systems',
+        subName,
+        price: basePrice + i * 95,
+        salePrice: i === 1 ? Math.round(basePrice * 0.9) : null,
+        isFeatured: i === 1 && subName === 'Fuel Filters',
+        isBestSeller: i <= 2 && subName === 'Primer Bulbs',
+        isNewArrival: i === count,
+        maxOrderQty: 10,
+        notes: ['Marine fuel system', 'Compatible with petrol outboards'],
       });
     }
   }

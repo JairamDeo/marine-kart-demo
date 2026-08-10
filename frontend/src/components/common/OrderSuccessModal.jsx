@@ -6,9 +6,7 @@ export default function OrderSuccessModal({ orderId, onClose }) {
   return (
     <div className="portal-overlay fixed inset-0 z-[100] flex items-center justify-center bg-navy/50 p-4 backdrop-blur-sm">
       <div className="portal-modal-in w-full max-w-md rounded-2xl bg-white p-8 text-center shadow-2xl">
-        <div className="mb-4 inline-flex rounded-xl bg-black px-2 py-1.5">
-          <BrandLogo className="h-10 w-auto" />
-        </div>
+        <BrandLogo className="mb-4 h-10 w-auto" />
         <div className="success-check mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-emerald-50">
           <span className="success-check-ring" />
           <Check className="relative z-10 text-emerald-500" size={36} strokeWidth={3} />

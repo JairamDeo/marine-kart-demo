@@ -34,8 +34,13 @@ export default function ProductTabs() {
   }, [loading, products]);
 
   const loop = products.length > 0 ? [...products, ...products] : [];
-  // ~2s per product card width for a calm scroll
-  const durationSec = Math.max(40, products.length * 2.4);
+  // Slow by default; override with VITE_MARQUEE_DURATION_SEC (full loop seconds)
+  // or VITE_MARQUEE_SECONDS_PER_PRODUCT (seconds per card, default 4)
+  const envDuration = Number(import.meta.env.VITE_MARQUEE_DURATION_SEC);
+  const perProduct = Number(import.meta.env.VITE_MARQUEE_SECONDS_PER_PRODUCT) || 4;
+  const durationSec = Number.isFinite(envDuration) && envDuration > 0
+    ? envDuration
+    : Math.max(60, products.length * perProduct);
 
   return (
     <section className="py-12" data-aos="fade-up">

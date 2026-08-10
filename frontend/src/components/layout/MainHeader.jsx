@@ -5,7 +5,7 @@ import { useCartUI } from '../../context/CartUIContext';
 import BrandLogo from '../common/BrandLogo';
 import HeaderProductSearch from './HeaderProductSearch';
 
-export default function MainHeader({ categories = [] }) {
+export default function MainHeader() {
   const { isAuthenticated, wishlistCount, cart } = useAuth();
   const { openCart, openWishlist } = useCartUI();
   const navigate = useNavigate();
@@ -13,15 +13,17 @@ export default function MainHeader({ categories = [] }) {
   const cartCount = cart?.itemCount || 0;
 
   return (
-    <div className="bg-[#1a4b8c] py-4">
-      <div className="container-mk flex flex-col items-center gap-4 lg:flex-row lg:gap-6">
-        <Link to="/" className="shrink-0">
-          <BrandLogo className="h-14 w-auto sm:h-16" />
+    <div className="bg-[#1a4b8c] py-3 sm:py-4">
+      <div className="container-mk grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-3 sm:grid-cols-[auto_1fr_auto] sm:gap-4 lg:grid-cols-[1fr_minmax(240px,520px)_1fr] lg:gap-6">
+        <Link to="/" className="shrink-0 justify-self-start">
+          <BrandLogo className="h-11 w-auto max-w-[160px] xs:max-w-none sm:h-14 md:h-16" />
         </Link>
 
-        <HeaderProductSearch categories={categories} />
+        <div className="col-span-2 w-full min-w-0 justify-self-stretch sm:col-span-1 sm:col-start-2 sm:row-start-1 sm:max-w-none lg:justify-self-center">
+          <HeaderProductSearch />
+        </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center justify-end gap-1.5 justify-self-end sm:gap-2.5 lg:justify-self-end">
           <button
             type="button"
             onClick={() => {
@@ -31,11 +33,12 @@ export default function MainHeader({ categories = [] }) {
               }
               openWishlist();
             }}
-            className="relative flex h-11 w-11 items-center justify-center rounded bg-[#78c6d4] text-white transition hover:bg-[#5bb5c6]"
+            className="relative flex h-9 w-9 items-center justify-center rounded bg-[#78c6d4] text-white transition hover:bg-[#5bb5c6] sm:h-11 sm:w-11"
             title="Wishlist"
           >
-            <Heart size={20} fill="currentColor" />
-            <span className="absolute -left-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-white px-1 text-[10px] font-bold text-[#1a4b8c] shadow">
+            <Heart size={18} fill="currentColor" className="sm:hidden" />
+            <Heart size={20} fill="currentColor" className="hidden sm:block" />
+            <span className="absolute -left-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-white px-0.5 text-[9px] font-bold text-[#1a4b8c] shadow sm:-left-1.5 sm:-top-1.5 sm:h-5 sm:min-w-5 sm:px-1 sm:text-[10px]">
               {wishlistCount}
             </span>
           </button>
@@ -43,11 +46,12 @@ export default function MainHeader({ categories = [] }) {
           <button
             type="button"
             onClick={openCart}
-            className="relative flex h-11 w-11 items-center justify-center rounded bg-[#78c6d4] text-white transition hover:bg-[#5bb5c6]"
+            className="relative flex h-9 w-9 items-center justify-center rounded bg-[#78c6d4] text-white transition hover:bg-[#5bb5c6] sm:h-11 sm:w-11"
             title="Shopping Cart"
           >
-            <ShoppingBag size={20} />
-            <span className="absolute -left-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-white px-1 text-[10px] font-bold text-[#1a4b8c] shadow">
+            <ShoppingBag size={18} className="sm:hidden" />
+            <ShoppingBag size={20} className="hidden sm:block" />
+            <span className="absolute -left-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-white px-0.5 text-[9px] font-bold text-[#1a4b8c] shadow sm:-left-1.5 sm:-top-1.5 sm:h-5 sm:min-w-5 sm:px-1 sm:text-[10px]">
               {cartCount}
             </span>
           </button>
@@ -55,18 +59,21 @@ export default function MainHeader({ categories = [] }) {
           {isAuthenticated ? (
             <Link
               to="/account"
-              className="flex items-center gap-2 rounded bg-[#78c6d4] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#5bb5c6]"
+              className="flex items-center gap-1 rounded bg-[#78c6d4] px-2.5 py-2 text-xs font-semibold text-white transition hover:bg-[#5bb5c6] sm:gap-2 sm:px-4 sm:py-2.5 sm:text-sm"
             >
-              <span className="whitespace-nowrap">My Account</span>
-              <ChevronDown size={14} />
+              <span className="whitespace-nowrap">
+                <span className="sm:hidden">Account</span>
+                <span className="hidden sm:inline">My Account</span>
+              </span>
+              <ChevronDown size={14} className="hidden sm:block" />
             </Link>
           ) : (
             <Link
               to="/login"
-              className="flex items-center gap-2 rounded bg-[#78c6d4] px-3.5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#5bb5c6]"
+              className="flex items-center gap-1 rounded bg-[#78c6d4] px-2.5 py-2 text-xs font-semibold text-white transition hover:bg-[#5bb5c6] sm:gap-2 sm:px-3.5 sm:py-2.5 sm:text-sm"
             >
               <span className="whitespace-nowrap">Login</span>
-              <ChevronDown size={14} />
+              <ChevronDown size={14} className="hidden sm:block" />
             </Link>
           )}
         </div>

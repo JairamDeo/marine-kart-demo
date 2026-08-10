@@ -92,7 +92,7 @@ export default function WishlistDrawer() {
       />
 
       <aside
-        className={`fixed inset-y-0 right-0 z-[95] flex w-full max-w-[420px] flex-col bg-[#f7f8fa] shadow-2xl transition-transform duration-300 ease-out ${
+        className={`fixed inset-y-0 right-0 z-[95] flex w-full max-w-[420px] flex-col bg-[#f7f8fa] shadow-2xl transition-transform duration-300 ease-out pb-[env(safe-area-inset-bottom)] ${
           wishlistOpen
             ? 'pointer-events-auto translate-x-0'
             : 'pointer-events-none translate-x-full'

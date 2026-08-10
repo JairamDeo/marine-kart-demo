@@ -15,7 +15,7 @@ export default function Header() {
 
   return (
     <header className="sticky top-0 z-40 shadow-md">
-      <MainHeader categories={categories} />
+      <MainHeader />
       <Navbar categories={categories} />
     </header>
   );

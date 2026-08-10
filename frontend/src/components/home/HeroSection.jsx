@@ -63,11 +63,11 @@ export default function HeroSection() {
             decoding="async"
           />
           <div className="absolute inset-0 bg-gradient-to-r from-white via-white/92 to-transparent" />
-          <div className="relative z-10 flex h-full min-h-[300px] max-w-lg flex-col justify-center p-8 lg:min-h-[400px] lg:p-10">
+          <div className="relative z-10 flex h-full min-h-[240px] max-w-lg flex-col justify-center p-5 sm:min-h-[300px] sm:p-8 lg:min-h-[400px] lg:p-10">
             <span className="mb-3 inline-flex w-fit rounded-full bg-cyan/20 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-navy">
               Featured
             </span>
-            <h1 className="text-3xl font-extrabold uppercase leading-tight tracking-wide text-navy md:text-4xl lg:text-[2.6rem]">
+            <h1 className="text-2xl font-extrabold uppercase leading-tight tracking-wide text-navy sm:text-3xl md:text-4xl lg:text-[2.6rem]">
               {current.title}
             </h1>
             <p className="mt-3 max-w-sm text-base leading-relaxed text-gray-600">{current.subtitle}</p>

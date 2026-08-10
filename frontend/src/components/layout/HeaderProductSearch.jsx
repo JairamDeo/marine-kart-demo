@@ -8,26 +8,22 @@ import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useThrottledCallback } from '../../hooks/useThrottledCallback';
 
 /**
- * Header product search with:
- * - debounce on query (typing)
- * - throttle + AbortController on suggestion fetches
- * - submit navigates to /shop?search=
+ * Header product search with debounce + throttled suggestion fetches.
  */
-export default function HeaderProductSearch({ categories = [] }) {
+export default function HeaderProductSearch() {
   const navigate = useNavigate();
   const listId = useId();
   const rootRef = useRef(null);
   const abortRef = useRef(null);
 
   const [q, setQ] = useState('');
-  const [cat, setCat] = useState('');
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
 
   const debouncedQ = useDebouncedValue(q.trim(), 320);
 
-  const fetchSuggestions = useCallback(async (query, categoryId) => {
+  const fetchSuggestions = useCallback(async (query) => {
     if (abortRef.current) abortRef.current.abort();
     const controller = new AbortController();
     abortRef.current = controller;
@@ -43,7 +39,6 @@ export default function HeaderProductSearch({ categories = [] }) {
       const res = await productService.list(
         {
           search: query,
-          category: categoryId || undefined,
           limit: 8,
           page: 1,
           sort: '-createdAt',
@@ -66,8 +61,8 @@ export default function HeaderProductSearch({ categories = [] }) {
   const throttledFetch = useThrottledCallback(fetchSuggestions, 450, { trailing: true });
 
   useEffect(() => {
-    throttledFetch(debouncedQ, cat);
-  }, [debouncedQ, cat, throttledFetch]);
+    throttledFetch(debouncedQ);
+  }, [debouncedQ, throttledFetch]);
 
   useEffect(() => {
     const onDoc = (e) => {
@@ -80,11 +75,10 @@ export default function HeaderProductSearch({ categories = [] }) {
     };
   }, []);
 
-  const goToShop = (query = q, categoryId = cat) => {
+  const goToShop = (query = q) => {
     const params = new URLSearchParams();
     const term = String(query || '').trim();
     if (term) params.set('search', term);
-    if (categoryId) params.set('category', categoryId);
     params.delete('page');
     setOpen(false);
     navigate(`/shop?${params.toString()}`);
@@ -99,26 +93,12 @@ export default function HeaderProductSearch({ categories = [] }) {
   const showPanel = open && (loading || suggestions.length > 0 || debouncedQ.length >= 2);
 
   return (
-    <div ref={rootRef} className="relative w-full max-w-2xl flex-1">
+    <div ref={rootRef} className="relative mx-auto w-full max-w-[520px]">
       <form
         onSubmit={onSubmit}
         className="flex w-full overflow-hidden rounded-md bg-white shadow-sm"
         role="search"
       >
-        <select
-          value={cat}
-          onChange={(e) => setCat(e.target.value)}
-          className="hidden max-w-[160px] cursor-pointer border-r border-gray-200 bg-white px-3 text-sm text-gray-600 outline-none sm:block"
-          aria-label="Search in category"
-        >
-          <option value="">All Categories</option>
-          {categories.map((c) => (
-            <option key={c._id || c.id} value={c._id || c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
-
         <div className="relative min-w-0 flex-1">
           <input
             value={q}
@@ -130,7 +110,7 @@ export default function HeaderProductSearch({ categories = [] }) {
               if (q.trim().length >= 2 || suggestions.length) setOpen(true);
             }}
             placeholder="Search product..."
-            className="w-full px-4 py-3 text-sm text-gray-700 outline-none placeholder:text-gray-400"
+            className="w-full px-3 py-2.5 text-sm text-gray-700 outline-none placeholder:text-gray-400 sm:px-4 sm:py-3"
             autoComplete="off"
             aria-autocomplete="list"
             aria-controls={listId}
@@ -154,14 +134,14 @@ export default function HeaderProductSearch({ categories = [] }) {
 
         <button
           type="submit"
-          className="flex items-center gap-2 bg-[#78c6d4] px-5 text-sm font-semibold text-white transition hover:bg-[#5bb5c6]"
+          className="flex shrink-0 items-center justify-center gap-2 bg-[#78c6d4] px-3 text-sm font-semibold text-white transition hover:bg-[#5bb5c6] sm:px-5"
         >
           {loading ? (
             <Loader2 size={16} className="animate-spin" />
           ) : (
-            <Search size={16} className="hidden sm:block" />
+            <Search size={16} />
           )}
-          Search
+          <span className="hidden sm:inline">Search</span>
         </button>
       </form>
 
@@ -217,7 +197,7 @@ export default function HeaderProductSearch({ categories = [] }) {
           {debouncedQ.length >= 2 && (
             <button
               type="button"
-              onClick={() => goToShop(debouncedQ, cat)}
+              onClick={() => goToShop(debouncedQ)}
               className="flex w-full items-center justify-center gap-2 border-t border-gray-100 bg-[#f8fafc] px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-navy transition hover:bg-[#eef6f9]"
             >
               <Search size={14} />

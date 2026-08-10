@@ -28,9 +28,7 @@ export default function LoginRequiredModal({
           <X size={18} />
         </button>
 
-        <div className="mx-auto mb-4 inline-flex rounded-xl bg-black px-2 py-1.5">
-          <BrandLogo className="h-10 w-auto" />
-        </div>
+        <BrandLogo className="mx-auto mb-4 h-10 w-auto" />
 
         <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-cyan/15 text-navy">
           <Lock size={24} />

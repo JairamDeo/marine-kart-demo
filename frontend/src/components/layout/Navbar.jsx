@@ -29,37 +29,37 @@ export default function Navbar({ categories = [] }) {
   }, [open, activeCatId, categories]);
 
   const linkClass = ({ isActive }) =>
-    `px-4 py-3.5 text-sm font-semibold uppercase tracking-wide transition ${
+    `px-3 py-3 text-xs font-semibold uppercase tracking-wide transition lg:px-4 lg:py-3.5 lg:text-sm ${
       isActive ? 'text-cyan' : 'text-white hover:text-cyan'
     }`;
 
   return (
     <div className="bg-[#143a6e]">
       <div className="container-mk flex items-center gap-1">
-        <div className="relative" ref={panelRef}>
+        <div className="relative min-w-0" ref={panelRef}>
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}
-            className="flex items-center gap-2 bg-[#78c6d4] px-4 py-3.5 text-sm font-bold uppercase text-white transition hover:bg-[#5bb5c6]"
+            className="flex items-center gap-1.5 bg-[#78c6d4] px-2.5 py-3 text-[11px] font-bold uppercase text-white transition hover:bg-[#5bb5c6] sm:gap-2 sm:px-4 sm:py-3.5 sm:text-sm"
             aria-expanded={open}
           >
-            <Menu size={18} />
-            All Categories
-            <ChevronDown size={16} className={`transition ${open ? 'rotate-180' : ''}`} />
+            <Menu size={16} className="shrink-0 sm:hidden" />
+            <Menu size={18} className="hidden shrink-0 sm:block" />
+            <span className="truncate">
+              <span className="xs:hidden">Categories</span>
+              <span className="hidden xs:inline">All Categories</span>
+            </span>
+            <ChevronDown size={14} className={`shrink-0 transition sm:hidden ${open ? 'rotate-180' : ''}`} />
+            <ChevronDown size={16} className={`hidden shrink-0 transition sm:block ${open ? 'rotate-180' : ''}`} />
           </button>
 
           {open && (
-            <div
-              className="absolute left-0 z-50 mt-0 flex w-[min(92vw,640px)] overflow-hidden border border-gray-200 bg-white shadow-2xl"
-              onMouseLeave={() => {
-                /* keep panel open until click-outside; only reset hover highlight softly */
-              }}
-            >
-              <div className="w-[46%] min-w-[200px] border-r border-gray-100">
-                <div className="bg-[#143a6e] px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-white">
+            <div className="absolute left-0 z-50 mt-0 flex w-[min(94vw,640px)] max-h-[min(75vh,560px)] flex-col overflow-hidden border border-gray-200 bg-white shadow-2xl sm:flex-row">
+              <div className="w-full shrink-0 border-b border-gray-100 sm:w-[46%] sm:min-w-[180px] sm:border-b-0 sm:border-r">
+                <div className="bg-[#143a6e] px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-white sm:px-4 sm:py-2.5 sm:text-xs">
                   Categories
                 </div>
-                <ul className="max-h-[70vh] overflow-auto py-1 text-sm">
+                <ul className="max-h-[28vh] overflow-auto py-1 text-sm sm:max-h-[70vh]">
                   {categories.map((cat) => {
                     const id = cat._id || cat.id;
                     const isActive = String(activeCatId) === String(id);
@@ -70,15 +70,16 @@ export default function Navbar({ categories = [] }) {
                             isActive ? 'bg-[#eef6f9]' : 'hover:bg-[#f8fafc]'
                           }`}
                           onMouseEnter={() => setActiveCatId(id)}
+                          onClick={() => setActiveCatId(id)}
                         >
                           <Link
                             to={`/category/${cat.slug}`}
                             onClick={() => setOpen(false)}
-                            className={`flex flex-1 items-center justify-between px-4 py-2.5 font-medium transition ${
+                            className={`flex flex-1 items-center justify-between px-3 py-2.5 font-medium transition sm:px-4 ${
                               isActive ? 'text-navy' : 'text-gray-700'
                             }`}
                           >
-                            <span className="line-clamp-1">{cat.name}</span>
+                            <span className="line-clamp-1 text-[13px] sm:text-sm">{cat.name}</span>
                             {cat.children?.length > 0 && (
                               <ChevronRight size={16} className="shrink-0 text-gray-400" />
                             )}
@@ -93,33 +94,14 @@ export default function Navbar({ categories = [] }) {
                 </ul>
               </div>
 
-              <div className="min-w-0 flex-1 bg-[#fafbfc]">
-                <div className="border-b border-gray-100 bg-white px-4 py-2.5">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-cyan">
-                    Subcategories
-                  </p>
-                  <p className="truncate text-sm font-bold text-navy">
-                    {activeCat?.name || 'Select a category'}
-                  </p>
-                </div>
-                <ul className="max-h-[70vh] overflow-auto py-1 text-sm">
-                  {activeCat && (
-                    <li>
-                      <Link
-                        to={`/category/${activeCat.slug}`}
-                        onClick={() => setOpen(false)}
-                        className="block px-4 py-2.5 font-semibold text-navy hover:bg-white"
-                      >
-                        View all in {activeCat.name}
-                      </Link>
-                    </li>
-                  )}
+              <div className="min-h-0 min-w-0 flex-1 bg-[#fafbfc]">
+                <ul className="max-h-[36vh] overflow-auto py-1 text-sm sm:max-h-[70vh]">
                   {subs.map((sub) => (
                     <li key={sub._id || sub.id}>
                       <Link
                         to={`/category/${activeCat.slug}?subcategory=${sub._id || sub.id}`}
                         onClick={() => setOpen(false)}
-                        className="block px-4 py-2.5 text-gray-600 transition hover:bg-white hover:text-navy"
+                        className="block px-3 py-2.5 text-[13px] text-gray-600 transition hover:bg-white hover:text-navy sm:px-4 sm:text-sm"
                       >
                         {sub.name}
                       </Link>
@@ -128,6 +110,11 @@ export default function Navbar({ categories = [] }) {
                   {activeCat && subs.length === 0 && (
                     <li className="px-4 py-8 text-center text-xs text-gray-400">
                       No subcategories — click the category to browse products.
+                    </li>
+                  )}
+                  {!activeCat && (
+                    <li className="px-4 py-8 text-center text-xs text-gray-400">
+                      Select a category
                     </li>
                   )}
                 </ul>
@@ -151,15 +138,17 @@ export default function Navbar({ categories = [] }) {
           </NavLink>
         </nav>
 
-        <div className="ml-auto flex items-center gap-2 py-3.5 text-sm text-white">
-          <Phone size={16} className="text-cyan" />
-          <span>
-            Call us: <span className="font-medium">{SITE.phone}</span>
+        <div className="ml-auto hidden items-center gap-2 py-3.5 text-sm text-white min-[400px]:flex">
+          <Phone size={14} className="shrink-0 text-cyan sm:hidden" />
+          <Phone size={16} className="hidden shrink-0 text-cyan sm:block" />
+          <span className="truncate text-xs sm:text-sm">
+            <span className="hidden sm:inline">Call us: </span>
+            <span className="font-medium">{SITE.phone}</span>
           </span>
         </div>
       </div>
 
-      <div className="flex gap-1 overflow-x-auto border-t border-white/10 px-4 py-2 md:hidden">
+      <div className="flex gap-1 overflow-x-auto overscroll-x-contain border-t border-white/10 px-3 py-2 scrollbar-thin md:hidden [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {[
           { to: '/', label: 'Home' },
           { to: '/shop', label: 'Shop' },
@@ -169,7 +158,7 @@ export default function Navbar({ categories = [] }) {
           <Link
             key={item.to}
             to={item.to}
-            className="whitespace-nowrap px-3 py-1.5 text-xs font-semibold uppercase text-white/90 transition hover:text-cyan"
+            className="whitespace-nowrap rounded-md px-3 py-1.5 text-[11px] font-semibold uppercase text-white/90 transition hover:bg-white/10 hover:text-cyan"
           >
             {item.label}
           </Link>

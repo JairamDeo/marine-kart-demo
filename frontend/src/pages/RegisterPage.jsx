@@ -30,7 +30,6 @@ const emptyCorporate = {
   city: '',
   state: '',
   postalCode: '',
-  contactPersonName: '',
   designation: '',
   fullName: '',
   email: '',
@@ -104,7 +103,6 @@ export default function RegisterPage() {
             city: corporate.city,
             state: corporate.state,
             postalCode: corporate.postalCode,
-            contactPersonName: corporate.contactPersonName,
             designation: corporate.designation,
             fullName: corporate.fullName,
             email: corporate.email,
@@ -159,7 +157,7 @@ export default function RegisterPage() {
           <div
             className="rounded-xl bg-gradient-to-b from-[#1a4b8c] to-[#0f2d54] p-4 text-white"
           >
-            <Link to="/" className="mb-4 inline-flex rounded-lg bg-black/80 px-2 py-1.5">
+            <Link to="/" className="mb-4 inline-block">
               <BrandLogo className="h-8 w-auto" />
             </Link>
             <h1 className="text-base font-bold leading-snug">
@@ -180,7 +178,7 @@ export default function RegisterPage() {
 
         <div className="min-w-0">
           <div className="mb-3 flex items-center justify-between gap-3 lg:hidden">
-            <Link to="/" className="inline-flex rounded-lg bg-black px-2 py-1.5">
+            <Link to="/" className="inline-block">
               <BrandLogo className="h-8 w-auto" />
             </Link>
             <Link to="/login" className="text-xs font-semibold text-navy hover:underline">
@@ -402,14 +400,12 @@ export default function RegisterPage() {
                   </Section>
 
                   <Section title="Contact">
-                    <Field label="Contact person" required>
+                    <Field label="Full name" required>
                       <input
                         required
                         className={inputCls}
-                        value={corporate.contactPersonName}
-                        onChange={(e) =>
-                          setCorporate({ ...corporate, contactPersonName: e.target.value })
-                        }
+                        value={corporate.fullName}
+                        onChange={(e) => setCorporate({ ...corporate, fullName: e.target.value })}
                       />
                     </Field>
                     <Field label="Designation">
@@ -421,32 +417,24 @@ export default function RegisterPage() {
                         }
                       />
                     </Field>
-                  </Section>
-
-                  <Section title="Login">
-                    <Field label="Full name (user)" required className="sm:col-span-2">
-                      <input
-                        required
-                        className={inputCls}
-                        value={corporate.fullName}
-                        onChange={(e) => setCorporate({ ...corporate, fullName: e.target.value })}
-                      />
-                    </Field>
-                    <Field label="Email" required>
-                      <input
-                        type="email"
-                        required
-                        className={inputCls}
-                        value={corporate.email}
-                        onChange={(e) => setCorporate({ ...corporate, email: e.target.value })}
-                      />
-                    </Field>
                     <Field label="Mobile" required>
                       <input
                         required
                         className={inputCls}
                         value={corporate.phone}
                         onChange={(e) => setCorporate({ ...corporate, phone: e.target.value })}
+                      />
+                    </Field>
+                  </Section>
+
+                  <Section title="Login">
+                    <Field label="Email" required className="sm:col-span-2">
+                      <input
+                        type="email"
+                        required
+                        className={inputCls}
+                        value={corporate.email}
+                        onChange={(e) => setCorporate({ ...corporate, email: e.target.value })}
                       />
                     </Field>
                     <Field label="Password" required>

@@ -23,9 +23,7 @@ export default function AuthSplitLayout({
         <div className="pointer-events-none absolute bottom-24 right-10 h-40 w-40 rounded-full border border-white/10" />
 
         <div>
-          <div className="mb-8 inline-flex rounded-2xl bg-black p-3 shadow-lg">
-            <BrandLogo className="h-16 w-auto" />
-          </div>
+          <BrandLogo className="mb-8 h-16 w-auto" />
           <h1 className="mt-2 max-w-md text-4xl font-bold leading-tight text-white">{title}</h1>
           <p className="mt-4 max-w-sm text-base leading-relaxed text-white/70">{subtitle}</p>
         </div>
@@ -49,14 +47,12 @@ export default function AuthSplitLayout({
       <div className="flex flex-1 items-center justify-center px-4 py-10">
         <div className="portal-fade-in w-full max-w-[420px]">
           <div className="mb-8 lg:hidden">
-            <div className="mb-4 inline-flex rounded-xl bg-black p-2">
-              <BrandLogo className="h-12 w-auto" />
-            </div>
+            <BrandLogo className="mb-4 h-12 w-auto" />
             <h1 className="mt-2 text-2xl font-bold tracking-tight text-gray-900">{title}</h1>
             <p className="mt-1 text-sm text-gray-500">{subtitle}</p>
           </div>
 
-          <div className="rounded-2xl border border-gray-100 bg-white p-8 shadow-[0_8px_30px_rgba(15,23,42,0.06)]">
+          <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-[0_8px_30px_rgba(15,23,42,0.06)] sm:p-8">
             {children}
           </div>
 

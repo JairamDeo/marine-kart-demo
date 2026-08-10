@@ -30,11 +30,13 @@ export default function ProductDetailPage() {
   const [busy, setBusy] = useState(false);
   const [wishBusy, setWishBusy] = useState(false);
   const [activeImg, setActiveImg] = useState(0);
+  const [detailTab, setDetailTab] = useState('description');
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setActiveImg(0);
+    setDetailTab('description');
     setProduct(null);
     productService
       .getBySlug(slug)
@@ -107,10 +109,10 @@ export default function ProductDetailPage() {
         <div className="container-mk">
           <div className="mb-6 h-4 w-48 animate-pulse rounded bg-gray-200" />
           <div className="grid gap-8 lg:grid-cols-12">
-            <div className="lg:col-span-7">
-              <div className="aspect-[4/3] animate-pulse rounded-3xl bg-gray-200" />
+            <div className="lg:col-span-5">
+              <div className="aspect-[4/3] max-h-[280px] animate-pulse rounded-2xl bg-gray-200" />
             </div>
-            <div className="space-y-4 lg:col-span-5">
+            <div className="space-y-4 lg:col-span-7">
               <div className="h-5 w-1/3 animate-pulse rounded bg-gray-200" />
               <div className="h-10 w-4/5 animate-pulse rounded bg-gray-200" />
               <div className="h-28 animate-pulse rounded-2xl bg-gray-200" />
@@ -146,7 +148,7 @@ export default function ProductDetailPage() {
     <div className="bg-gradient-to-b from-[#eaf4f8] via-[#f7fafc] to-white pb-20">
       <div className="container-mk pt-6 sm:pt-8">
         {/* Breadcrumb */}
-        <nav className="mb-6 flex flex-wrap items-center gap-1.5 text-xs text-gray-500 sm:text-sm">
+        <nav className="mb-4 flex flex-wrap items-center gap-1 text-[11px] text-gray-500 sm:mb-6 sm:gap-1.5 sm:text-sm">
           <Link to="/" className="transition hover:text-navy">
             Home
           </Link>
@@ -172,15 +174,14 @@ export default function ProductDetailPage() {
           <span className="line-clamp-1 font-medium text-navy">{product.name}</span>
         </nav>
 
-        <div className="grid items-start gap-8 lg:grid-cols-12 lg:gap-10">
-          {/* Gallery — compact thumbs + main preview */}
-          <div className="lg:col-span-7">
-            <div className="overflow-hidden rounded-3xl bg-white p-3 shadow-[0_20px_50px_-28px_rgba(26,75,140,0.45)] ring-1 ring-gray-100 sm:p-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch sm:gap-3">
-                {/* Thumbnails — small strip (vertical on desktop) */}
+        <div className="grid items-stretch gap-5 lg:grid-cols-12 lg:gap-6">
+          {/* Gallery — slightly narrower, shorter, equal height with buy box */}
+          <div className="flex lg:col-span-5">
+            <div className="flex h-full w-full flex-col overflow-hidden rounded-2xl bg-white p-2 shadow-sm ring-1 ring-gray-100 sm:p-2.5">
+              <div className="flex min-h-0 flex-1 flex-col gap-2 sm:flex-row sm:items-stretch sm:gap-2">
                 {gallery.length > 0 && (
                   <div
-                    className="flex shrink-0 gap-2 overflow-x-auto pb-0.5 sm:w-[72px] sm:flex-col sm:overflow-y-auto sm:overflow-x-hidden sm:pb-0"
+                    className="flex shrink-0 gap-1.5 overflow-x-auto sm:w-[52px] sm:flex-col sm:overflow-y-auto sm:overflow-x-hidden"
                     role="listbox"
                     aria-label="Product images"
                   >
@@ -194,9 +195,9 @@ export default function ProductDetailPage() {
                           aria-selected={selected}
                           aria-label={`View image ${i + 1}`}
                           onClick={() => setActiveImg(i)}
-                          className={`relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-[#f3f7fa] p-1 transition duration-200 sm:h-[64px] sm:w-[64px] ${
+                          className={`relative h-11 w-11 shrink-0 overflow-hidden rounded-lg bg-[#f3f7fa] p-0.5 transition duration-200 sm:h-[48px] sm:w-[48px] ${
                             selected
-                              ? 'ring-2 ring-cyan ring-offset-2 ring-offset-white shadow-md'
+                              ? 'ring-2 ring-cyan ring-offset-1 ring-offset-white'
                               : 'ring-1 ring-gray-200/80 hover:ring-cyan/50'
                           }`}
                         >
@@ -207,40 +208,36 @@ export default function ProductDetailPage() {
                             loading="lazy"
                             decoding="async"
                           />
-                          {selected && (
-                            <span className="pointer-events-none absolute inset-0 rounded-[10px] bg-cyan/10" />
-                          )}
                         </button>
                       );
                     })}
                   </div>
                 )}
 
-                {/* Main image — selected thumbnail */}
-                <div className="relative min-w-0 flex-1">
-                  <div className="relative flex aspect-[4/3] items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-[#f0f6fa] via-[#eef3f7] to-[#e8eef3]">
+                <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
+                  <div className="relative flex min-h-[200px] flex-1 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-[#f0f6fa] via-[#eef3f7] to-[#e8eef3] sm:min-h-[220px] sm:max-h-[280px]">
                     <img
                       key={currentSrc}
                       src={currentSrc}
                       alt={product.name}
-                      className="max-h-full w-full object-contain p-4 transition duration-300 ease-out sm:p-6"
+                      className="max-h-full w-full object-contain p-2 transition duration-300 ease-out sm:p-3"
                       loading="lazy"
                       decoding="async"
                     />
-                    <div className="absolute left-3 top-3 flex flex-wrap gap-2">
+                    <div className="absolute left-2 top-2 flex flex-wrap gap-1.5">
                       {product.isNewArrival && (
-                        <span className="rounded-full bg-cyan px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-white shadow">
+                        <span className="rounded-full bg-cyan px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white shadow">
                           New
                         </span>
                       )}
                       {product.isBestSeller && (
-                        <span className="rounded-full bg-navy px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-white shadow">
+                        <span className="rounded-full bg-navy px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white shadow">
                           Best seller
                         </span>
                       )}
                     </div>
                     {gallery.length > 1 && (
-                      <div className="absolute bottom-3 right-3 rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-semibold text-gray-600 shadow-sm ring-1 ring-gray-100 backdrop-blur">
+                      <div className="absolute bottom-2 right-2 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-semibold text-gray-600 shadow-sm ring-1 ring-gray-100">
                         {activeImg + 1} / {gallery.length}
                       </div>
                     )}
@@ -272,45 +269,47 @@ export default function ProductDetailPage() {
             </div>
           </div>
 
-          {/* Buy box */}
-          <div className="lg:col-span-5">
-            <div className="rounded-3xl bg-white p-6 shadow-[0_20px_50px_-28px_rgba(26,75,140,0.35)] ring-1 ring-gray-100 sm:p-7">
-              <div className="mb-3 flex flex-wrap gap-2">
+          {/* Buy box — equal height with gallery */}
+          <div className="flex lg:col-span-7">
+            <div className="flex h-full w-full flex-col justify-center rounded-2xl bg-white p-4 shadow-sm ring-1 ring-gray-100 sm:p-5">
+              <div className="mb-2 flex flex-wrap gap-1.5">
                 {category?.name && (
                   <Link
                     to={`/category/${category.slug}`}
-                    className="rounded-full bg-[#e8f4f8] px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-navy"
+                    className="rounded-full bg-[#e8f4f8] px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-navy"
                   >
                     {category.name}
                   </Link>
                 )}
                 {subcategory?.name && (
-                  <span className="rounded-full bg-gray-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-gray-600">
+                  <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-gray-600">
                     {subcategory.name}
                   </span>
                 )}
               </div>
 
-              <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-navy sm:text-3xl">
+              <h1 className="text-xl font-extrabold leading-snug tracking-tight text-navy sm:text-2xl">
                 {product.name}
               </h1>
 
               {product.shortDescription ? (
-                <p className="mt-3 text-sm leading-relaxed text-gray-600">{product.shortDescription}</p>
+                <p className="mt-1.5 text-sm leading-relaxed text-gray-600">
+                  {product.shortDescription}
+                </p>
               ) : null}
 
-              <div className="mt-6 rounded-2xl bg-gradient-to-br from-[#f3f8fb] to-[#eaf3f7] p-5">
+              <div className="mt-3 rounded-xl bg-gradient-to-br from-[#f3f8fb] to-[#eaf3f7] px-3.5 py-3">
                 {product.priceVisible ? (
                   <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">
                       Price
                     </p>
-                    <div className="mt-1 flex flex-wrap items-end gap-3">
-                      <span className="text-3xl font-extrabold text-navy">
+                    <div className="mt-0.5 flex flex-wrap items-end gap-2">
+                      <span className="text-2xl font-extrabold text-navy">
                         {formatPrice(product.displayPrice)}
                       </span>
                       {product.salePrice != null && (
-                        <span className="pb-1 text-base text-gray-400 line-through">
+                        <span className="pb-0.5 text-sm text-gray-400 line-through">
                           {formatPrice(product.price)}
                         </span>
                       )}
@@ -319,12 +318,12 @@ export default function ProductDetailPage() {
                 ) : (
                   <div>
                     <p className="text-sm font-semibold text-navy">Login to view price</p>
-                    <p className="mt-1 text-xs text-gray-500">
+                    <p className="mt-0.5 text-xs text-gray-500">
                       Prices are shown after you sign in as a customer.
                     </p>
                     <Link
                       to={`/login?redirect=/product/${product.slug}`}
-                      className="btn-cyan mt-4 inline-flex rounded-xl px-5 py-2.5 text-sm"
+                      className="btn-cyan mt-2.5 inline-flex rounded-lg px-4 py-2 text-sm"
                     >
                       Login to View Price
                     </Link>
@@ -332,116 +331,134 @@ export default function ProductDetailPage() {
                 )}
               </div>
 
-              <div className="mt-5 flex flex-wrap items-center gap-3">
-                <div className="flex items-center overflow-hidden rounded-xl border border-gray-200 bg-white">
+              <div className="mt-3">
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <div className="flex items-center overflow-hidden rounded-lg border border-gray-200 bg-white">
+                    <button
+                      type="button"
+                      disabled={qty <= 1}
+                      onClick={() => setQty((q) => clampQty(q - 1))}
+                      className="flex h-10 w-9 items-center justify-center text-navy transition hover:bg-gray-50 disabled:opacity-30"
+                      aria-label="Decrease quantity"
+                    >
+                      <Minus size={15} />
+                    </button>
+                    <input
+                      type="number"
+                      min={1}
+                      max={maxQty ?? undefined}
+                      value={qty}
+                      onChange={(e) => setQty(clampQty(e.target.value))}
+                      className="h-10 w-12 border-x border-gray-200 text-center text-sm font-bold outline-none"
+                    />
+                    <button
+                      type="button"
+                      disabled={maxQty != null && qty >= maxQty}
+                      onClick={() => setQty((q) => clampQty(q + 1))}
+                      className="flex h-10 w-9 items-center justify-center text-navy transition hover:bg-gray-50 disabled:opacity-30"
+                      aria-label="Increase quantity"
+                    >
+                      <Plus size={15} />
+                    </button>
+                  </div>
+
                   <button
                     type="button"
-                    disabled={qty <= 1}
-                    onClick={() => setQty((q) => clampQty(q - 1))}
-                    className="flex h-12 w-11 items-center justify-center text-navy transition hover:bg-gray-50 disabled:opacity-30"
-                    aria-label="Decrease quantity"
+                    disabled={busy}
+                    onClick={handleAdd}
+                    className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-[#1a4b8c] px-4 text-sm font-bold text-white transition hover:bg-[#143a6e] disabled:opacity-50"
                   >
-                    <Minus size={16} />
+                    <ShoppingCart size={16} />
+                    {busy ? 'Adding...' : 'Add to Cart'}
                   </button>
-                  <input
-                    type="number"
-                    min={1}
-                    max={maxQty ?? undefined}
-                    value={qty}
-                    onChange={(e) => setQty(clampQty(e.target.value))}
-                    className="h-12 w-14 border-x border-gray-200 text-center text-sm font-bold outline-none"
-                  />
+
                   <button
                     type="button"
-                    disabled={maxQty != null && qty >= maxQty}
-                    onClick={() => setQty((q) => clampQty(q + 1))}
-                    className="flex h-12 w-11 items-center justify-center text-navy transition hover:bg-gray-50 disabled:opacity-30"
-                    aria-label="Increase quantity"
+                    disabled={wishBusy}
+                    onClick={handleWishlist}
+                    className={`flex h-10 w-10 items-center justify-center rounded-lg border transition ${
+                      inWishlist
+                        ? 'border-rose-200 bg-rose-50 text-rose-500'
+                        : 'border-gray-200 bg-white text-gray-400 hover:border-rose-200 hover:text-rose-500'
+                    }`}
+                    aria-label={inWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
+                    title={inWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
                   >
-                    <Plus size={16} />
+                    <Heart size={18} fill={inWishlist ? 'currentColor' : 'none'} />
                   </button>
                 </div>
-
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={handleAdd}
-                  className="inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-[#1a4b8c] px-5 text-sm font-bold text-white transition hover:bg-[#143a6e] disabled:opacity-50"
-                >
-                  <ShoppingCart size={18} />
-                  {busy ? 'Adding...' : 'Add to Cart'}
-                </button>
-
-                <button
-                  type="button"
-                  disabled={wishBusy}
-                  onClick={handleWishlist}
-                  className={`flex h-12 w-12 items-center justify-center rounded-xl border transition ${
-                    inWishlist
-                      ? 'border-rose-200 bg-rose-50 text-rose-500'
-                      : 'border-gray-200 bg-white text-gray-400 hover:border-rose-200 hover:text-rose-500'
-                  }`}
-                  aria-label={inWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
-                  title={inWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
-                >
-                  <Heart size={20} fill={inWishlist ? 'currentColor' : 'none'} />
-                </button>
+                {maxQty != null && (
+                  <p className="mt-1.5 text-xs text-gray-500">Max {maxQty} per order</p>
+                )}
               </div>
-              {maxQty != null && (
-                <p className="mt-2 text-xs text-gray-500">Max {maxQty} per order</p>
-              )}
             </div>
           </div>
         </div>
 
-        {/* Details */}
-        <div className="mt-10 space-y-6">
-          <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-gray-100 sm:p-8">
-            <h2 className="text-lg font-extrabold text-navy">Product description</h2>
-            <div className="mt-4 whitespace-pre-line text-sm leading-7 text-gray-600">
-              {product.description ||
-                product.shortDescription ||
-                'No detailed description available for this product yet.'}
-            </div>
-          </section>
+        <div className="mt-6 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-gray-100 sm:mt-8">
+          <div className="flex overflow-x-auto border-b border-gray-100 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {[
+              { id: 'description', label: 'Description', labelSm: 'Product description' },
+              {
+                id: 'specifications',
+                label: 'Specification',
+                labelSm: 'Product specification',
+                hidden:
+                  !(
+                    (product.specifications?.mode === 'markdown' &&
+                      product.specifications?.markdown) ||
+                    (product.specifications?.mode === 'image' && product.specifications?.image)
+                  ),
+              },
+            ]
+              .filter((t) => !t.hidden)
+              .map((tab) => {
+                const active = detailTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setDetailTab(tab.id)}
+                    className={`relative shrink-0 px-4 py-2.5 text-xs font-semibold transition sm:px-5 sm:text-sm ${
+                      active
+                        ? 'text-navy'
+                        : 'text-gray-400 hover:text-gray-700'
+                    }`}
+                  >
+                    <span className="sm:hidden">{tab.label}</span>
+                    <span className="hidden sm:inline">{tab.labelSm}</span>
+                    {active ? (
+                      <span className="absolute inset-x-3 -bottom-px h-0.5 rounded-full bg-navy sm:inset-x-4" />
+                    ) : null}
+                  </button>
+                );
+              })}
+          </div>
 
-          {product.specifications?.mode === 'markdown' && product.specifications?.markdown ? (
-            <section className="overflow-hidden rounded-3xl bg-white p-5 shadow-sm ring-1 ring-gray-100 sm:p-7">
-              <div className="mb-5 flex items-end justify-between gap-3">
-                <div>
-                  <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-cyan">
-                    Details
-                  </p>
-                  <h2 className="mt-1 text-xl font-extrabold tracking-tight text-navy sm:text-2xl">
-                    Product Specifications
-                  </h2>
-                </div>
+          <div className="p-4 sm:p-5">
+            {detailTab === 'description' ? (
+              <div className="whitespace-pre-line text-sm leading-6 text-gray-600">
+                {product.description ||
+                  product.shortDescription ||
+                  'No detailed description available for this product yet.'}
               </div>
-              <MarkdownContent content={product.specifications.markdown} />
-            </section>
-          ) : null}
-
-          {product.specifications?.mode === 'image' && product.specifications?.image ? (
-            <section className="overflow-hidden rounded-3xl bg-white p-4 shadow-sm ring-1 ring-gray-100 sm:p-6">
-              <div className="mb-5">
-                <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-cyan">
-                  Details
-                </p>
-                <h2 className="mt-1 text-xl font-extrabold tracking-tight text-navy sm:text-2xl">
-                  Product Specifications
-                </h2>
-              </div>
-              <div className="overflow-hidden rounded-2xl border border-sky-100 bg-gradient-to-b from-sky-50/50 to-white p-3 sm:p-4">
+            ) : product.specifications?.mode === 'image' && product.specifications?.image ? (
+              <div className="overflow-hidden rounded-xl border border-sky-100 bg-sky-50/40 p-2 sm:p-3">
                 <img
                   src={product.specifications.image}
                   alt={`${product.name} specifications`}
-                  className="mx-auto max-h-[640px] w-full rounded-xl object-contain"
+                  className="mx-auto max-h-[420px] w-full rounded-lg object-contain"
                   loading="lazy"
                   decoding="async"
                 />
               </div>
-            </section>
-          ) : null}
+            ) : (
+              <MarkdownContent
+                content={product.specifications?.markdown || ''}
+                className="mk-specs-compact"
+              />
+            )}
+          </div>
         </div>
 
         {related.length > 0 && (

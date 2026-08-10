@@ -101,7 +101,7 @@ export default function DataTable({
                     setSort(e.target.value);
                     onSortChange?.(e.target.value);
                   }}
-                  className="w-[132px]"
+                  className="w-full min-[480px]:w-[132px]"
                 >
                   <option value="">Sort by</option>
                   {sortOptions.map((opt) => (

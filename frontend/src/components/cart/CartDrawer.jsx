@@ -239,7 +239,7 @@ export default function CartDrawer() {
       />
 
       <aside
-        className={`fixed inset-y-0 right-0 z-[100] flex w-full max-w-md flex-col bg-[#f7f9fc] shadow-2xl transition-transform duration-300 ${
+        className={`fixed inset-y-0 right-0 z-[100] flex w-full max-w-md flex-col bg-[#f7f9fc] shadow-2xl transition-transform duration-300 pb-[env(safe-area-inset-bottom)] ${
           cartOpen
             ? 'pointer-events-auto translate-x-0'
             : 'pointer-events-none translate-x-full'
@@ -589,7 +589,7 @@ function CheckoutForm({
           </button>
 
           {(editingNew || savedAddresses.length === 0) && (
-            <div className="grid grid-cols-2 gap-2.5 border-t border-gray-100 pt-3">
+            <div className="grid grid-cols-1 gap-2.5 border-t border-gray-100 pt-3 min-[380px]:grid-cols-2">
               <div className="col-span-2">
                 <label className="mb-1 block text-[11px] font-medium text-gray-500">Full name</label>
                 <input

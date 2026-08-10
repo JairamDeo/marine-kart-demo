@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { SITE } from '../../constants/config';
 import { ArrowUp } from 'lucide-react';
@@ -6,9 +7,36 @@ import { useAuth } from '../../context/AuthContext';
 import { useCartUI } from '../../context/CartUIContext';
 
 export default function Footer() {
-  const scrollTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+  const [atTop, setAtTop] = useState(true);
   const { isAuthenticated, requireLogin } = useAuth();
   const { openCart, openWishlist } = useCartUI();
+
+  useEffect(() => {
+    const update = () => {
+      const y = window.scrollY || document.documentElement.scrollTop;
+      const max = Math.max(
+        0,
+        document.documentElement.scrollHeight - window.innerHeight
+      );
+      // Near top → point down; otherwise (incl. bottom) → point up
+      setAtTop(max < 40 ? true : y < Math.min(120, max * 0.15));
+    };
+    update();
+    window.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+    return () => {
+      window.removeEventListener('scroll', update);
+      window.removeEventListener('resize', update);
+    };
+  }, []);
+
+  const onScrollJump = () => {
+    if (atTop) {
+      window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
 
   const onWishlistClick = () => {
     if (!isAuthenticated) {
@@ -21,23 +49,26 @@ export default function Footer() {
   return (
     <footer>
       <div className="bg-navy text-white">
-        <div className="container-mk grid gap-10 py-12 md:grid-cols-3">
+        <div className="container-mk grid gap-8 py-10 sm:grid-cols-2 sm:gap-10 sm:py-12 lg:grid-cols-4">
           <div>
-            <Link to="/" className="mb-5 inline-flex rounded-xl bg-black px-2.5 py-2">
-              <BrandLogo className="h-12 w-auto" />
+            <Link to="/" className="mb-5 inline-block">
+              <BrandLogo className="h-[68px] w-auto" />
             </Link>
+            <p className="text-sm leading-relaxed text-white/70">
+              We are a team of designers and developers that create high quality HTML Template,
+              Woocommerce, Shopify Theme.
+            </p>
+          </div>
+
+          <div>
             <h3 className="mb-4 text-sm font-bold uppercase tracking-wider">Contact Info</h3>
             <p className="mb-2 text-sm text-white/80">
               Hotline Free 24/24:
               <br />
               <strong className="text-lg text-cyan">{SITE.phone}</strong>
             </p>
-            <p className="mb-3 text-sm leading-relaxed text-white/70">
-              We are a team of designers and developers that create high quality HTML Template,
-              Woocommerce, Shopify Theme.
-            </p>
             <p className="text-sm text-white/70">{SITE.address}</p>
-            <p className="text-sm text-cyan">{SITE.email}</p>
+            <p className="mt-1 text-sm text-cyan">{SITE.email}</p>
           </div>
 
           <div>
@@ -80,20 +111,12 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <button
-                  type="button"
-                  onClick={openCart}
-                  className="hover:text-cyan"
-                >
+                <button type="button" onClick={openCart} className="hover:text-cyan">
                   Shopping Cart
                 </button>
               </li>
               <li>
-                <button
-                  type="button"
-                  onClick={onWishlistClick}
-                  className="hover:text-cyan"
-                >
+                <button type="button" onClick={onWishlistClick} className="hover:text-cyan">
                   Wish List
                 </button>
               </li>
@@ -111,18 +134,29 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="border-t border-white/10 py-4 text-center text-xs text-white/50">
-          © {new Date().getFullYear()} MarineKart. All rights reserved.
+        <div className="border-t border-white/10 py-4 text-center">
+          <p className="text-xs text-white/50">
+            © {new Date().getFullYear()} MarineKart. All rights reserved.
+          </p>
+          <p className="mt-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/65">
+            Design and Developed by Goldleaf Production
+          </p>
         </div>
       </div>
 
       <button
         type="button"
-        onClick={scrollTop}
-        className="fixed bottom-6 right-6 z-30 flex h-11 w-11 items-center justify-center rounded-full bg-cyan text-white shadow-lg hover:bg-cyan-dark"
-        aria-label="Scroll to top"
+        onClick={onScrollJump}
+        className="fixed bottom-5 right-4 z-30 flex h-10 w-10 items-center justify-center rounded-full bg-cyan text-white shadow-lg transition hover:bg-cyan-dark hover:scale-105 active:scale-95 sm:bottom-6 sm:right-6 sm:h-11 sm:w-11 mb-[env(safe-area-inset-bottom)]"
+        aria-label={atTop ? 'Scroll to bottom' : 'Scroll to top'}
+        title={atTop ? 'Scroll to bottom' : 'Scroll to top'}
       >
-        <ArrowUp size={18} />
+        <ArrowUp
+          size={18}
+          className={`transition-transform duration-500 ease-out ${
+            atTop ? 'rotate-180' : 'rotate-0'
+          }`}
+        />
       </button>
     </footer>
   );

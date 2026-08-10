@@ -8,6 +8,7 @@
   --color-body: #f9f9f9;
   --color-muted: #6b7280;
   --font-sans: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --breakpoint-xs: 400px;
 }
 
 * {
@@ -16,6 +17,7 @@
 
 html {
   scroll-behavior: smooth;
+  overflow-x: clip;
 }
 
 body {
@@ -24,6 +26,7 @@ body {
   background: #ffffff;
   color: #222;
   -webkit-font-smoothing: antialiased;
+  overflow-x: clip;
 }
 
 button {
@@ -69,7 +72,31 @@ img {
   width: 100%;
   max-width: 1200px;
   margin-inline: auto;
-  padding-inline: 16px;
+  padding-inline: 12px;
+}
+
+@media (min-width: 480px) {
+  .container-mk {
+    padding-inline: 16px;
+  }
+}
+
+@media (min-width: 640px) {
+  .container-mk {
+    padding-inline: 20px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .container-mk {
+    padding-inline: 24px;
+  }
+}
+
+@media (min-width: 1280px) {
+  .container-mk {
+    padding-inline: 32px;
+  }
 }
 
 .btn-cyan {
@@ -279,6 +306,29 @@ img {
   border: 0;
   border-top: 1px solid #e2e8f0;
   margin: 1rem 0;
+}
+
+/* Compact specs inside PDP tabs */
+.mk-specs-compact dl {
+  border-radius: 0.85rem;
+}
+.mk-specs-compact dt {
+  font-size: 0.62rem;
+}
+.mk-specs-compact dd {
+  font-size: 0.8125rem !important;
+}
+.mk-specs-compact .grid {
+  padding-top: 0.55rem;
+  padding-bottom: 0.55rem;
+}
+.mk-specs-compact ul {
+  margin-top: 0.75rem;
+  gap: 0.4rem;
+}
+.mk-specs-compact li {
+  padding: 0.45rem 0.7rem;
+  font-size: 0.75rem;
 }
 
 /* Portal animations */

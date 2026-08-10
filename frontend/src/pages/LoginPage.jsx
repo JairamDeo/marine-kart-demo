@@ -106,12 +106,10 @@ export default function LoginPage() {
       <div className="pointer-events-none absolute -left-24 top-10 h-72 w-72 rounded-full bg-cyan/20 blur-3xl" />
       <div className="pointer-events-none absolute -right-16 bottom-0 h-80 w-80 rounded-full bg-navy/10 blur-3xl" />
 
-      <div className="container-mk relative grid items-center gap-10 py-12 lg:grid-cols-2 lg:py-16">
+      <div className="container-mk relative grid items-center gap-6 py-8 sm:gap-10 sm:py-12 lg:grid-cols-2 lg:py-16">
         <div className="hidden lg:block" data-aos="fade-right">
-          <div className="mb-6 inline-flex rounded-2xl bg-black p-3 shadow-lg">
-            <BrandLogo className="h-14 w-auto" />
-          </div>
-          <h1 className="max-w-md text-4xl font-extrabold leading-tight tracking-tight text-navy">
+          <BrandLogo className="mb-6 h-36 w-auto sm:h-40" />
+          <h1 className="max-w-md text-3xl font-extrabold leading-tight tracking-tight text-navy xl:text-4xl">
             {isCorporate ? 'Corporate customer access' : 'Your marine storefront, ready when you are'}
           </h1>
           <p className="mt-4 max-w-sm text-base leading-relaxed text-gray-600">
@@ -140,14 +138,12 @@ export default function LoginPage() {
 
         <div className="mx-auto w-full max-w-md" data-aos="fade-left">
           <div className="mb-6 lg:hidden">
-            <div className="mb-4 inline-flex rounded-xl bg-black p-2">
-              <BrandLogo className="h-12 w-auto" />
-            </div>
+            <BrandLogo className="mb-4 h-28 w-auto" />
             <h1 className="text-2xl font-bold text-navy">Sign In</h1>
             <p className="mt-1 text-sm text-gray-500">Login to view prices and shop</p>
           </div>
 
-          <div className="rounded-2xl border border-white/80 bg-white/90 p-8 shadow-[0_20px_50px_rgba(26,75,140,0.12)] backdrop-blur">
+          <div className="rounded-2xl border border-white/80 bg-white/90 p-5 shadow-[0_20px_50px_rgba(26,75,140,0.12)] backdrop-blur sm:p-8">
             <div className="mb-6 grid grid-cols-2 gap-2 rounded-xl bg-gray-100 p-1">
               <button
                 type="button"
