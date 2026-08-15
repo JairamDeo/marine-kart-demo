@@ -1,24 +1,29 @@
-/** Shared order flow steps (frontend). Keep in sync with backend/utils/orderStatus.js */
+/** Shared order flow (frontend). Keep in sync with backend/utils/orderStatus.js */
 export const ORDER_FLOW = [
-  'pending',
+  'enquiry_received',
   'quotation_sent',
   'confirmed',
-  'shipped',
-  'delivered',
+  'order_received',
 ];
 
 export const ORDER_STATUS_LABELS = {
-  pending: 'Pending',
+  enquiry_received: 'Enquiry Received',
   quotation_sent: 'Quotation Sent',
-  confirmed: 'Confirmed',
-  shipped: 'Shipped',
-  delivered: 'Delivered',
+  confirmed: 'Order Confirmed',
+  order_received: 'Order Received',
   cancelled: 'Cancelled',
-  processing: 'Processing',
+  pending: 'Enquiry Received',
+  shipped: 'Order Received',
+  delivered: 'Order Received',
+  processing: 'Order Confirmed',
 };
 
-export function formatOrderStatus(status) {
+export function formatOrderStatus(status, opts = {}) {
   if (!status) return '';
+  const forCustomer = opts.forCustomer === true || opts.audience === 'customer';
+  if (forCustomer && (status === 'enquiry_received' || status === 'pending')) {
+    return 'Enquiry Sent';
+  }
   return ORDER_STATUS_LABELS[status] || String(status).replace(/_/g, ' ');
 }
 
@@ -29,16 +34,30 @@ export function getNextOrderStatus(current) {
 }
 
 export function canCancelOrderStatus(status) {
-  return ['pending', 'quotation_sent', 'confirmed'].includes(status);
+  return ['enquiry_received', 'quotation_sent', 'confirmed', 'pending'].includes(status);
 }
 
-export function getAllowedAdminStatuses(current) {
-  if (!current || current === 'cancelled' || current === 'delivered') {
+export function getAllowedAdminStatuses(current, opts = {}) {
+  if (!current || current === 'cancelled' || current === 'order_received' || current === 'delivered') {
     return { next: null, canCancel: false, options: current ? [current] : [] };
   }
-  if (current === 'shipped') {
-    return { next: 'delivered', canCancel: false, options: ['shipped', 'delivered'] };
+
+  if (current === 'enquiry_received' || current === 'pending') {
+    if (opts.quotationSent) {
+      return {
+        next: 'confirmed',
+        canCancel: true,
+        options: [current, 'confirmed', 'cancelled'],
+      };
+    }
+    return {
+      next: null,
+      canCancel: true,
+      options: [current, 'cancelled'],
+      quotationRequired: true,
+    };
   }
+
   const next = getNextOrderStatus(current);
   const options = [current];
   if (next) options.push(next);
@@ -50,3 +69,13 @@ export function getAllowedAdminStatuses(current) {
 export function canCustomerCancel(status) {
   return canCancelOrderStatus(status);
 }
+
+export const FILTERABLE_ORDER_STATUSES = [
+  'enquiry_received',
+  'quotation_sent',
+  'confirmed',
+  'order_received',
+  'cancelled',
+];
+
+export const GST_PERCENT_OPTIONS = [0, 5, 12, 18, 28];

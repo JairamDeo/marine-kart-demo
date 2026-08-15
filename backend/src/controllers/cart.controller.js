@@ -25,37 +25,20 @@ const formatCart = (cart, user) => {
       return {
         product: pub,
         quantity: item.quantity,
-        lineTotal: pub.priceVisible ? (pub.displayPrice || 0) * item.quantity : null,
+        lineTotal: null,
       };
     });
-
-  const subtotal = user
-    ? items.reduce((sum, i) => sum + (i.lineTotal || 0), 0)
-    : null;
 
   return {
     id: cart._id,
     items,
     itemCount: items.reduce((s, i) => s + i.quantity, 0),
-    subtotal,
-    priceVisible: Boolean(user),
+    subtotal: null,
+    priceVisible: false,
   };
 };
 
 const productIdOf = (item) => String(item.product?._id || item.product);
-
-/** 0 / null / undefined = unlimited */
-function maxAllowedQty(product) {
-  const n = Number(product?.maxOrderQty);
-  if (!Number.isFinite(n) || n <= 0) return null;
-  return Math.floor(n);
-}
-
-function clampToMax(qty, max) {
-  const q = Math.max(1, Number(qty) || 1);
-  if (max == null) return q;
-  return Math.min(q, max);
-}
 
 exports.getCart = asyncHandler(async (req, res) => {
   const cart = await getOrCreateCart(req.user._id);
@@ -69,20 +52,14 @@ exports.addToCart = asyncHandler(async (req, res) => {
   if (!product || !product.isActive) {
     return res.status(404).json({ success: false, message: 'Product not found.' });
   }
+  if (product.stockStatus === 'out_of_stock') {
+    return res.status(400).json({ success: false, message: 'This product is out of stock.' });
+  }
 
-  const max = maxAllowedQty(product);
   const cart = await getOrCreateCart(req.user._id);
   const existing = cart.items.find((i) => productIdOf(i) === String(productId));
   const current = existing ? Number(existing.quantity) || 0 : 0;
   const next = current + addQty;
-
-  if (max != null && next > max) {
-    return res.status(400).json({
-      success: false,
-      message: `You can select up to ${max} of this product at a time.`,
-      data: { maxOrderQty: max, currentQty: current },
-    });
-  }
 
   if (existing) {
     existing.quantity = next;
@@ -111,16 +88,10 @@ exports.updateCartItem = asyncHandler(async (req, res) => {
     if (!product || !product.isActive) {
       return res.status(404).json({ success: false, message: 'Product not found.' });
     }
-    const max = maxAllowedQty(product);
-    const desired = Math.max(1, Number(quantity) || 1);
-    if (max != null && desired > max) {
-      return res.status(400).json({
-        success: false,
-        message: `You can select up to ${max} of this product at a time.`,
-        data: { maxOrderQty: max },
-      });
+    if (product.stockStatus === 'out_of_stock') {
+      return res.status(400).json({ success: false, message: 'This product is out of stock.' });
     }
-    item.quantity = clampToMax(desired, max);
+    item.quantity = Math.max(1, Number(quantity) || 1);
   }
 
   await cart.save();
@@ -143,16 +114,15 @@ exports.mergeCart = asyncHandler(async (req, res) => {
       warnings.push('Some products were unavailable and skipped.');
       continue;
     }
+    if (product.stockStatus === 'out_of_stock') {
+      warnings.push(`"${product.name}" is out of stock and was skipped.`);
+      continue;
+    }
 
-    const max = maxAllowedQty(product);
     const addQty = Math.max(1, Number(line.quantity) || 1);
     const existing = cart.items.find((i) => productIdOf(i) === String(productId));
     const current = existing ? Number(existing.quantity) || 0 : 0;
-    let next = current + addQty;
-    if (max != null && next > max) {
-      next = max;
-      warnings.push(`Quantity for "${product.name}" was limited to ${max}.`);
-    }
+    const next = current + addQty;
 
     if (existing) {
       existing.quantity = Math.max(1, next);

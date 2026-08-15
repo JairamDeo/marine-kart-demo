@@ -30,6 +30,8 @@ import AdminCategories from './pages/admin/AdminCategories';
 import AdminSubcategories from './pages/admin/AdminSubcategories';
 import AdminCustomers from './pages/admin/AdminCustomers';
 import AdminOrders from './pages/admin/AdminOrders';
+import AdminQuotation from './pages/admin/AdminQuotation';
+import AdminApprovals from './pages/admin/AdminApprovals';
 
 function GlobalModals() {
   const { loginModal, closeLoginModal } = useAuth();
@@ -105,7 +107,9 @@ export default function App() {
                 <Route path="categories" element={<AdminCategories />} />
                 <Route path="subcategories" element={<AdminSubcategories />} />
                 <Route path="customers" element={<AdminCustomers />} />
+                <Route path="approvals" element={<AdminApprovals />} />
                 <Route path="orders" element={<AdminOrders />} />
+                <Route path="orders/:id/quotation" element={<AdminQuotation />} />
               </Route>
             </Route>
 

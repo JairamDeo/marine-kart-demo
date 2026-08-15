@@ -10,6 +10,10 @@ router.get('/my/:id', protect, orderController.getMyOrder);
 router.patch('/my/:id/cancel', protect, orderController.cancelOrder);
 
 router.get('/', protect, authorize('admin'), orderController.adminListOrders);
+router.get('/:id/quotation', protect, authorize('admin'), orderController.getQuotation);
+router.put('/:id/quotation/draft', protect, authorize('admin'), orderController.saveQuotationDraft);
+router.post('/:id/quotation/create', protect, authorize('admin'), orderController.createQuotation);
+router.post('/:id/quotation/send', protect, authorize('admin'), orderController.sendQuotation);
 router.get('/:id', protect, authorize('admin'), orderController.adminGetOrder);
 router.patch('/:id', protect, authorize('admin'), orderController.adminUpdateOrder);
 

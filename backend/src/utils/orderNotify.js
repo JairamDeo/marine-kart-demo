@@ -10,14 +10,20 @@ function formatWhen(date = new Date()) {
   }
 }
 
-function statusLabel(status) {
+function statusLabel(status, opts = {}) {
+  const forCustomer = opts.forCustomer === true;
+  if (forCustomer && (status === 'enquiry_received' || status === 'pending')) {
+    return 'Enquiry Sent';
+  }
   const map = {
-    pending: 'Pending',
-    quotation_sent: 'Quotation sent',
-    confirmed: 'Confirmed',
-    shipped: 'Shipped',
-    delivered: 'Delivered',
+    enquiry_received: 'Enquiry Received',
+    quotation_sent: 'Quotation Sent',
+    confirmed: 'Order Confirmed',
+    order_received: 'Order Received',
     cancelled: 'Cancelled',
+    pending: 'Enquiry Received',
+    shipped: 'Order Received',
+    delivered: 'Order Received',
   };
   return map[status] || String(status || '').replace(/_/g, ' ');
 }

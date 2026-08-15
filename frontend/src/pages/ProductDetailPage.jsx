@@ -1,17 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { ChevronRight, Heart, Minus, Plus, ShoppingCart } from 'lucide-react';
+import { ChevronRight, Eye, Heart, Minus, Plus, ShoppingCart } from 'lucide-react';
 import { productService } from '../services/product.service';
 import { wishlistService } from '../services/wishlist.service';
 import { useAuth } from '../context/AuthContext';
 import { useCartUI } from '../context/CartUIContext';
-import { formatPrice } from '../utils/format';
 import { productImageUrl } from '../utils/productImage';
 import { friendlyError } from '../utils/toastMsg';
-import { clampOrderQty, getMaxOrderQty } from '../utils/maxOrderQty';
 import ProductCard from '../components/product/ProductCard';
-import MarkdownContent from '../components/product/MarkdownContent';
+import ProductImageLightbox from '../components/product/ProductImageLightbox';
 
 export default function ProductDetailPage() {
   const { slug } = useParams();
@@ -30,13 +28,12 @@ export default function ProductDetailPage() {
   const [busy, setBusy] = useState(false);
   const [wishBusy, setWishBusy] = useState(false);
   const [activeImg, setActiveImg] = useState(0);
-  const [detailTab, setDetailTab] = useState('description');
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setActiveImg(0);
-    setDetailTab('description');
     setProduct(null);
     productService
       .getBySlug(slug)
@@ -64,16 +61,30 @@ export default function ProductDetailPage() {
   const gallery = useMemo(() => {
     if (!product) return [];
     const imgs = Array.isArray(product.images) ? product.images.filter(Boolean) : [];
+    const specImg =
+      product.specifications?.mode === 'image' && product.specifications?.image
+        ? String(product.specifications.image).trim()
+        : '';
+    // Optional spec image appears as an extra gallery thumbnail (does not replace main images)
+    if (specImg && !imgs.includes(specImg)) {
+      return imgs.length ? [...imgs, specImg] : [specImg];
+    }
     if (imgs.length) return imgs;
     return [productImageUrl(product, 900)];
   }, [product]);
 
   const productId = product ? String(product.id || product._id) : '';
   const inWishlist = productId && wishlistIds.includes(productId);
-  const maxQty = getMaxOrderQty(product);
-  const clampQty = (n) => clampOrderQty(n, product);
+  const outOfStock = product
+    ? product.stockStatus === 'out_of_stock' || product.inStock === false
+    : false;
+  const clampQty = (n) => Math.max(1, Math.floor(Number(n) || 1));
 
   const handleAdd = async () => {
+    if (outOfStock) {
+      toast.error('This product is out of stock');
+      return;
+    }
     setBusy(true);
     try {
       await addToCart(product, clampQty(qty));
@@ -190,27 +201,44 @@ export default function ProductDetailPage() {
                     {gallery.map((src, i) => {
                       const selected = activeImg === i;
                       return (
-                        <button
+                        <div
                           key={`${src}-${i}`}
-                          type="button"
-                          role="option"
-                          aria-selected={selected}
-                          aria-label={`View image ${i + 1}`}
-                          onClick={() => setActiveImg(i)}
-                          className={`relative h-11 w-11 shrink-0 overflow-hidden rounded-lg bg-[#f3f7fa] p-0.5 transition duration-200 sm:h-[48px] sm:w-[48px] ${
+                          className={`group relative h-11 w-11 shrink-0 overflow-hidden rounded-lg bg-[#f3f7fa] sm:h-[48px] sm:w-[48px] ${
                             selected
                               ? 'border-2 border-cyan'
-                              : 'border border-gray-200/80 hover:border-cyan/50'
+                              : 'border border-gray-200/80'
                           }`}
                         >
-                          <img
-                            src={src}
-                            alt=""
-                            className="h-full w-full object-contain"
-                            loading="lazy"
-                            decoding="async"
-                          />
-                        </button>
+                          <button
+                            type="button"
+                            role="option"
+                            aria-selected={selected}
+                            aria-label={`Select image ${i + 1}`}
+                            onClick={() => setActiveImg(i)}
+                            className="absolute inset-0 p-0.5 transition hover:border-cyan/50"
+                          >
+                            <img
+                              src={src}
+                              alt=""
+                              className="h-full w-full object-contain"
+                              loading="lazy"
+                              decoding="async"
+                            />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveImg(i);
+                              setPreviewOpen(true);
+                            }}
+                            className="absolute bottom-0.5 right-0.5 z-10 flex h-5 w-5 items-center justify-center rounded bg-navy/85 text-white shadow-sm transition hover:bg-navy"
+                            aria-label={`Preview image ${i + 1}`}
+                            title="Preview"
+                          >
+                            <Eye size={11} strokeWidth={2.5} />
+                          </button>
+                        </div>
                       );
                     })}
                   </div>
@@ -226,6 +254,15 @@ export default function ProductDetailPage() {
                       loading="lazy"
                       decoding="async"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setPreviewOpen(true)}
+                      className="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/95 text-navy shadow-md ring-1 ring-gray-100 transition hover:bg-navy hover:text-white"
+                      aria-label="Preview image"
+                      title="Preview"
+                    >
+                      <Eye size={15} />
+                    </button>
                     <div className="absolute left-2 top-2 flex flex-wrap gap-1.5">
                       {product.isNewArrival && (
                         <span className="rounded-full bg-cyan px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white shadow">
@@ -273,42 +310,33 @@ export default function ProductDetailPage() {
 
           {/* Buy box — equal height with gallery */}
           <div className="flex lg:col-span-7">
-            <div className="flex h-full w-full flex-col justify-center rounded-2xl bg-white p-4 shadow-sm ring-1 ring-gray-100 sm:p-5">
-              <h1 className="text-xl font-extrabold leading-snug tracking-tight text-navy sm:text-2xl">
-                {product.productId || product.name}
+            <div className="relative flex h-full w-full flex-col justify-center rounded-2xl bg-white p-4 shadow-sm ring-1 ring-gray-100 sm:p-5">
+              <p
+                className={`absolute right-4 top-4 text-xs font-semibold sm:right-5 sm:top-5 sm:text-sm ${
+                  outOfStock ? 'text-rose-600' : 'text-emerald-600'
+                }`}
+              >
+                {outOfStock ? 'Out Of Stock' : 'Available In Stock'}
+              </p>
+
+              <p className="pr-28 text-[11px] font-medium uppercase tracking-wide text-cyan sm:text-xs">
+                {category?.name || 'Marine Product'}
+              </p>
+              <h1 className="mt-1 pr-28 text-xl font-extrabold leading-snug tracking-tight text-navy sm:text-2xl">
+                {subcategory?.name
+                  ? `${subcategory.name} - ${product.productId || product.name}`
+                  : product.productId || product.name}
               </h1>
 
               <div className="mt-3 rounded-xl bg-gradient-to-br from-[#f3f8fb] to-[#eaf3f7] px-3.5 py-3">
-                {product.priceVisible ? (
-                  <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">
-                      Price
-                    </p>
-                    <div className="mt-0.5 flex flex-wrap items-end gap-2">
-                      <span className="text-2xl font-extrabold text-navy">
-                        {formatPrice(product.displayPrice)}
-                      </span>
-                      {product.salePrice != null && (
-                        <span className="pb-0.5 text-sm text-gray-400 line-through">
-                          {formatPrice(product.price)}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  <div>
-                    <p className="text-sm font-semibold text-navy">Login to view price</p>
-                    <p className="mt-0.5 text-xs text-gray-500">
-                      Prices are shown after you sign in as a customer.
-                    </p>
-                    <Link
-                      to={`/login?redirect=/product/${product.slug}`}
-                      className="btn-cyan mt-2.5 inline-flex rounded-lg px-4 py-2 text-sm"
-                    >
-                      Login to View Price
-                    </Link>
-                  </div>
-                )}
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+                  Description
+                </p>
+                <div className="mt-1.5 whitespace-pre-line text-sm leading-relaxed text-gray-600">
+                  {product.description ||
+                    product.shortDescription ||
+                    'No detailed description available for this product yet.'}
+                </div>
               </div>
 
               <div className="mt-3">
@@ -326,16 +354,14 @@ export default function ProductDetailPage() {
                     <input
                       type="number"
                       min={1}
-                      max={maxQty ?? undefined}
                       value={qty}
                       onChange={(e) => setQty(clampQty(e.target.value))}
                       className="h-10 w-12 border-x border-gray-200 text-center text-sm font-bold outline-none"
                     />
                     <button
                       type="button"
-                      disabled={maxQty != null && qty >= maxQty}
                       onClick={() => setQty((q) => clampQty(q + 1))}
-                      className="flex h-10 w-9 items-center justify-center text-navy transition hover:bg-gray-50 disabled:opacity-30"
+                      className="flex h-10 w-9 items-center justify-center text-navy transition hover:bg-gray-50"
                       aria-label="Increase quantity"
                     >
                       <Plus size={15} />
@@ -344,12 +370,12 @@ export default function ProductDetailPage() {
 
                   <button
                     type="button"
-                    disabled={busy}
+                    disabled={busy || outOfStock}
                     onClick={handleAdd}
                     className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-[#1a4b8c] px-4 text-sm font-bold text-white transition hover:bg-[#143a6e] disabled:opacity-50"
                   >
                     <ShoppingCart size={16} />
-                    {busy ? 'Adding...' : 'Add to Cart'}
+                    {busy ? 'Sending...' : outOfStock ? 'Out of stock' : 'Ask For Price'}
                   </button>
 
                   <button
@@ -367,70 +393,8 @@ export default function ProductDetailPage() {
                     <Heart size={18} fill={inWishlist ? 'currentColor' : 'none'} />
                   </button>
                 </div>
-                {maxQty != null && (
-                  <p className="mt-1.5 text-xs text-gray-500">Max {maxQty} per order</p>
-                )}
               </div>
             </div>
-          </div>
-        </div>
-
-        <div className="mt-6 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-gray-100 sm:mt-8">
-          <div className="flex overflow-x-auto border-b border-gray-100 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {[
-              { id: 'description', label: 'Description', labelSm: 'Product description' },
-              {
-                id: 'specifications',
-                label: 'Specification',
-                labelSm: 'Product specification',
-              },
-            ].map((tab) => {
-                const active = detailTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => setDetailTab(tab.id)}
-                    className={`relative shrink-0 px-4 py-2.5 text-xs font-semibold transition sm:px-5 sm:text-sm ${
-                      active
-                        ? 'text-navy'
-                        : 'text-gray-400 hover:text-gray-700'
-                    }`}
-                  >
-                    <span className="sm:hidden">{tab.label}</span>
-                    <span className="hidden sm:inline">{tab.labelSm}</span>
-                    {active ? (
-                      <span className="absolute inset-x-3 -bottom-px h-0.5 rounded-full bg-navy sm:inset-x-4" />
-                    ) : null}
-                  </button>
-                );
-              })}
-          </div>
-
-          <div className="p-4 sm:p-5">
-            {detailTab === 'description' ? (
-              <div className="whitespace-pre-line text-sm leading-6 text-gray-600">
-                {product.description || 'No detailed description available for this product yet.'}
-              </div>
-            ) : product.specifications?.mode === 'image' && product.specifications?.image ? (
-              <div className="overflow-hidden rounded-xl border border-sky-100 bg-sky-50/40 p-2 sm:p-3">
-                <img
-                  src={product.specifications.image}
-                  alt={`${product.productId || product.name} specifications`}
-                  className="mx-auto max-h-[420px] w-full rounded-lg object-contain"
-                  loading="lazy"
-                  decoding="async"
-                />
-              </div>
-            ) : product.specifications?.mode === 'markdown' &&
-              product.specifications?.markdown ? (
-              <MarkdownContent
-                content={product.specifications.markdown}
-                className="mk-specs-compact"
-              />
-            ) : (
-              <p className="text-sm text-gray-500">No specifications available</p>
-            )}
           </div>
         </div>
 
@@ -455,6 +419,18 @@ export default function ProductDetailPage() {
           </section>
         )}
       </div>
+
+      <ProductImageLightbox
+        open={previewOpen}
+        images={gallery}
+        index={activeImg}
+        alt={product.productId || product.name}
+        onClose={() => setPreviewOpen(false)}
+        onIndexChange={(next) => {
+          if (typeof next === 'function') setActiveImg(next);
+          else setActiveImg(next);
+        }}
+      />
     </div>
   );
 }

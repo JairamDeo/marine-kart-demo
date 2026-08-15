@@ -200,41 +200,101 @@ function adminNewUserEmail({ user }) {
   };
 }
 
+function formatWhen(date = new Date()) {
+  return new Date(date).toLocaleString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+/** Admin: new storefront user verified email and awaits approval */
+function adminPendingApprovalEmail({ user }) {
+  const name = escapeHtml(`${user.firstName || ''} ${user.lastName || ''}`.trim() || '—');
+  const email = escapeHtml(user.email || '—');
+  const phone = escapeHtml(user.phone || '—');
+  const typeLabel = accountTypeLabel(user.role);
+  const typeSafe = escapeHtml(typeLabel);
+  const when = escapeHtml(formatWhen(user.emailVerified ? new Date() : user.createdAt || new Date()));
+  const company = user.companyName
+    ? metaRow('Company', escapeHtml(user.companyName))
+    : '';
+  const approvalsUrl = siteUrl('/admin/approvals');
+  return {
+    subject: `Approval needed — ${typeLabel} · MarineKart`,
+    html: wrapEmail({
+      title: 'Approval request',
+      eyebrow: 'Email verified — review and approve',
+      preheader: `${user.firstName || 'A customer'} is awaiting account approval`,
+      bodyHtml: `
+        <p style="margin:0 0 16px;">A new account has verified their email and is waiting for your approval before they can sign in.</p>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:18px;">
+          ${metaRow('Name', name)}
+          ${metaRow('Email', email)}
+          ${metaRow('Mobile', phone)}
+          ${metaRow('Account type', typeSafe)}
+          ${metaRow('Submitted', when)}
+          ${company}
+        </table>
+        <p style="margin:0 0 22px;">${ctaButton(approvalsUrl, 'Review approvals')}</p>
+        <p style="margin:0;color:${BRAND.muted};font-size:12px;">Or open: ${escapeHtml(approvalsUrl)}</p>
+      `,
+    }),
+    text: `Approval request — MarineKart\n\nName: ${user.firstName} ${user.lastName}\nEmail: ${user.email}\nMobile: ${user.phone}\nAccount type: ${typeLabel}\nSubmitted: ${formatWhen()}${user.companyName ? `\nCompany: ${user.companyName}` : ''}\n\nReview: ${approvalsUrl}`,
+  };
+}
+
+/** Customer: admin approved their account */
+function accountApprovedEmail({ name, loginUrl, accountType }) {
+  const safeName = escapeHtml(name || 'there');
+  const typeLabel =
+    accountType === 'corporate' ? 'corporate customer' : 'customer';
+  const href = loginUrl || siteUrl('/login');
+  return {
+    subject: 'Your MarineKart account has been approved',
+    html: wrapEmail({
+      title: 'Account approved',
+      eyebrow: 'You can sign in now',
+      preheader: 'Your MarineKart account has been approved — you can sign in.',
+      bodyHtml: `
+        <p style="margin:0 0 12px;">Hi ${safeName},</p>
+        <p style="margin:0 0 16px;">Good news — your <strong>${escapeHtml(typeLabel)}</strong> account has been approved by our team. You can now sign in to browse products, view pricing, and place orders.</p>
+        <div style="margin:0 0 18px;padding:14px 16px;border-radius:12px;background:rgba(120,198,212,0.15);border:1px solid ${BRAND.cyan};">
+          <p style="margin:0;font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:${BRAND.muted};">Status</p>
+          <p style="margin:4px 0 0;font-size:18px;font-weight:800;color:${BRAND.navy};">Approved</p>
+        </div>
+        <p style="margin:0 0 22px;">${ctaButton(href, 'Sign in to MarineKart')}</p>
+        <p style="margin:0;color:${BRAND.muted};font-size:13px;">Welcome aboard — we look forward to serving you.</p>
+        <p style="margin:12px 0 0;color:${BRAND.muted};font-size:12px;">Or open: ${escapeHtml(href)}</p>
+      `,
+    }),
+    text: `Hi ${name || 'there'},\n\nYour MarineKart ${typeLabel} account has been approved. You can now sign in.\n\nSign in: ${href}\n\n— MarineKart`,
+  };
+}
+
 function adminNewOrderEmail({ order, customer, when }) {
   const name = escapeHtml(customer?.name || 'Customer');
   const email = escapeHtml(customer?.email || '—');
   const phone = escapeHtml(customer?.phone || '—');
   const orderNumber = escapeHtml(order.orderNumber || order._id);
   const whenSafe = escapeHtml(when);
-  const total = escapeHtml(
-    `₹${Number(order.total || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`
-  );
   const addr = order.billingAddress || {};
   const addressLine = escapeHtml(
     [addr.line1, addr.line2, addr.city, addr.state, addr.postalCode].filter(Boolean).join(', ') || '—'
   );
 
-  const rows = (order.items || [])
-    .map(
-      (item) => `
-      <tr>
-        <td style="padding:10px 8px;border-bottom:1px solid ${BRAND.line};color:#334155;">${escapeHtml(item.name)}</td>
-        <td style="padding:10px 8px;border-bottom:1px solid ${BRAND.line};text-align:center;color:#334155;">${escapeHtml(item.quantity)}</td>
-        <td style="padding:10px 8px;border-bottom:1px solid ${BRAND.line};text-align:right;color:${BRAND.ink};font-weight:600;">₹${Number(item.totalPrice || 0).toLocaleString('en-IN')}</td>
-      </tr>`
-    )
-    .join('');
-
   return {
-    subject: `New order ${order.orderNumber} — MarineKart`,
+    subject: `New enquiry ${order.orderNumber} — MarineKart`,
     html: wrapEmail({
-      title: 'New order received',
-      eyebrow: `Order ${order.orderNumber || ''}`,
-      preheader: `New order ${order.orderNumber} from ${customer?.name || 'customer'}`,
+      title: 'New enquiry received',
+      eyebrow: `Enquiry ${order.orderNumber || ''}`,
+      preheader: `New enquiry ${order.orderNumber} from ${customer?.name || 'customer'}`,
       bodyHtml: `
-        <p style="margin:0 0 16px;">A customer just placed an order on MarineKart.</p>
+        <p style="margin:0 0 16px;">A customer just submitted an enquiry on MarineKart.</p>
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:18px;">
-          ${metaRow('Order', orderNumber)}
+          ${metaRow('Enquiry', orderNumber)}
           ${metaRow('Time', whenSafe)}
           ${metaRow('Customer', name)}
           ${metaRow('Email', email)}
@@ -245,14 +305,20 @@ function adminNewOrderEmail({ order, customer, when }) {
           <tr style="background:${BRAND.navy};">
             <th align="left" style="padding:10px 8px;color:${BRAND.white};font-weight:600;">Item</th>
             <th style="padding:10px 8px;color:${BRAND.white};font-weight:600;">Qty</th>
-            <th align="right" style="padding:10px 8px;color:${BRAND.white};font-weight:600;">Total</th>
           </tr>
-          ${rows}
+          ${(order.items || [])
+            .map(
+              (item) => `
+      <tr>
+        <td style="padding:10px 8px;border-bottom:1px solid ${BRAND.line};color:#334155;">${escapeHtml(item.name)}</td>
+        <td style="padding:10px 8px;border-bottom:1px solid ${BRAND.line};text-align:center;color:#334155;">${escapeHtml(item.quantity)}</td>
+      </tr>`
+            )
+            .join('')}
         </table>
-        <p style="margin:18px 0 0;font-size:16px;"><strong style="color:${BRAND.navy};">Order total:</strong> ${total}</p>
       `,
     }),
-    text: `New order ${order.orderNumber}\nTime: ${when}\nCustomer: ${customer?.name}\nEmail: ${customer?.email}\nPhone: ${customer?.phone}\nTotal: ${order.total}`,
+    text: `New enquiry ${order.orderNumber}\nTime: ${when}\nCustomer: ${customer?.name}\nEmail: ${customer?.email}\nPhone: ${customer?.phone}`,
   };
 }
 
@@ -261,9 +327,10 @@ function customerOrderStatusEmail({ order, customerName, status, when }) {
   const orderNumber = escapeHtml(order.orderNumber || '');
   const statusSafe = escapeHtml(status);
   const whenSafe = escapeHtml(when);
-  const total = escapeHtml(
-    `₹${Number(order.total || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`
-  );
+  const quoteTotal =
+    order.quotation?.status === 'sent' && order.quotation?.grandTotal != null
+      ? order.quotation.grandTotal
+      : null;
 
   const rows = (order.items || [])
     .slice(0, 12)
@@ -276,6 +343,14 @@ function customerOrderStatusEmail({ order, customerName, status, when }) {
     )
     .join('');
 
+  const totalRow =
+    quoteTotal != null
+      ? metaRow(
+          'Quotation total',
+          escapeHtml(`₹${Number(quoteTotal).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`)
+        )
+      : '';
+
   return {
     subject: `Order ${order.orderNumber} — ${status}`,
     html: wrapEmail({
@@ -284,25 +359,162 @@ function customerOrderStatusEmail({ order, customerName, status, when }) {
       preheader: `Order ${order.orderNumber} is now ${status}`,
       bodyHtml: `
         <p style="margin:0 0 12px;">Hi ${name},</p>
-        <p style="margin:0 0 16px;">Your MarineKart order status has been updated.</p>
+        <p style="margin:0 0 16px;">Your MarineKart enquiry / order status has been updated.</p>
         <div style="margin:0 0 18px;padding:14px 16px;border-radius:12px;background:rgba(120,198,212,0.15);border:1px solid ${BRAND.cyan};">
           <p style="margin:0;font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:${BRAND.muted};">Current status</p>
           <p style="margin:4px 0 0;font-size:18px;font-weight:800;color:${BRAND.navy};">${statusSafe}</p>
         </div>
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:16px;">
-          ${metaRow('Order', orderNumber)}
+          ${metaRow('Enquiry / Order', orderNumber)}
           ${metaRow('Updated', whenSafe)}
-          ${metaRow('Total', total)}
+          ${totalRow}
         </table>
         <p style="margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:${BRAND.muted};">Items</p>
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:13px;border:1px solid ${BRAND.line};border-radius:12px;overflow:hidden;">
           ${rows}
         </table>
         <p style="margin:20px 0 0;">${ctaButton(siteUrl('/account/orders'), 'View my orders')}</p>
-        <p style="margin:16px 0 0;color:${BRAND.muted};font-size:13px;">Thank you for shopping with MarineKart.</p>
+        <p style="margin:16px 0 0;color:${BRAND.muted};font-size:13px;">Thank you for choosing MarineKart.</p>
       `,
     }),
-    text: `Hi ${customerName},\n\nOrder ${order.orderNumber} is now ${status}.\nUpdated: ${when}\nTotal: ${order.total}\n\n— MarineKart`,
+    text: `Hi ${customerName},\n\nOrder ${order.orderNumber} is now ${status}.\nUpdated: ${when}\n\n— MarineKart`,
+  };
+}
+
+function customerQuotationSentEmail({ order, customerName, when }) {
+  const name = escapeHtml(customerName || 'there');
+  const orderNumber = escapeHtml(order.orderNumber || '');
+  const whenSafe = escapeHtml(when);
+  const q = order.quotation || {};
+  const addr = order.shippingAddress || order.billingAddress || {};
+  const addressLine = escapeHtml(
+    [addr.fullName, addr.line1, addr.line2, addr.city, addr.state, addr.postalCode, addr.country]
+      .filter(Boolean)
+      .join(', ') || '—'
+  );
+  const money = (n) =>
+    `₹${Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+
+  const rows = (q.items || [])
+    .map((item) => {
+      const qty = Number(item.quantity) || 0;
+      const amount = Number(item.amount) || 0;
+      const itemPrice = Math.round(amount * qty * 100) / 100;
+      let discAmt = 0;
+      if (item.discountType === 'percent') {
+        discAmt = Math.min(itemPrice, (itemPrice * Math.min(Number(item.discountValue) || 0, 100)) / 100);
+      } else if (item.discountType === 'amount') {
+        discAmt = Math.min(itemPrice, Number(item.discountValue) || 0);
+      } else if (item.lineTotal != null && itemPrice > 0) {
+        discAmt = Math.max(0, Math.round((itemPrice - Number(item.lineTotal || 0)) * 100) / 100);
+      }
+      discAmt = Math.round(discAmt * 100) / 100;
+      const categoryBits = [item.categoryName, item.subcategoryName].filter(Boolean).join(' · ');
+      const categoryHtml = categoryBits
+        ? `<div style="margin-top:2px;font-size:11px;color:${BRAND.muted};">${escapeHtml(categoryBits)}</div>`
+        : '';
+      const skuHtml = item.sku
+        ? `<div style="margin-top:2px;font-size:10px;font-family:Consolas,Monaco,monospace;color:#94a3b8;">${escapeHtml(item.sku)}</div>`
+        : '';
+      return `
+      <tr>
+        <td style="padding:10px 8px;border-bottom:1px solid ${BRAND.line};color:#334155;">
+          <div style="font-weight:600;color:${BRAND.ink};">${escapeHtml(item.name)}</div>
+          ${categoryHtml}
+          ${skuHtml}
+        </td>
+        <td style="padding:10px 8px;border-bottom:1px solid ${BRAND.line};text-align:center;color:#334155;">${escapeHtml(qty)}</td>
+        <td style="padding:10px 8px;border-bottom:1px solid ${BRAND.line};text-align:right;color:#334155;">${escapeHtml(money(amount))}</td>
+        <td style="padding:10px 8px;border-bottom:1px solid ${BRAND.line};text-align:right;color:${BRAND.ink};font-weight:600;">${escapeHtml(money(itemPrice))}</td>
+        <td style="padding:10px 8px;border-bottom:1px solid ${BRAND.line};text-align:right;color:${BRAND.navy};font-weight:700;">${escapeHtml(money(Math.round((itemPrice - discAmt) * 100) / 100))}</td>
+      </tr>`;
+    })
+    .join('');
+
+  const textLines = (q.items || [])
+    .map((item) => {
+      const qty = Number(item.quantity) || 0;
+      const amount = Number(item.amount) || 0;
+      const itemPrice = Math.round(amount * qty * 100) / 100;
+      let discAmt = 0;
+      if (item.discountType === 'percent') {
+        discAmt = Math.min(itemPrice, (itemPrice * Math.min(Number(item.discountValue) || 0, 100)) / 100);
+      } else if (item.discountType === 'amount') {
+        discAmt = Math.min(itemPrice, Number(item.discountValue) || 0);
+      }
+      discAmt = Math.round(discAmt * 100) / 100;
+      const discountedPrice = Math.round((itemPrice - discAmt) * 100) / 100;
+      return `- ${item.name} ×${qty} @ ${money(amount)} · Item price ${money(itemPrice)} · Discounted price ${money(discountedPrice)}`;
+    })
+    .join('\n');
+
+  return {
+    subject: `Quotation created — ${order.orderNumber} — MarineKart`,
+    html: wrapEmail({
+      title: 'Quotation created',
+      eyebrow: `Enquiry ${order.orderNumber || ''}`,
+      preheader: `Quotation created for ${order.orderNumber} · Total ${money(q.grandTotal)}`,
+      bodyHtml: `
+        <p style="margin:0 0 12px;">Hi ${name},</p>
+        <p style="margin:0 0 16px;">Your quotation has been created for your MarineKart enquiry. Please review the details below.</p>
+        <div style="margin:0 0 18px;padding:14px 16px;border-radius:12px;background:rgba(120,198,212,0.15);border:1px solid ${BRAND.cyan};">
+          <p style="margin:0;font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:${BRAND.muted};">Current status</p>
+          <p style="margin:4px 0 0;font-size:18px;font-weight:800;color:${BRAND.navy};">Quotation Sent</p>
+        </div>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:18px;">
+          ${metaRow('Enquiry', orderNumber)}
+          ${metaRow('Created', whenSafe)}
+          ${metaRow('Delivery address', addressLine)}
+        </table>
+        <p style="margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:${BRAND.muted};">Quotation details</p>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:13px;background:${BRAND.soft};border-radius:12px;overflow:hidden;border:1px solid ${BRAND.line};">
+          <tr style="background:${BRAND.navy};">
+            <th align="left" style="padding:10px 8px;color:${BRAND.white};font-weight:600;">Item</th>
+            <th style="padding:10px 8px;color:${BRAND.white};font-weight:600;">Qty</th>
+            <th align="right" style="padding:10px 8px;color:${BRAND.white};font-weight:600;">Amount</th>
+            <th align="right" style="padding:10px 8px;color:${BRAND.white};font-weight:600;">Item price</th>
+            <th align="right" style="padding:10px 8px;color:${BRAND.white};font-weight:600;">Discounted price</th>
+          </tr>
+          ${rows}
+        </table>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-top:16px;">
+          ${metaRow(
+            'Items subtotal',
+            escapeHtml(money(Number(q.itemsSubtotal || 0) + Number(q.discountTotal || 0)))
+          )}
+          ${
+            Number(q.discountTotal) > 0
+              ? metaRow('Discount', escapeHtml(money(q.discountTotal)))
+              : ''
+          }
+          ${metaRow('Courier charges', escapeHtml(money(q.courierCharges)))}
+          ${metaRow(`GST (${q.gstPercent || 0}%)`, escapeHtml(money(q.gstAmount)))}
+        </table>
+        <div style="margin:16px 0 0;padding:14px 16px;border-radius:12px;background:linear-gradient(135deg,${BRAND.navy} 0%,${BRAND.navyDark} 100%);">
+          <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.7);">Grand total</p>
+          <p style="margin:4px 0 0;font-size:24px;font-weight:800;color:${BRAND.white};letter-spacing:-0.02em;">${escapeHtml(money(q.grandTotal))}</p>
+        </div>
+        <p style="margin:20px 0 0;">${ctaButton(siteUrl('/account/orders'), 'View my enquiry')}</p>
+        <p style="margin:16px 0 0;color:${BRAND.muted};font-size:13px;">If you have questions about this quotation, reply to this email or contact MarineKart support.</p>
+      `,
+    }),
+    text: `Hi ${customerName || 'there'},
+
+Quotation created for ${order.orderNumber}.
+Status: Quotation Sent
+Created: ${when}
+
+Items:
+${textLines}
+
+Items subtotal: ${money(Number(q.itemsSubtotal || 0) + Number(q.discountTotal || 0))}
+${Number(q.discountTotal) > 0 ? `Discount: ${money(q.discountTotal)}\n` : ''}Courier: ${money(q.courierCharges)}
+GST (${q.gstPercent || 0}%): ${money(q.gstAmount)}
+Grand total: ${money(q.grandTotal)}
+
+View: ${siteUrl('/account/orders')}
+
+— MarineKart`,
   };
 }
 
@@ -356,8 +568,11 @@ module.exports = {
   passwordResetOtpEmail,
   welcomeEmail,
   adminNewUserEmail,
+  adminPendingApprovalEmail,
+  accountApprovedEmail,
   adminNewOrderEmail,
   customerOrderStatusEmail,
+  customerQuotationSentEmail,
   adminNewEnquiryEmail,
   enquiryThankYouEmail,
 };

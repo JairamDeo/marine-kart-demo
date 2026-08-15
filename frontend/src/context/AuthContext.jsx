@@ -228,6 +228,18 @@ export function AuthProvider({ children }) {
         e.accountType = payload?.accountType || accountType;
         throw e;
       }
+      if (payload?.code === 'PENDING_APPROVAL' || payload?.needsApproval) {
+        const e = new Error(err.message || 'Awaiting admin approval');
+        e.code = 'PENDING_APPROVAL';
+        e.email = payload?.email || email;
+        e.accountType = payload?.accountType || accountType;
+        throw e;
+      }
+      if (payload?.code === 'ACCOUNT_REJECTED') {
+        const e = new Error(err.message || 'Registration was not approved');
+        e.code = 'ACCOUNT_REJECTED';
+        throw e;
+      }
       throw err;
     }
   };

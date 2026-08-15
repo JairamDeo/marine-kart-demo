@@ -5,6 +5,8 @@ export const adminService = {
   dashboard: () => apiClient.get(API.ADMIN_DASHBOARD),
   customers: () => apiClient.get(API.ADMIN_CUSTOMERS),
   updateCustomer: (id, payload) => apiClient.patch(API.ADMIN_CUSTOMER(id), payload),
+  approvals: (params) => apiClient.get(API.ADMIN_APPROVALS, { params }),
+  approveUser: (id) => apiClient.post(API.ADMIN_APPROVE(id)),
   salesReport: () => apiClient.get(API.ADMIN_SALES_REPORT),
   products: () => apiClient.get(API.ADMIN_PRODUCTS),
   createProduct: (payload) => apiClient.post(API.ADMIN_PRODUCT_CREATE, payload),
@@ -25,6 +27,10 @@ export const adminService = {
   orders: (params) => apiClient.get(API.ADMIN_ORDERS, { params }),
   getOrder: (id) => apiClient.get(API.ADMIN_ORDER_GET(id)),
   updateOrder: (id, payload) => apiClient.patch(API.ADMIN_ORDER_UPDATE(id), payload),
+  getQuotation: (id) => apiClient.get(API.ADMIN_ORDER_QUOTATION(id)),
+  saveQuotationDraft: (id, payload) => apiClient.put(API.ADMIN_ORDER_QUOTATION_DRAFT(id), payload),
+  createQuotation: (id, payload) => apiClient.post(API.ADMIN_ORDER_QUOTATION_CREATE(id), payload),
+  sendQuotation: (id, payload) => apiClient.post(API.ADMIN_ORDER_QUOTATION_SEND(id), payload),
 
   uploadImage: (file, section = 'products') => {
     const form = new FormData();

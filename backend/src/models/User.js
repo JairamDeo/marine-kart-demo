@@ -60,6 +60,17 @@ const userSchema = new mongoose.Schema(
     isActive: { type: Boolean, default: true },
     /** Explicit false = must verify email OTP. Missing/true = verified (legacy). */
     emailVerified: { type: Boolean, default: true },
+    /**
+     * Storefront accounts need admin approval after email OTP.
+     * Legacy / admin users default to approved so existing logins keep working.
+     */
+    approvalStatus: {
+      type: String,
+      enum: ['pending', 'approved', 'rejected'],
+      default: 'approved',
+    },
+    approvedAt: { type: Date, default: null },
+    approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     emailOtpHash: { type: String, select: false, default: '' },
     emailOtpExpires: { type: Date, select: false, default: null },
     /** Forgot-password OTP — separate from registration email OTP. */
@@ -133,6 +144,8 @@ userSchema.methods.toSafeObject = function toSafeObject() {
     addresses: this.addresses,
     isActive: this.isActive,
     emailVerified: this.emailVerified !== false,
+    approvalStatus: this.approvalStatus || 'approved',
+    approvedAt: this.approvedAt || null,
     createdAt: this.createdAt,
   };
 };

@@ -12,7 +12,18 @@ const { buildProductSearchFilter } = require('../utils/productSearch');
 
 const mapProducts = (products, user) => products.map((p) => p.toPublicJSON(user));
 
-const STRIP_ON_WRITE = ['sku', 'stock', 'stockStatus', 'lowStockThreshold', 'actionHistory', 'createdBy', 'isDeleted', 'deletedAt'];
+const STRIP_ON_WRITE = [
+  'sku',
+  'stock',
+  'lowStockThreshold',
+  'price',
+  'salePrice',
+  'maxOrderQty',
+  'actionHistory',
+  'createdBy',
+  'isDeleted',
+  'deletedAt',
+];
 
 function prepareProductPayload(body) {
   const payload = { ...body };
@@ -20,6 +31,10 @@ function prepareProductPayload(body) {
   delete payload.updatedBy;
   if (Object.prototype.hasOwnProperty.call(body, 'specifications')) {
     payload.specifications = Product.sanitizeSpecificationsInput(body.specifications);
+  }
+  if (Object.prototype.hasOwnProperty.call(body, 'stockStatus')) {
+    const s = String(body.stockStatus || '').toLowerCase();
+    payload.stockStatus = s === 'out_of_stock' ? 'out_of_stock' : 'in_stock';
   }
   return payload;
 }
@@ -57,8 +72,6 @@ exports.getProducts = asyncHandler(async (req, res) => {
     '-createdAt',
     'name',
     '-name',
-    'price',
-    '-price',
   ]);
   const sortKey = allowedSort.has(String(sort)) ? String(sort) : '-createdAt';
 
@@ -164,7 +177,7 @@ exports.createProduct = asyncHandler(async (req, res) => {
       `${payload.productId || payload.name}-${payload.sku.replace(/[^a-zA-Z0-9]+/g, '-')}`
     );
   }
-  if (payload.price == null || payload.price === '') payload.price = 0;
+  if (!payload.stockStatus) payload.stockStatus = 'in_stock';
   if (payload.shortDescription == null) payload.shortDescription = '';
 
   const product = await Product.create(withCreateAudit(payload, req.user));
@@ -184,11 +197,15 @@ exports.updateProduct = asyncHandler(async (req, res) => {
     payload.productId = productId;
     if (productId && !payload.name) payload.name = productId;
   }
-  if (payload.price == null || payload.price === '') payload.price = 0;
 
   Object.assign(product, payload);
   applyUpdateAudit(product, req.user, 'update');
   await product.save();
+  // Clear legacy catalog price fields from older documents
+  await Product.collection.updateOne(
+    { _id: product._id },
+    { $unset: { price: '', salePrice: '', maxOrderQty: '' } }
+  );
 
   res.json({ success: true, data: { product } });
 });

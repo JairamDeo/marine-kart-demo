@@ -6,8 +6,8 @@ const orderItemSchema = new mongoose.Schema({
   name: String,
   sku: String,
   quantity: { type: Number, required: true, min: 1 },
-  unitPrice: { type: Number, required: true },
-  totalPrice: { type: Number, required: true },
+  unitPrice: { type: Number, required: true, default: 0 },
+  totalPrice: { type: Number, required: true, default: 0 },
 });
 
 const addressSnapshotSchema = new mongoose.Schema(
@@ -24,6 +24,48 @@ const addressSnapshotSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const quotationItemSchema = new mongoose.Schema(
+  {
+    product: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', default: null },
+    name: { type: String, default: '' },
+    sku: { type: String, default: '' },
+    categoryName: { type: String, default: '' },
+    subcategoryName: { type: String, default: '' },
+    quantity: { type: Number, default: 1, min: 1 },
+    amount: { type: Number, default: 0, min: 0 },
+    discountType: {
+      type: String,
+      enum: ['none', 'percent', 'amount'],
+      default: 'none',
+    },
+    discountValue: { type: Number, default: 0, min: 0 },
+    lineTotal: { type: Number, default: 0, min: 0 },
+  },
+  { _id: false }
+);
+
+const quotationSchema = new mongoose.Schema(
+  {
+    status: {
+      type: String,
+      enum: ['none', 'draft', 'sent'],
+      default: 'none',
+    },
+    items: [quotationItemSchema],
+    courierCharges: { type: Number, default: 0, min: 0 },
+    gstPercent: { type: Number, default: 0, enum: [0, 5, 12, 18, 28] },
+    itemsSubtotal: { type: Number, default: 0 },
+    discountTotal: { type: Number, default: 0 },
+    taxableAmount: { type: Number, default: 0 },
+    gstAmount: { type: Number, default: 0 },
+    grandTotal: { type: Number, default: 0 },
+    savedAt: { type: Date, default: null },
+    sentAt: { type: Date, default: null },
+    sentBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+  },
+  { _id: false }
+);
+
 const orderSchema = new mongoose.Schema(
   {
     orderNumber: { type: String, unique: true, required: true },
@@ -31,10 +73,10 @@ const orderSchema = new mongoose.Schema(
     items: [orderItemSchema],
     billingAddress: addressSnapshotSchema,
     shippingAddress: addressSnapshotSchema,
-    subtotal: { type: Number, required: true },
+    subtotal: { type: Number, required: true, default: 0 },
     discount: { type: Number, default: 0 },
     shippingCost: { type: Number, default: 0 },
-    total: { type: Number, required: true },
+    total: { type: Number, required: true, default: 0 },
     paymentStatus: {
       type: String,
       enum: ['pending', 'paid', 'failed', 'refunded'],
@@ -48,17 +90,23 @@ const orderSchema = new mongoose.Schema(
     orderStatus: {
       type: String,
       enum: [
-        'pending',
+        'enquiry_received',
         'quotation_sent',
         'confirmed',
+        'order_received',
+        'cancelled',
+        // legacy (kept for migration compatibility)
+        'pending',
         'shipped',
         'delivered',
-        'cancelled',
       ],
-      default: 'pending',
+      default: 'enquiry_received',
+    },
+    quotation: {
+      type: quotationSchema,
+      default: () => ({ status: 'none', items: [], courierCharges: 0, gstPercent: 0 }),
     },
     notes: { type: String, default: '' },
-    /** Snapshot of who cancelled (admin or customer) — set only when cancelled */
     cancelledBy: {
       userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
       name: { type: String, default: '' },
@@ -78,7 +126,6 @@ const orderSchema = new mongoose.Schema(
         byMobile: String,
         byUserId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
         byRole: { type: String, default: '' },
-        /** Previous status value before this change */
         fromStatus: { type: String, default: '' },
       },
     ],

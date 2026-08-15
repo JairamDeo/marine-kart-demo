@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import BrandLogo from '../components/common/BrandLogo';
 import PasswordInput from '../components/portal/PasswordInput';
 import OtpVerifyModal from '../components/auth/OtpVerifyModal';
+import ApprovalPendingModal from '../components/auth/ApprovalPendingModal';
 import AddressLocationFields, {
   Field,
   inputCls,
@@ -67,6 +68,7 @@ export default function RegisterPage() {
   const [otpOpen, setOtpOpen] = useState(false);
   const [otpEmail, setOtpEmail] = useState('');
   const [otpAccountType, setOtpAccountType] = useState('customer');
+  const [approvalOpen, setApprovalOpen] = useState(false);
 
   const isCorporate = accountType === 'corporate';
 
@@ -140,10 +142,26 @@ export default function RegisterPage() {
   };
 
   const onVerified = async (user, token) => {
-    await completeEmailVerification(user, token);
     setOtpOpen(false);
-    toast.success('Welcome to MarineKart!');
-    navigate('/');
+    if (user && token) {
+      await completeEmailVerification(user, token);
+      toast.success('Welcome to MarineKart!');
+      navigate('/');
+      return;
+    }
+    toast.success('Email verified.');
+  };
+
+  const onPendingApproval = (data) => {
+    setOtpOpen(false);
+    setOtpEmail(data?.email || otpEmail);
+    setOtpAccountType(data?.accountType || otpAccountType);
+    setApprovalOpen(true);
+  };
+
+  const goLoginAfterApproval = () => {
+    setApprovalOpen(false);
+    navigate(otpAccountType === 'corporate' ? '/login?type=corporate' : '/login');
   };
 
   return (
@@ -159,13 +177,13 @@ export default function RegisterPage() {
             </h1>
             <p className="mt-1.5 text-[11px] leading-relaxed text-white/65">
               {isCorporate
-                ? 'Verify your email after signup, then sign in to shop.'
-                : 'Unlock prices, wishlist, and checkout.'}
+                ? 'Verify your email, then wait for admin approval before signing in.'
+                : 'Verify your email, get admin approval, then shop and send enquiries.'}
             </p>
             <ul className="mt-4 space-y-1.5 border-t border-white/10 pt-3 text-[11px] text-white/70">
-              <li>· Live catalog pricing</li>
+              <li>· Ask for price on products</li>
               <li>· Order tracking</li>
-              <li>· {isCorporate ? 'Business account' : 'Fast checkout'}</li>
+              <li>· {isCorporate ? 'Business account' : 'Fast enquiry checkout'}</li>
             </ul>
           </div>
         </aside>
@@ -419,6 +437,18 @@ export default function RegisterPage() {
           navigate(otpAccountType === 'corporate' ? '/login?type=corporate' : '/login');
         }}
         onVerified={onVerified}
+        onPendingApproval={onPendingApproval}
+      />
+
+      <ApprovalPendingModal
+        open={approvalOpen}
+        email={otpEmail}
+        accountType={otpAccountType}
+        onClose={() => {
+          setApprovalOpen(false);
+          navigate('/');
+        }}
+        onGoToLogin={goLoginAfterApproval}
       />
     </div>
   );

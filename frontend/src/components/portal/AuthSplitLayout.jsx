@@ -35,7 +35,7 @@ export default function AuthSplitLayout({
           </li>
           <li className="flex items-start gap-3">
             <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-cyan" />
-            Login to view prices · Corporate pricing support
+            Login to send enquiries · Corporate account support
           </li>
           <li className="flex items-start gap-3">
             <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-cyan" />

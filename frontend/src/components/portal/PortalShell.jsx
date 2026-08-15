@@ -147,7 +147,7 @@ export default function PortalShell({
   );
 
   return (
-    <div className={`flex min-h-screen min-h-[100dvh] ${bg}`}>
+    <div className={`flex h-[100dvh] max-h-[100dvh] overflow-hidden ${bg}`}>
       {/* Mobile backdrop */}
       <div
         className={`fixed inset-0 z-40 bg-black/40 backdrop-blur-[1px] transition-opacity duration-300 lg:hidden ${
@@ -175,17 +175,17 @@ export default function PortalShell({
         {renderSidebar(true, () => setMobileOpen(false))}
       </aside>
 
-      {/* Desktop sticky sidebar */}
+      {/* Desktop sidebar — full height of viewport shell */}
       <aside
-        className={`portal-sidebar sticky top-0 z-20 hidden h-screen shrink-0 flex-col border-r border-gray-100 bg-white transition-all duration-300 ease-in-out lg:flex ${
+        className={`portal-sidebar z-20 hidden h-full shrink-0 flex-col border-r border-gray-100 bg-white transition-all duration-300 ease-in-out lg:flex ${
           desktopOpen ? 'w-[240px]' : 'w-[72px]'
         }`}
       >
         {renderSidebar(desktopOpen)}
       </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-2 border-b border-gray-100/80 bg-white/90 px-3 backdrop-blur-md sm:h-16 sm:px-4 md:px-6">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-gray-100/80 bg-white/95 px-3 backdrop-blur-md sm:h-16 sm:px-4 md:px-6">
           <div className="flex min-w-0 items-center gap-2 sm:gap-3">
             <button
               type="button"
@@ -203,7 +203,7 @@ export default function PortalShell({
               <Icon icon="bx:sidebar" width={24} height={24} />
             </button>
             {title ? (
-              <p className="truncate text-sm font-semibold text-gray-800 max-w-[42vw] sm:max-w-none">
+              <p className="max-w-[42vw] truncate text-sm font-semibold text-gray-800 sm:max-w-none">
                 {title}
               </p>
             ) : null}
@@ -228,7 +228,7 @@ export default function PortalShell({
 
         <main
           data-scroll-reset
-          className="flex-1 overflow-auto overscroll-contain p-3 sm:p-4 md:p-6 lg:p-8"
+          className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain p-3 sm:p-4 md:p-6 lg:p-8"
         >
           <Outlet />
         </main>

@@ -1,23 +1,25 @@
 /**
- * Order status workflow (admin):
- * pending → quotation_sent → confirmed → shipped → delivered
+ * Enquiry / order workflow (admin):
+ * enquiry_received → quotation_sent → confirmed → order_received
  *
- * Cancel allowed from: pending | quotation_sent | confirmed
- * NOT allowed from: shipped | delivered | cancelled
- *
- * Customer may cancel only before shipped (same as admin cancel window).
+ * Quotation Sent is set only by sending a quotation (not via status dropdown).
+ * Cancel / reject allowed from: enquiry_received | quotation_sent | confirmed
+ * NOT allowed from: order_received | cancelled
  */
 
-const FLOW = ['pending', 'quotation_sent', 'confirmed', 'shipped', 'delivered'];
+const FLOW = ['enquiry_received', 'quotation_sent', 'confirmed', 'order_received'];
 
 const STATUS_LABELS = {
-  pending: 'Pending',
+  enquiry_received: 'Enquiry Received',
   quotation_sent: 'Quotation Sent',
-  confirmed: 'Confirmed',
-  shipped: 'Shipped',
-  delivered: 'Delivered',
+  confirmed: 'Order Confirmed',
+  order_received: 'Order Received',
   cancelled: 'Cancelled',
-  processing: 'Processing', // legacy (migrated away)
+  // Legacy (migrated)
+  pending: 'Enquiry Received',
+  shipped: 'Order Received',
+  delivered: 'Order Received',
+  processing: 'Order Confirmed',
 };
 
 function formatStatus(status) {
@@ -36,16 +38,36 @@ function getNextStatus(current) {
 }
 
 function canCancelStatus(status) {
-  return ['pending', 'quotation_sent', 'confirmed'].includes(status);
+  return ['enquiry_received', 'quotation_sent', 'confirmed', 'pending'].includes(status);
 }
 
-function getAllowedAdminStatuses(current) {
-  if (!current || current === 'cancelled' || current === 'delivered') {
+/**
+ * @param {string} current
+ * @param {{ quotationSent?: boolean }} [opts]
+ */
+function getAllowedAdminStatuses(current, opts = {}) {
+  if (!current || current === 'cancelled' || current === 'order_received' || current === 'delivered') {
     return { next: null, canCancel: false, options: [current].filter(Boolean) };
   }
-  if (current === 'shipped') {
-    return { next: 'delivered', canCancel: false, options: ['shipped', 'delivered'] };
+
+  // Enquiry received: advance to Quotation Sent only via Create & Send Quotation
+  if (current === 'enquiry_received' || current === 'pending') {
+    const quotationSent = Boolean(opts.quotationSent);
+    if (quotationSent) {
+      return {
+        next: 'confirmed',
+        canCancel: true,
+        options: [current, 'confirmed', 'cancelled'],
+      };
+    }
+    return {
+      next: null,
+      canCancel: true,
+      options: [current, 'cancelled'],
+      quotationRequired: true,
+    };
   }
+
   const next = getNextStatus(current);
   const options = [current];
   if (next) options.push(next);
@@ -55,32 +77,47 @@ function getAllowedAdminStatuses(current) {
 }
 
 /**
- * Validate admin status change.
- * - Same status: ok (no-op)
- * - Forward exactly one step along FLOW
- * - Cancel only before shipped
- * - Never go backwards or skip steps
+ * Validate admin status change (manual dropdown).
+ * Sending a quotation uses a dedicated endpoint and may set quotation_sent directly.
  */
-function validateAdminStatusChange(from, to) {
+function validateAdminStatusChange(from, to, opts = {}) {
   if (!to || from === to) {
     return { ok: true, same: true };
   }
   if (from === 'cancelled') {
     return { ok: false, message: 'Cancelled orders cannot change status.' };
   }
-  if (from === 'delivered') {
-    return { ok: false, message: 'Delivered orders are final and cannot be changed.' };
+  if (from === 'order_received' || from === 'delivered') {
+    return { ok: false, message: 'Order Received is final and cannot be changed.' };
   }
   if (to === 'cancelled') {
     if (!canCancelStatus(from)) {
       return {
         ok: false,
-        message: 'Orders cannot be cancelled after they have been shipped.',
+        message: 'This order can no longer be cancelled.',
       };
     }
     return { ok: true, cancel: true };
   }
-  const next = getNextStatus(from);
+
+  // Manual advance to Quotation Sent is not allowed — use Create & Send Quotation
+  if (to === 'quotation_sent') {
+    return {
+      ok: false,
+      message: 'Use Create and Send Quotation to move this enquiry to Quotation Sent.',
+    };
+  }
+
+  // If somehow still on enquiry but quotation already sent, allow jump to confirmed
+  if (
+    (from === 'enquiry_received' || from === 'pending') &&
+    to === 'confirmed' &&
+    opts.quotationSent
+  ) {
+    return { ok: true, next: true };
+  }
+
+  const next = getNextStatus(from === 'pending' ? 'enquiry_received' : from);
   if (!next) {
     return { ok: false, message: 'No further status updates are allowed.' };
   }
@@ -93,7 +130,6 @@ function validateAdminStatusChange(from, to) {
   return { ok: true, next: true };
 }
 
-/** Customer may cancel only before shipped. */
 function canCustomerCancel(status) {
   return canCancelStatus(status);
 }

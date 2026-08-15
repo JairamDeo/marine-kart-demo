@@ -10,7 +10,6 @@ import BulkUploadPanel from '../../components/portal/BulkUploadPanel';
 import { FilterSelect } from '../../components/portal/FilterBar';
 import ActionIcon, { ActionGroup } from '../../components/portal/ActionIcon';
 import { adminService } from '../../services/admin.service';
-import { formatPrice } from '../../utils/format';
 import { friendlyError } from '../../utils/toastMsg';
 import { productImageUrl } from '../../utils/productImage';
 
@@ -18,13 +17,10 @@ const emptyProduct = {
   productId: '',
   category: '',
   subcategory: '',
-  price: '',
-  salePrice: '',
   description: '',
   specMode: 'none',
-  specMarkdown: '',
   specImage: '',
-  maxOrderQty: '',
+  stockStatus: 'in_stock',
   imageUrl: '',
   thumbnails: ['', '', '', ''],
   isFeatured: false,
@@ -36,13 +32,10 @@ const emptyProduct = {
 const PRODUCT_SAMPLE_CSV_ROWS = [
   {
     productId: 'MK4242',
-    price: '',
     categoryId: '',
-    salePrice: '',
     description: 'AISI316 STAINLESS STEEL BOW ROLLER',
-    specifications: '',
     specificationImage: '',
-    maxOrderQty: '',
+    stockStatus: 'in_stock',
     isFeatured: false,
     isBestSeller: false,
     isNewArrival: false,
@@ -50,13 +43,10 @@ const PRODUCT_SAMPLE_CSV_ROWS = [
   },
   {
     productId: 'MKMS-1.2-22',
-    price: '',
     categoryId: '',
-    salePrice: '',
     description: 'Complete Package Mechanical Steering Kit 22 Feet',
-    specifications: '',
     specificationImage: '',
-    maxOrderQty: '',
+    stockStatus: 'in_stock',
     isFeatured: false,
     isBestSeller: false,
     isNewArrival: false,
@@ -66,37 +56,16 @@ const PRODUCT_SAMPLE_CSV_ROWS = [
 
 function specsFromProduct(product) {
   const raw = product?.specifications;
-  if (!raw) return { mode: 'none', markdown: '', image: '' };
-  if (Array.isArray(raw)) {
-    const rows = raw
-      .map((s) => ({
-        key: String(s?.key || '').trim(),
-        value: String(s?.value ?? '').trim(),
-      }))
-      .filter((s) => s.key);
-    if (!rows.length) return { mode: 'none', markdown: '', image: '' };
-    return {
-      mode: 'markdown',
-      markdown: rows.map((s) => `**${s.key}:** ${s.value}`).join('\n\n'),
-      image: '',
-    };
-  }
-  const mode = ['markdown', 'image', 'none'].includes(raw.mode) ? raw.mode : 'none';
-  const markdown = String(raw.markdown || '').trim();
+  if (!raw) return { mode: 'none', image: '' };
+  if (Array.isArray(raw)) return { mode: 'none', image: '' };
   const image = String(raw.image || '').trim();
-  if (mode === 'image' && image) return { mode: 'image', markdown: '', image };
-  if (mode === 'markdown' && markdown) return { mode: 'markdown', markdown, image: '' };
-  if (image) return { mode: 'image', markdown: '', image };
-  if (markdown) return { mode: 'markdown', markdown, image: '' };
-  return { mode: 'none', markdown: '', image: '' };
+  if (image) return { mode: 'image', image };
+  return { mode: 'none', image: '' };
 }
 
 function buildSpecsPayload(form) {
   if (form.specMode === 'image' && form.specImage?.trim()) {
     return { mode: 'image', markdown: '', image: form.specImage.trim() };
-  }
-  if (form.specMode === 'markdown' && form.specMarkdown?.trim()) {
-    return { mode: 'markdown', markdown: form.specMarkdown.trim(), image: '' };
   }
   return { mode: 'none', markdown: '', image: '' };
 }
@@ -162,16 +131,10 @@ export default function AdminProducts() {
       productId: product.productId || product.name || '',
       category: product.category?._id || product.category || '',
       subcategory: product.subcategory?._id || product.subcategory || '',
-      price: product.price != null && Number(product.price) > 0 ? product.price : '',
-      salePrice: product.salePrice ?? '',
       description: product.description || '',
-      specMode: specs.mode === 'none' ? 'markdown' : specs.mode,
-      specMarkdown: specs.markdown,
+      specMode: specs.mode === 'image' ? 'image' : 'none',
       specImage: specs.image,
-      maxOrderQty:
-        product.maxOrderQty != null && Number(product.maxOrderQty) > 0
-          ? String(product.maxOrderQty)
-          : '',
+      stockStatus: product.stockStatus === 'out_of_stock' ? 'out_of_stock' : 'in_stock',
       imageUrl: imgs[0] || '',
       thumbnails: [imgs[1] || '', imgs[2] || '', imgs[3] || '', imgs[4] || ''],
       isFeatured: Boolean(product.isFeatured),
@@ -188,20 +151,16 @@ export default function AdminProducts() {
     try {
       const gallery = [form.imageUrl, ...(form.thumbnails || [])].filter(Boolean);
       const productId = String(form.productId || '').trim();
+      const specifications = buildSpecsPayload(form);
       const payload = {
         productId,
         name: productId,
         category: form.category,
         subcategory: form.subcategory || null,
-        price: form.price !== '' ? Number(form.price) : 0,
-        salePrice: form.salePrice !== '' ? Number(form.salePrice) : null,
         shortDescription: '',
         description: form.description,
-        specifications: buildSpecsPayload(form),
-        maxOrderQty:
-          form.maxOrderQty === '' || form.maxOrderQty == null
-            ? 0
-            : Math.max(0, Math.floor(Number(form.maxOrderQty) || 0)),
+        specifications,
+        stockStatus: form.stockStatus === 'out_of_stock' ? 'out_of_stock' : 'in_stock',
         images: gallery,
         isFeatured: form.isFeatured,
         isBestSeller: form.isBestSeller,
@@ -262,13 +221,8 @@ export default function AdminProducts() {
         const item = {
           productId,
           name: productId,
-          price: row.price !== undefined && row.price !== '' ? Number(row.price) : 0,
           category: row.categoryid || row.category || row.category_id,
           subcategory: row.subcategory || row.subcategoryid || row.subcategory_id || undefined,
-          salePrice:
-            row.saleprice !== undefined && row.saleprice !== ''
-              ? Number(row.saleprice)
-              : undefined,
           shortDescription: '',
           description: row.description || row.productdescription || row.product_description || '',
           specifications: (() => {
@@ -277,18 +231,23 @@ export default function AdminProducts() {
                 row.specimage ||
                 row.specification_image ||
                 row.specificationImage ||
+                row.specifications ||
                 ''
             ).trim();
-            if (image) return { mode: 'image', markdown: '', image };
-            const text = String(row.specifications || row.specification || row.specs || '').trim();
-            if (!text) return { mode: 'none', markdown: '', image: '' };
-            return { mode: 'markdown', markdown: text, image: '' };
+            // Only accept URLs/paths as image — ignore markdown text columns
+            if (image && (image.startsWith('http') || image.startsWith('/') || /\.(png|jpe?g|webp|gif)$/i.test(image))) {
+              return { mode: 'image', markdown: '', image };
+            }
+            return { mode: 'none', markdown: '', image: '' };
+          })(),
+          stockStatus: (() => {
+            const s = String(row.stockstatus || row.stock || '').toLowerCase().trim();
+            if (s === 'out_of_stock' || s === 'out of stock' || s === 'outofstock') {
+              return 'out_of_stock';
+            }
+            return 'in_stock';
           })(),
         };
-        const maxRaw = row.maxorderqty ?? row.max_order_qty ?? row.maxqty;
-        if (maxRaw !== undefined && maxRaw !== '') {
-          item.maxOrderQty = Math.max(0, Math.floor(Number(maxRaw) || 0));
-        }
         const isFeatured = parseBool(row.isfeatured);
         const isBestSeller = parseBool(row.isbestseller);
         const isNewArrival = parseBool(row.isnewarrival);
@@ -346,8 +305,19 @@ export default function AdminProducts() {
       render: (row) => row.category?.name || '—',
     },
     {
-      header: 'Price',
-      render: (row) => <span className="font-semibold text-gray-900">{formatPrice(row.price)}</span>,
+      header: 'Stock',
+      render: (row) => {
+        const out = row.stockStatus === 'out_of_stock';
+        return (
+          <span
+            className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
+              out ? 'bg-rose-50 text-rose-700' : 'bg-emerald-50 text-emerald-700'
+            }`}
+          >
+            {out ? 'Out of stock' : 'In stock'}
+          </span>
+        );
+      },
     },
     {
       header: 'Status',
@@ -420,8 +390,6 @@ export default function AdminProducts() {
         sortOptions={[
           { label: 'Product Id A–Z', value: 'name:asc' },
           { label: 'Product Id Z–A', value: 'name:desc' },
-          { label: 'Price ↑', value: 'price:asc' },
-          { label: 'Price ↓', value: 'price:desc' },
         ]}
         defaultSort="name:asc"
         filters={
@@ -537,25 +505,16 @@ export default function AdminProducts() {
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium">Price</label>
-              <input
-                type="number"
-                min="0"
+              <label className="mb-1 block text-sm font-medium">Stock *</label>
+              <select
+                required
                 className="input-mk rounded-lg"
-                value={form.price}
-                onChange={(e) => setForm({ ...form, price: e.target.value })}
-                placeholder="Optional"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium">Sale Price</label>
-              <input
-                type="number"
-                min="0"
-                className="input-mk rounded-lg"
-                value={form.salePrice}
-                onChange={(e) => setForm({ ...form, salePrice: e.target.value })}
-              />
+                value={form.stockStatus}
+                onChange={(e) => setForm({ ...form, stockStatus: e.target.value })}
+              >
+                <option value="in_stock">Available In Stock</option>
+                <option value="out_of_stock">Out Of Stock</option>
+              </select>
             </div>
             <div className="sm:col-span-2">
               <ProductImagesField
@@ -578,13 +537,9 @@ export default function AdminProducts() {
           <div>
             <div className="mb-2">
               <label className="block text-sm font-medium">Product Specifications</label>
-              <p className="text-xs text-gray-400">
-                Optional — choose either a Markdown paragraph/table text, or one specification image.
-              </p>
             </div>
             <div className="mb-3 inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5">
               {[
-                { id: 'markdown', label: 'Markdown text' },
                 { id: 'image', label: 'Image' },
                 { id: 'none', label: 'None' },
               ].map((opt) => (
@@ -602,49 +557,16 @@ export default function AdminProducts() {
                 </button>
               ))}
             </div>
-            {form.specMode === 'markdown' ? (
-              <div>
-                <textarea
-                  rows={8}
-                  className="input-mk rounded-lg font-mono text-sm"
-                  value={form.specMarkdown}
-                  onChange={(e) => setForm({ ...form, specMarkdown: e.target.value })}
-                  placeholder={
-                    'Supports Markdown, for example:\n\n**Part Number:** MK-L1042\n\n- Length: 600mm\n- Width: 344mm\n\n| Spec | Value |\n| --- | --- |\n| Material | SS 316 |'
-                  }
-                />
-                <p className="mt-1 text-[11px] text-gray-400">
-                  Use headings, lists, bold, tables — shown as formatted text on the product page.
-                </p>
-              </div>
-            ) : null}
             {form.specMode === 'image' ? (
               <ImageUpload
                 section="products"
                 label="Specification image"
                 value={form.specImage}
                 onChange={(url) => setForm({ ...form, specImage: url || '' })}
-                hint="Upload a chart / datasheet image (max 1MB). Shown on the product page."
+                hint="Upload a chart / datasheet image (max 1MB)."
                 previewClassName="h-36 w-full max-w-md"
               />
             ) : null}
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium">
-              Max Qty Select Allow Per User
-            </label>
-            <input
-              type="number"
-              min="0"
-              className="input-mk rounded-lg"
-              value={form.maxOrderQty}
-              onChange={(e) => setForm({ ...form, maxOrderQty: e.target.value })}
-              placeholder="Leave empty for unlimited"
-            />
-            <p className="mt-1 text-xs text-gray-400">
-              Customer/corporate can select up to this quantity per cart/order. After checkout they
-              can order up to this amount again. 0 or empty = no limit.
-            </p>
           </div>
           <div className="flex flex-wrap gap-4">
             {[
@@ -689,8 +611,8 @@ export default function AdminProducts() {
         size="lg"
       >
         <BulkUploadPanel
-          instructions="Upload Excel (.xlsx) or CSV. Row 1 = headers. Required: productId, categoryId. Optional: description, price, salePrice, specifications / specificationImage, maxOrderQty, flags."
-          exampleHeaders="productId, price, categoryId, salePrice, description, specifications, specificationImage, maxOrderQty, isFeatured, isBestSeller, isNewArrival, isActive"
+          instructions="Upload Excel (.xlsx) or CSV. Row 1 = headers. Required: productId, categoryId. Optional: description, specificationImage, stockStatus, flags."
+          exampleHeaders="productId, categoryId, description, specificationImage, stockStatus, isFeatured, isBestSeller, isNewArrival, isActive"
           sampleCsvRows={PRODUCT_SAMPLE_CSV_ROWS}
           sampleFileName="products-sample.csv"
           onParsed={(rows) => {

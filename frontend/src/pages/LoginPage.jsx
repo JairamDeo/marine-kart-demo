@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { useCartUI } from '../context/CartUIContext';
 import PasswordInput from '../components/portal/PasswordInput';
 import OtpVerifyModal from '../components/auth/OtpVerifyModal';
+import ApprovalPendingModal from '../components/auth/ApprovalPendingModal';
 import ForgotPasswordModal from '../components/auth/ForgotPasswordModal';
 import { authService } from '../services/auth.service';
 import { friendlyError } from '../utils/toastMsg';
@@ -23,6 +24,7 @@ export default function LoginPage() {
   const [otpOpen, setOtpOpen] = useState(false);
   const [otpEmail, setOtpEmail] = useState('');
   const [forgotOpen, setForgotOpen] = useState(false);
+  const [approvalOpen, setApprovalOpen] = useState(false);
 
   const afterLogin = (role) => {
     const wantCheckout = sessionStorage.getItem('mk_open_checkout') === '1';
@@ -81,6 +83,22 @@ export default function LoginPage() {
         setAccountType(type === 'corporate' ? 'corporate' : 'customer');
         setOtpOpen(true);
         authService.resendOtp({ email, accountType: type }).catch(() => {});
+      } else if (err.code === 'PENDING_APPROVAL') {
+        toast('Your application is awaiting admin approval.', {
+          id: toastId,
+          icon: '⏳',
+          duration: 5000,
+        });
+        setOtpEmail(err.email || form.email);
+        setAccountType(
+          (err.accountType || accountType) === 'corporate' ? 'corporate' : 'customer'
+        );
+        setApprovalOpen(true);
+      } else if (err.code === 'ACCOUNT_REJECTED') {
+        toast.error(
+          friendlyError(err, 'Your registration was not approved. Please contact support.'),
+          { id: toastId }
+        );
       } else {
         toast.error(friendlyError(err, 'Could not sign in. Check your email and password.'), {
           id: toastId,
@@ -98,6 +116,15 @@ export default function LoginPage() {
     afterLogin(loggedIn.role);
   };
 
+  const onPendingApproval = (data) => {
+    setOtpOpen(false);
+    setOtpEmail(data?.email || otpEmail || form.email);
+    if (data?.accountType) {
+      setAccountType(data.accountType === 'corporate' ? 'corporate' : 'customer');
+    }
+    setApprovalOpen(true);
+  };
+
   const isCorporate = accountType === 'corporate';
 
   return (
@@ -112,12 +139,12 @@ export default function LoginPage() {
           </h1>
           <p className="mt-4 max-w-sm text-base leading-relaxed text-gray-600">
             {isCorporate
-              ? 'Sign in with your corporate account to view prices and manage orders.'
-              : 'Sign in to unlock prices, manage your cart & wishlist, and checkout in minutes.'}
+              ? 'Sign in with your corporate account to send enquiries and manage orders.'
+              : 'Sign in to manage your cart & wishlist, and send product enquiries.'}
           </p>
           <ul className="mt-6 space-y-3">
             {[
-              { icon: ShoppingBag, text: 'View live product pricing' },
+              { icon: ShoppingBag, text: 'Browse catalog & ask for price' },
               { icon: Lock, text: 'Secure account & order history' },
               {
                 icon: isCorporate ? Building2 : Anchor,
@@ -137,7 +164,7 @@ export default function LoginPage() {
         <div className="mx-auto w-full max-w-md" data-aos="fade-left">
           <div className="mb-4 lg:hidden">
             <h1 className="text-2xl font-bold text-navy">Sign In</h1>
-            <p className="mt-1 text-sm text-gray-500">Login to view prices and shop</p>
+            <p className="mt-1 text-sm text-gray-500">Login to shop and send enquiries</p>
           </div>
 
           <div className="rounded-2xl border border-white/80 bg-white/90 p-5 shadow-[0_20px_50px_rgba(26,75,140,0.12)] backdrop-blur sm:p-6">
@@ -236,6 +263,14 @@ export default function LoginPage() {
         accountType={accountType}
         onClose={() => setOtpOpen(false)}
         onVerified={onVerified}
+        onPendingApproval={onPendingApproval}
+      />
+      <ApprovalPendingModal
+        open={approvalOpen}
+        email={otpEmail || form.email}
+        accountType={accountType}
+        onClose={() => setApprovalOpen(false)}
+        onGoToLogin={() => setApprovalOpen(false)}
       />
       <ForgotPasswordModal
         open={forgotOpen}

@@ -13,6 +13,8 @@ router.get('/dashboard', adminController.getDashboard);
 
 router.get('/customers', adminController.getCustomers);
 router.patch('/customers/:id', adminController.updateCustomer);
+router.get('/approvals', adminController.getApprovals);
+router.post('/approvals/:id/approve', adminController.approveUser);
 router.get('/reports/sales', adminController.getSalesReport);
 
 router.get('/products', productController.adminListProducts);

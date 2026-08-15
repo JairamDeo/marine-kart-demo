@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import { Package } from 'lucide-react';
-import { formatPrice } from '../../utils/format';
 
 const PAGE_SIZES = [5, 10, 20, 50];
 
@@ -64,21 +63,18 @@ export default function OrderItemsTable({ items = [] }) {
               <th className="px-4 py-2.5 font-semibold">Product</th>
               <th className="px-4 py-2.5 font-semibold">SKU</th>
               <th className="px-4 py-2.5 font-semibold text-right">Qty</th>
-              <th className="px-4 py-2.5 font-semibold text-right">Unit</th>
-              <th className="px-4 py-2.5 font-semibold text-right">Line total</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
             {slice.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-sm text-gray-400">
+                <td colSpan={4} className="px-4 py-10 text-center text-sm text-gray-400">
                   No items on this order.
                 </td>
               </tr>
             ) : (
               slice.map((item, idx) => {
                 const rowNum = (safePage - 1) * pageSize + idx + 1;
-                const line = item.totalPrice ?? (item.unitPrice || 0) * (item.quantity || 0);
                 return (
                   <tr key={item.product?._id || item.product || rowNum} className="hover:bg-[#f8fafc]">
                     <td className="px-4 py-3 text-xs text-gray-400">{rowNum}</td>
@@ -90,12 +86,6 @@ export default function OrderItemsTable({ items = [] }) {
                     </td>
                     <td className="px-4 py-3 text-right font-semibold text-gray-800">
                       {item.quantity}
-                    </td>
-                    <td className="px-4 py-3 text-right text-gray-600">
-                      {formatPrice(item.unitPrice || 0)}
-                    </td>
-                    <td className="px-4 py-3 text-right font-bold text-navy">
-                      {formatPrice(line)}
                     </td>
                   </tr>
                 );

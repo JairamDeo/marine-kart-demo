@@ -5,7 +5,6 @@ import { Heart, ShoppingBag, ShoppingCart, Trash2, X } from 'lucide-react';
 import { wishlistService } from '../../services/wishlist.service';
 import { useAuth } from '../../context/AuthContext';
 import { useCartUI } from '../../context/CartUIContext';
-import { formatPrice } from '../../utils/format';
 import { productImageUrl } from '../../utils/productImage';
 import { friendlyError } from '../../utils/toastMsg';
 
@@ -181,13 +180,7 @@ export default function WishlistDrawer() {
                           {product.category?.name || 'Marine'}
                         </p>
                         <div className="mt-1.5">
-                          {product.priceVisible ? (
-                            <span className="text-sm font-extrabold text-navy">
-                              {formatPrice(product.displayPrice ?? product.price)}
-                            </span>
-                          ) : (
-                            <span className="text-xs font-semibold text-cyan">Login for price</span>
-                          )}
+                          <span className="text-xs font-semibold text-cyan">Ask for price</span>
                         </div>
 
                         <div className="mt-2.5 flex flex-wrap gap-2">

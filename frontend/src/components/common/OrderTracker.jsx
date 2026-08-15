@@ -17,16 +17,21 @@ function historyFor(status, history = []) {
 }
 
 /** Attractive order progress tracker — successful path only; cancel shown separately. */
-export default function OrderTracker({ order }) {
+export default function OrderTracker({ order, forCustomer = false }) {
   if (!order) return null;
 
   const history = order.statusHistory || [];
-  const current = order.orderStatus;
+  const normalize = (s) => {
+    if (s === 'pending') return 'enquiry_received';
+    if (s === 'shipped' || s === 'delivered') return 'order_received';
+    return s;
+  };
+  const current = normalize(order.orderStatus);
   const cancelled = current === 'cancelled';
   const cancelEntry = historyFor('cancelled', history);
   const stoppedAt =
-    cancelled && cancelEntry?.fromStatus && ORDER_FLOW.includes(cancelEntry.fromStatus)
-      ? cancelEntry.fromStatus
+    cancelled && cancelEntry?.fromStatus && ORDER_FLOW.includes(normalize(cancelEntry.fromStatus))
+      ? normalize(cancelEntry.fromStatus)
       : null;
   const currentIdx = cancelled
     ? stoppedAt
@@ -42,7 +47,7 @@ export default function OrderTracker({ order }) {
 
       {cancelled && (
         <div className="mb-3 rounded-lg border border-rose-100 bg-rose-50 px-3 py-2.5">
-          <p className="text-sm font-semibold text-rose-700">Order status: Cancelled</p>
+          <p className="text-sm font-semibold text-rose-700">Order status: Cancelled / Rejected</p>
           {(() => {
             const who = order.cancelledBy?.name
               ? order.cancelledBy
@@ -146,7 +151,7 @@ export default function OrderTracker({ order }) {
                     reached ? 'text-gray-900' : 'text-gray-400'
                   }`}
                 >
-                  {formatOrderStatus(step)}
+                  {formatOrderStatus(step, { forCustomer })}
                   {active ? (
                     <span className="ml-2 text-[10px] font-bold uppercase tracking-wide text-[#1a4b8c]">
                       Current

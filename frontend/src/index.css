@@ -7,7 +7,8 @@
   --color-cyan-dark: #5bb5c6;
   --color-body: #f9f9f9;
   --color-muted: #6b7280;
-  --font-sans: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-sans: "Rubik", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Rubik", ui-sans-serif, system-ui, sans-serif;
   --breakpoint-xs: 400px;
 }
 
@@ -29,8 +30,14 @@ body {
   overflow-x: clip;
 }
 
-button {
+button,
+input,
+select,
+textarea {
   font-family: inherit;
+}
+
+button {
   cursor: pointer;
 }
 
@@ -135,13 +142,25 @@ img {
   }
 }
 
-/* Home products marquee — slow continuous scroll left (new cards enter from right) */
+/* Hide browser number spinners site-wide */
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+/* Home products marquee — seamless infinite scroll (track is 2 identical halves) */
 @keyframes mk-marquee {
   from {
-    transform: translateX(0);
+    transform: translate3d(0, 0, 0);
   }
   to {
-    transform: translateX(-50%);
+    /* Exact half width → second half snaps under first with no gap/jump */
+    transform: translate3d(-50%, 0, 0);
   }
 }
 
@@ -150,6 +169,7 @@ img {
   animation-timing-function: linear;
   animation-iteration-count: infinite;
   will-change: transform;
+  backface-visibility: hidden;
 }
 
 /* Product specification markdown */

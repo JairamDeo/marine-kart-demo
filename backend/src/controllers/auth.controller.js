@@ -1,14 +1,14 @@
 const User = require('../models/User');
-const env = require('../config/env');
 const { signToken } = require('../utils/token');
 const { asyncHandler } = require('../utils/helpers');
 const { sendMail, sendMailToAdmins } = require('../utils/mail');
 const {
   verificationOtpEmail,
   passwordResetOtpEmail,
-  welcomeEmail,
-  adminNewUserEmail,
+  adminPendingApprovalEmail,
+  accountApprovedEmail,
 } = require('../utils/emailTemplates');
+const { sendPushToAdmins } = require('../utils/push');
 const {
   generateOtp,
   generateResetOtp,
@@ -48,14 +48,6 @@ function roleFilter(accountType) {
   return {};
 }
 
-function loginUrlForUser(user) {
-  const role = user.role === 'dealer' ? 'corporate' : user.role;
-  const base = String(env.frontendUrl || '').replace(/\/$/, '');
-  if (role === 'corporate') return `${base}/login?type=corporate`;
-  if (role === 'admin') return `${base}/admin/login`;
-  return `${base}/login`;
-}
-
 async function issueAndSendOtp(user) {
   const code = generateOtp();
   user.emailOtpHash = hashOtp(code);
@@ -88,26 +80,41 @@ async function issueAndSendResetOtp(user) {
   return result;
 }
 
-async function sendPostVerificationEmails(user) {
-  const role = user.role === 'dealer' ? 'corporate' : user.role;
-  const welcome = welcomeEmail({
-    name: displayName(user),
-    loginUrl: loginUrlForUser(user),
-    accountType: role,
-  });
-  await sendMail({
-    to: user.email,
-    subject: welcome.subject,
-    html: welcome.html,
-    text: welcome.text,
-  });
-
-  const adminMail = adminNewUserEmail({ user });
+async function notifyAdminsOfPendingApproval(user) {
+  const adminMail = adminPendingApprovalEmail({ user });
   await sendMailToAdmins({
     subject: adminMail.subject,
     html: adminMail.html,
     text: adminMail.text,
   });
+
+  const name = displayName(user);
+  const when = new Date().toLocaleString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+  const role = user.role === 'dealer' ? 'corporate' : user.role;
+  const typeLabel = role === 'corporate' ? 'Corporate' : 'Customer';
+
+  await sendPushToAdmins({
+    title: 'Approval request',
+    body: `${name} · ${typeLabel} · ${when}`,
+    url: '/admin/approvals',
+    tag: `approval-${user._id}`,
+  });
+}
+
+function pendingApprovalResponse(user) {
+  const type = user.role === 'dealer' ? 'corporate' : user.role;
+  return {
+    needsApproval: true,
+    email: user.email,
+    accountType: type === 'corporate' ? 'corporate' : 'customer',
+    approvalStatus: 'pending',
+  };
 }
 
 exports.register = asyncHandler(async (req, res) => {
@@ -188,6 +195,7 @@ exports.register = asyncHandler(async (req, res) => {
       role: 'corporate',
       isActive: true,
       emailVerified: false,
+      approvalStatus: 'pending',
       companyName,
       gstNumber,
       annualVolume: String(body.annualVolume || '').trim(),
@@ -249,6 +257,7 @@ exports.register = asyncHandler(async (req, res) => {
       role: 'customer',
       isActive: true,
       emailVerified: false,
+      approvalStatus: 'pending',
       addresses: [
         {
           label: 'Home',
@@ -300,6 +309,20 @@ exports.verifyEmail = asyncHandler(async (req, res) => {
   }
 
   if (user.emailVerified !== false) {
+    if (user.approvalStatus === 'pending') {
+      return res.json({
+        success: true,
+        message: 'Email already verified. Your account is awaiting admin approval.',
+        data: pendingApprovalResponse(user),
+      });
+    }
+    if (user.approvalStatus === 'rejected') {
+      return res.status(403).json({
+        success: false,
+        message: 'Your registration was not approved. Please contact support.',
+        data: { code: 'ACCOUNT_REJECTED', email: user.email },
+      });
+    }
     const token = signToken(user._id);
     return res.json({
       success: true,
@@ -325,17 +348,21 @@ exports.verifyEmail = asyncHandler(async (req, res) => {
   }
 
   user.emailVerified = true;
+  user.approvalStatus = 'pending';
   user.emailOtpHash = '';
   user.emailOtpExpires = null;
   await user.save();
 
-  await sendPostVerificationEmails(user);
+  try {
+    await notifyAdminsOfPendingApproval(user);
+  } catch (err) {
+    console.warn('[verifyEmail] Admin approval notify failed:', err.message);
+  }
 
-  const token = signToken(user._id);
   res.json({
     success: true,
-    message: 'Email verified successfully.',
-    data: { user: user.toSafeObject(), token },
+    message: 'Email verified. Your application has been sent for admin approval.',
+    data: pendingApprovalResponse(user),
   });
 });
 
@@ -355,6 +382,13 @@ exports.resendOtp = asyncHandler(async (req, res) => {
   }
 
   if (user.emailVerified !== false) {
+    if (user.approvalStatus === 'pending') {
+      return res.json({
+        success: true,
+        message: 'Email is already verified. Your account is awaiting admin approval.',
+        data: pendingApprovalResponse(user),
+      });
+    }
     return res.json({ success: true, message: 'Email is already verified. You can sign in.' });
   }
 
@@ -572,6 +606,29 @@ exports.login = asyncHandler(async (req, res) => {
         accountType: type,
         needsVerification: true,
       },
+    });
+  }
+
+  if (user.role !== 'admin' && user.approvalStatus === 'pending') {
+    const type = user.role === 'dealer' ? 'corporate' : user.role;
+    return res.status(403).json({
+      success: false,
+      message:
+        'Your account is awaiting admin approval. You will be notified by email once approved.',
+      data: {
+        code: 'PENDING_APPROVAL',
+        email: user.email,
+        accountType: type === 'corporate' ? 'corporate' : 'customer',
+        needsApproval: true,
+      },
+    });
+  }
+
+  if (user.role !== 'admin' && user.approvalStatus === 'rejected') {
+    return res.status(403).json({
+      success: false,
+      message: 'Your registration was not approved. Please contact support.',
+      data: { code: 'ACCOUNT_REJECTED', email: user.email },
     });
   }
 

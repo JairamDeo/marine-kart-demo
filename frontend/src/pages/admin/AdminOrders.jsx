@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Icon } from '@iconify/react';
 import toast from 'react-hot-toast';
 import { friendlyError } from '../../utils/toastMsg';
@@ -9,18 +10,12 @@ import ActionIcon, { ActionGroup } from '../../components/portal/ActionIcon';
 import OrderReceipt, { OrderStatusPill } from '../../components/common/OrderReceipt';
 import AdminOrderItemsTable from '../../components/admin/AdminOrderItemsTable';
 import { adminService } from '../../services/admin.service';
-import { formatPrice } from '../../utils/format';
-import { getAllowedAdminStatuses, formatOrderStatus } from '../../utils/orderStatusShared';
+import {
+  FILTERABLE_ORDER_STATUSES,
+  formatOrderStatus,
+  getAllowedAdminStatuses,
+} from '../../utils/orderStatusShared';
 
-const ORDER_STATUSES = [
-  'pending',
-  'quotation_sent',
-  'confirmed',
-  'shipped',
-  'delivered',
-  'cancelled',
-];
-const PAYMENT_STATUSES = ['pending', 'paid', 'failed', 'refunded'];
 const PAGE_SIZE = 10;
 
 function formatDate(d) {
@@ -32,13 +27,16 @@ function formatDate(d) {
   });
 }
 
+function quotationSent(order) {
+  return order?.quotation?.status === 'sent';
+}
+
 export default function AdminOrders() {
   const [orders, setOrders] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, pages: 1, total: 0 });
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState('');
-  const [paymentFilter, setPaymentFilter] = useState('');
   const [customerType, setCustomerType] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -46,8 +44,13 @@ export default function AdminOrders() {
   const [search, setSearch] = useState('');
   const [searchDraft, setSearchDraft] = useState('');
   const [viewOrder, setViewOrder] = useState(null);
-  const [workflow, setWorkflow] = useState({ nextStatus: null, canCancel: false, allowedStatuses: [] });
-  const [form, setForm] = useState({ orderStatus: '', paymentStatus: '', note: '' });
+  const [workflow, setWorkflow] = useState({
+    nextStatus: null,
+    canCancel: false,
+    allowedStatuses: [],
+    quotationRequired: false,
+  });
+  const [form, setForm] = useState({ orderStatus: '', note: '' });
   const [busy, setBusy] = useState(false);
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
 
@@ -58,7 +61,6 @@ export default function AdminOrders() {
         page,
         limit: PAGE_SIZE,
         status: statusFilter || undefined,
-        paymentStatus: paymentFilter || undefined,
         customerType: customerType || undefined,
         from: dateFrom || undefined,
         to: dateTo || undefined,
@@ -72,19 +74,20 @@ export default function AdminOrders() {
     } finally {
       setLoading(false);
     }
-  }, [page, statusFilter, paymentFilter, customerType, dateFrom, dateTo, sort, search]);
+  }, [page, statusFilter, customerType, dateFrom, dateTo, sort, search]);
 
   useEffect(() => {
     load();
   }, [load]);
 
   const applyOrderState = (full, apiWorkflow) => {
-    const wf = apiWorkflow || getAllowedAdminStatuses(full.orderStatus);
+    const wf =
+      apiWorkflow ||
+      getAllowedAdminStatuses(full.orderStatus, { quotationSent: quotationSent(full) });
     setViewOrder(full);
     setWorkflow(wf);
     setForm({
       orderStatus: wf.nextStatus || full.orderStatus,
-      paymentStatus: full.paymentStatus,
       note: '',
     });
   };
@@ -101,21 +104,22 @@ export default function AdminOrders() {
 
   const submitUpdate = async () => {
     if (!viewOrder) return;
+    const isCancelling =
+      form.orderStatus === 'cancelled' && form.orderStatus !== viewOrder.orderStatus;
+    if (isCancelling && String(form.note || '').trim().length < 3) {
+      toast.error('Please enter a cancellation reason (at least 3 characters).');
+      return;
+    }
     setBusy(true);
     try {
       const payload = {
-        paymentStatus: form.paymentStatus,
         note: form.note,
       };
       if (form.orderStatus && form.orderStatus !== viewOrder.orderStatus) {
         payload.orderStatus = form.orderStatus;
       }
       const { data } = await adminService.updateOrder(viewOrder._id, payload);
-      toast.success(
-        form.orderStatus === 'cancelled' && form.orderStatus !== viewOrder.orderStatus
-          ? 'Order cancelled'
-          : 'Order updated'
-      );
+      toast.success(isCancelling ? 'Order cancelled' : 'Order updated');
       setCancelConfirmOpen(false);
       applyOrderState(data.data.order, data.data.workflow);
       load();
@@ -132,6 +136,10 @@ export default function AdminOrders() {
     const isCancelling =
       form.orderStatus === 'cancelled' && form.orderStatus !== viewOrder.orderStatus;
     if (isCancelling) {
+      if (String(form.note || '').trim().length < 3) {
+        toast.error('A cancellation reason is required.');
+        return;
+      }
       setCancelConfirmOpen(true);
       return;
     }
@@ -150,7 +158,9 @@ export default function AdminOrders() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-gray-900">Orders</h1>
-        <p className="mt-1 text-sm text-gray-400">View receipts, update status, track payments</p>
+        <p className="mt-1 text-sm text-gray-400">
+          Enquiries, quotations, and order progress
+        </p>
       </div>
 
       <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-gray-100 bg-white p-3 shadow-sm">
@@ -178,28 +188,12 @@ export default function AdminOrders() {
             setPage(1);
             setStatusFilter(e.target.value);
           }}
-          className="w-[130px]"
+          className="w-[160px]"
         >
           <option value="">Status</option>
-          {ORDER_STATUSES.map((s) => (
+          {FILTERABLE_ORDER_STATUSES.map((s) => (
             <option key={s} value={s}>
               {formatOrderStatus(s)}
-            </option>
-          ))}
-        </FilterSelect>
-        <FilterSelect
-          ariaLabel="Payment"
-          value={paymentFilter}
-          onChange={(e) => {
-            setPage(1);
-            setPaymentFilter(e.target.value);
-          }}
-          className="w-[130px]"
-        >
-          <option value="">Payment</option>
-          {PAYMENT_STATUSES.map((s) => (
-            <option key={s} value={s}>
-              {s.charAt(0).toUpperCase() + s.slice(1)}
             </option>
           ))}
         </FilterSelect>
@@ -213,16 +207,14 @@ export default function AdminOrders() {
           className="w-[150px]"
         >
           <option value="">All customers</option>
-          <option value="customer">Normal</option>
+          <option value="customer">Customer</option>
           <option value="corporate">Corporate</option>
         </FilterSelect>
-        <label className="flex h-10 cursor-pointer items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-2.5 text-[12px] text-gray-500">
+        <label className="flex h-10 items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-[13px] text-gray-600">
           <span className="shrink-0 font-medium">From</span>
           <input
             type="date"
-            aria-label="From date"
             value={dateFrom}
-            max={dateTo || undefined}
             onChange={(e) => {
               setPage(1);
               setDateFrom(e.target.value);
@@ -230,13 +222,11 @@ export default function AdminOrders() {
             className="h-full min-w-0 cursor-pointer border-0 bg-transparent text-[13px] font-medium text-gray-700 outline-none"
           />
         </label>
-        <label className="flex h-10 cursor-pointer items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-2.5 text-[12px] text-gray-500">
+        <label className="flex h-10 items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-[13px] text-gray-600">
           <span className="shrink-0 font-medium">To</span>
           <input
             type="date"
-            aria-label="To date"
             value={dateTo}
-            min={dateFrom || undefined}
             onChange={(e) => {
               setPage(1);
               setDateTo(e.target.value);
@@ -244,19 +234,6 @@ export default function AdminOrders() {
             className="h-full min-w-0 cursor-pointer border-0 bg-transparent text-[13px] font-medium text-gray-700 outline-none"
           />
         </label>
-        {(dateFrom || dateTo) && (
-          <button
-            type="button"
-            onClick={() => {
-              setPage(1);
-              setDateFrom('');
-              setDateTo('');
-            }}
-            className="h-10 cursor-pointer rounded-xl border border-gray-200 px-3 text-[13px] font-medium text-gray-600 hover:bg-gray-50"
-          >
-            Clear dates
-          </button>
-        )}
         <FilterSelect
           ariaLabel="Sort"
           value={sort}
@@ -268,8 +245,6 @@ export default function AdminOrders() {
         >
           <option value="newest">Newest</option>
           <option value="oldest">Oldest</option>
-          <option value="amount_desc">Amount ↓</option>
-          <option value="amount_asc">Amount ↑</option>
         </FilterSelect>
         <button
           type="button"
@@ -291,61 +266,84 @@ export default function AdminOrders() {
                 <th className="px-4 py-3 font-semibold">Order</th>
                 <th className="px-4 py-3 font-semibold">Customer</th>
                 <th className="px-4 py-3 font-semibold">Date</th>
-                <th className="px-4 py-3 font-semibold">Amount</th>
+                <th className="px-4 py-3 font-semibold">Items</th>
                 <th className="px-4 py-3 font-semibold">Status</th>
-                <th className="px-4 py-3 font-semibold">Payment</th>
                 <th className="px-4 py-3 font-semibold">Action</th>
               </tr>
             </thead>
             <tbody>
               {orders.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-16 text-center text-gray-400">
+                  <td colSpan={6} className="px-4 py-16 text-center text-gray-400">
                     <Icon icon="bx:package" className="mx-auto mb-2 opacity-40" width={40} />
                     No orders found
                   </td>
                 </tr>
               ) : (
-                orders.map((row) => (
-                  <tr
-                    key={row._id}
-                    className="border-b border-gray-50 transition hover:bg-[#f8fafc]"
-                  >
-                    <td className="px-4 py-3.5">
-                      <p className="font-mono text-sm font-bold text-gray-900">{row.orderNumber}</p>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <p className="font-medium text-gray-800">
-                        {row.user
-                          ? `${row.user.firstName || ''} ${row.user.lastName || ''}`.trim() ||
-                            row.user.email
-                          : '—'}
-                      </p>
-                      {row.user?.email ? (
-                        <p className="text-[11px] text-gray-400">{row.user.email}</p>
-                      ) : null}
-                    </td>
-                    <td className="px-4 py-3.5 text-gray-500">{formatDate(row.createdAt)}</td>
-                    <td className="px-4 py-3.5 font-semibold text-gray-900">
-                      {formatPrice(row.total)}
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <OrderStatusPill status={row.orderStatus} />
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <OrderStatusPill status={row.paymentStatus} />
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <ActionGroup>
-                        <ActionIcon
-                          variant="view"
-                          title="View order"
-                          onClick={() => openView(row)}
-                        />
-                      </ActionGroup>
-                    </td>
-                  </tr>
-                ))
+                orders.map((row) => {
+                  const qStatus = row.quotation?.status || 'none';
+                  const quoteCreated = qStatus === 'draft' || qStatus === 'sent';
+                  const quoteLabel = quoteCreated ? 'View Quotation' : 'Create Quotation';
+                  return (
+                    <tr
+                      key={row._id}
+                      className="border-b border-gray-50 transition hover:bg-[#f8fafc]"
+                    >
+                      <td className="px-4 py-3.5">
+                        <p className="font-mono text-sm font-bold text-gray-900">
+                          {row.orderNumber}
+                        </p>
+                        {qStatus === 'draft' && (
+                          <p className="text-[10px] font-semibold text-amber-600">Draft quote</p>
+                        )}
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <p className="font-medium text-gray-800">
+                          {row.user
+                            ? `${row.user.firstName || ''} ${row.user.lastName || ''}`.trim() ||
+                              row.user.email
+                            : '—'}
+                        </p>
+                        {row.user?.email ? (
+                          <p className="text-[11px] text-gray-400">{row.user.email}</p>
+                        ) : null}
+                      </td>
+                      <td className="px-4 py-3.5 text-gray-500">{formatDate(row.createdAt)}</td>
+                      <td className="px-4 py-3.5 text-gray-700">{row.items?.length || 0}</td>
+                      <td className="px-4 py-3.5">
+                        <OrderStatusPill status={row.orderStatus} />
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <ActionGroup>
+                          <ActionIcon
+                            variant="view"
+                            title="View order"
+                            onClick={() => openView(row)}
+                          />
+                          {row.orderStatus !== 'cancelled' && (
+                            <Link
+                              to={`/admin/orders/${row._id}/quotation`}
+                              title={quoteLabel}
+                              aria-label={quoteLabel}
+                              className={`group flex h-8 items-center gap-1 whitespace-nowrap rounded-xl px-2.5 text-[11px] font-semibold transition ${
+                                quoteCreated
+                                  ? 'bg-violet-50 text-violet-700 hover:bg-violet-100'
+                                  : 'bg-sky-50 text-sky-700 hover:bg-sky-100'
+                              }`}
+                            >
+                              <Icon
+                                icon={quoteCreated ? 'bx:show' : 'bx:file'}
+                                width={16}
+                                height={16}
+                              />
+                              {quoteLabel}
+                            </Link>
+                          )}
+                        </ActionGroup>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -378,12 +376,7 @@ export default function AdminOrders() {
         )}
       </div>
 
-      <Modal
-        open={Boolean(viewOrder)}
-        onClose={() => setViewOrder(null)}
-        bare
-        size="xl"
-      >
+      <Modal open={Boolean(viewOrder)} onClose={() => setViewOrder(null)} bare size="xl">
         {viewOrder && (
           <div className="grid max-h-[92vh] gap-4 overflow-y-auto rounded-2xl bg-[#f5f6f8] p-4 shadow-2xl lg:grid-cols-5 lg:overflow-hidden lg:p-5">
             <div className="min-w-0 space-y-4 overflow-y-auto lg:col-span-3 lg:max-h-[88vh]">
@@ -404,8 +397,8 @@ export default function AdminOrders() {
                   Update order
                 </p>
                 <p className="mt-1 text-sm text-gray-500">
-                  Pending → Quotation Sent → Confirmed → Shipped → Delivered. Cancel only before
-                  shipped.
+                  Enquiry Received → Quotation Sent (via Create Quotation) → Order Confirmed →
+                  Order Received. Cancel requires a reason.
                 </p>
               </div>
 
@@ -416,7 +409,21 @@ export default function AdminOrders() {
                 </p>
               </div>
 
-              {viewOrder.orderStatus === 'delivered' || viewOrder.orderStatus === 'cancelled' ? (
+              {workflow.quotationRequired && (
+                <div className="rounded-xl border border-amber-100 bg-amber-50 px-3 py-2.5 text-xs text-amber-900">
+                  Create and send a quotation before advancing. Quotation Sent is not available
+                  from this dropdown.
+                  <Link
+                    to={`/admin/orders/${viewOrder._id}/quotation`}
+                    className="mt-2 inline-flex font-semibold text-navy underline"
+                  >
+                    Open quotation page →
+                  </Link>
+                </div>
+              )}
+
+              {viewOrder.orderStatus === 'order_received' ||
+              viewOrder.orderStatus === 'cancelled' ? (
                 <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">
                   This order is final — no further status changes.
                 </p>
@@ -436,33 +443,25 @@ export default function AdminOrders() {
                         Advance → {formatOrderStatus(workflow.nextStatus)}
                       </option>
                     )}
-                    {workflow.canCancel && (
-                      <option value="cancelled">Cancel order</option>
-                    )}
+                    {workflow.canCancel && <option value="cancelled">Cancel order</option>}
                   </select>
                 </div>
               )}
 
               <div>
-                <label className="mb-1 block cursor-pointer text-sm font-medium">Payment status</label>
-                <select
-                  className="input-mk cursor-pointer rounded-xl"
-                  value={form.paymentStatus}
-                  onChange={(e) => setForm({ ...form, paymentStatus: e.target.value })}
-                >
-                  {PAYMENT_STATUSES.map((s) => (
-                    <option key={s} value={s}>
-                      {s.charAt(0).toUpperCase() + s.slice(1)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium">Note</label>
+                <label className="mb-1 block text-sm font-medium">
+                  {form.orderStatus === 'cancelled' && form.orderStatus !== viewOrder.orderStatus
+                    ? 'Cancellation reason (required)'
+                    : 'Note'}
+                </label>
                 <textarea
                   rows={2}
                   className="input-mk rounded-xl"
-                  placeholder="Optional note saved with status change"
+                  placeholder={
+                    form.orderStatus === 'cancelled' && form.orderStatus !== viewOrder.orderStatus
+                      ? 'Enter reason for cancellation'
+                      : 'Optional note saved with status change'
+                  }
                   value={form.note}
                   onChange={(e) => setForm({ ...form, note: e.target.value })}
                 />
@@ -472,8 +471,9 @@ export default function AdminOrders() {
                 type="submit"
                 disabled={
                   busy ||
-                  (form.orderStatus === viewOrder.orderStatus &&
-                    form.paymentStatus === viewOrder.paymentStatus)
+                  viewOrder.orderStatus === 'order_received' ||
+                  viewOrder.orderStatus === 'cancelled' ||
+                  (form.orderStatus === viewOrder.orderStatus && !form.note.trim())
                 }
                 className="mt-auto w-full cursor-pointer rounded-xl bg-gray-900 py-3 text-sm font-semibold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60"
               >
@@ -489,7 +489,7 @@ export default function AdminOrders() {
         onClose={() => setCancelConfirmOpen(false)}
         onConfirm={submitUpdate}
         title="Cancel this order?"
-        message="This cannot be undone. The order will be marked Cancelled."
+        message={`Reason: ${form.note.trim()}. This cannot be undone.`}
         confirmLabel="Yes, cancel order"
         cancelLabel="Keep order"
         busyLabel="Cancelling..."

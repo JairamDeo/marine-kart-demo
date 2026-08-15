@@ -8,7 +8,8 @@ const DIGITS = 6;
 
 /**
  * Minimal 6-box email OTP verification modal.
- * onVerified(user, token) — parent persists session.
+ * onVerified(user, token) — parent persists session when fully approved.
+ * onPendingApproval(data) — email verified but awaiting admin approval (no login).
  */
 export default function OtpVerifyModal({
   open,
@@ -16,6 +17,7 @@ export default function OtpVerifyModal({
   accountType = 'customer',
   onClose,
   onVerified,
+  onPendingApproval,
 }) {
   const [digits, setDigits] = useState(() => Array(DIGITS).fill(''));
   const [busy, setBusy] = useState(false);
@@ -82,6 +84,11 @@ export default function OtpVerifyModal({
     const toastId = toast.loading('Verifying...');
     try {
       const { data } = await authService.verifyEmail({ email, code, accountType });
+      if (data.data?.needsApproval) {
+        toast.success('Email verified', { id: toastId });
+        onPendingApproval?.(data.data);
+        return;
+      }
       toast.success('Email verified successfully', { id: toastId });
       onVerified?.(data.data.user, data.data.token);
     } catch (err) {

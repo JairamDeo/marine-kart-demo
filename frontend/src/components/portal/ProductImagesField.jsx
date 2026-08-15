@@ -23,7 +23,7 @@ export default function ProductImagesField({
       <div>
         <p className="mb-1 text-sm font-semibold text-gray-900">Product images</p>
         <p className="mb-3 text-xs text-gray-500">
-          Main image + up to 4 thumbnails. Each file max 1MB. Saved as WebP without extra compression.
+          Main image + up to 4 thumbnails. Each file max 1MB.
         </p>
         <ImageUpload
           section="products"

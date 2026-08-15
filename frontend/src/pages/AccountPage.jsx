@@ -5,21 +5,17 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { useCartUI } from '../context/CartUIContext';
 import { orderService } from '../services/order.service';
-import { formatPrice } from '../utils/format';
 import { friendlyError } from '../utils/toastMsg';
 import { OrderStatusPill } from '../components/common/OrderReceipt';
 import ReceiptModal from '../components/common/ReceiptModal';
-import { canCustomerCancel, ORDER_FLOW, formatOrderStatus } from '../utils/orderStatusShared';
+import ConfirmDialog from '../components/portal/ConfirmDialog';
+import {
+  canCustomerCancel,
+  FILTERABLE_ORDER_STATUSES,
+  ORDER_FLOW,
+  formatOrderStatus,
+} from '../utils/orderStatusShared';
 
-const ORDER_STATUSES = [
-  'pending',
-  'quotation_sent',
-  'confirmed',
-  'shipped',
-  'delivered',
-  'cancelled',
-];
-const PAYMENT_STATUSES = ['pending', 'paid', 'failed', 'refunded'];
 const PAGE_SIZE = 10;
 
 export default function AccountPage() {
@@ -31,12 +27,14 @@ export default function AccountPage() {
   const [pagination, setPagination] = useState({ page: 1, pages: 1, total: 0, limit: PAGE_SIZE });
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState('');
-  const [paymentStatus, setPaymentStatus] = useState('');
   const [sort, setSort] = useState('newest');
   const [search, setSearch] = useState('');
   const [searchDraft, setSearchDraft] = useState('');
   const [page, setPage] = useState(1);
   const [viewOrder, setViewOrder] = useState(null);
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
+  const [rejectBusy, setRejectBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -45,7 +43,6 @@ export default function AccountPage() {
         page,
         limit: PAGE_SIZE,
         status: status || undefined,
-        paymentStatus: paymentStatus || undefined,
         sort,
         search: search.trim() || undefined,
       });
@@ -57,7 +54,7 @@ export default function AccountPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, status, paymentStatus, sort, search]);
+  }, [page, status, sort, search]);
 
   useEffect(() => {
     load();
@@ -98,16 +95,25 @@ export default function AccountPage() {
     }
   };
 
-  const handleCancel = async () => {
+  const handleCancel = async (reasonFromDialog) => {
     if (!viewOrder || !canCustomerCancel(viewOrder.orderStatus)) return;
-    if (!window.confirm('Cancel this order? This cannot be undone.')) return;
+    const reason = String(reasonFromDialog || rejectReason || '').trim();
+    if (reason.length < 3) {
+      toast.error('Please enter a reason (at least 3 characters).');
+      return;
+    }
+    setRejectBusy(true);
     try {
-      const { data } = await orderService.cancel(viewOrder._id);
+      const { data } = await orderService.cancel(viewOrder._id, { reason });
       setViewOrder(data.data.order);
-      toast.success('Order cancelled');
+      setRejectOpen(false);
+      setRejectReason('');
+      toast.success('Order rejected');
       load();
     } catch (err) {
-      toast.error(friendlyError(err, 'Could not cancel order'));
+      toast.error(friendlyError(err, 'Could not reject order'));
+    } finally {
+      setRejectBusy(false);
     }
   };
 
@@ -180,29 +186,9 @@ export default function AccountPage() {
               }}
             >
               <option value="">All statuses</option>
-              {ORDER_STATUSES.map((s) => (
+              {FILTERABLE_ORDER_STATUSES.map((s) => (
                 <option key={s} value={s}>
-                  {formatOrderStatus(s)}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-gray-400">
-              Payment
-            </label>
-            <select
-              className="input-mk rounded-xl py-2.5 text-sm"
-              value={paymentStatus}
-              onChange={(e) => {
-                setPage(1);
-                setPaymentStatus(e.target.value);
-              }}
-            >
-              <option value="">All payments</option>
-              {PAYMENT_STATUSES.map((s) => (
-                <option key={s} value={s}>
-                  {s.charAt(0).toUpperCase() + s.slice(1)}
+                  {formatOrderStatus(s, { forCustomer: true })}
                 </option>
               ))}
             </select>
@@ -215,8 +201,6 @@ export default function AccountPage() {
               {[
                 { value: 'newest', label: 'Newest' },
                 { value: 'oldest', label: 'Oldest' },
-                { value: 'amount_desc', label: 'Amount ↓' },
-                { value: 'amount_asc', label: 'Amount ↑' },
               ].map((opt) => (
                 <button
                   key={opt.value}
@@ -272,8 +256,7 @@ export default function AccountPage() {
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="font-mono text-sm font-bold text-gray-900">{o.orderNumber}</p>
-                    <OrderStatusPill status={o.orderStatus} />
-                    <OrderStatusPill status={o.paymentStatus} />
+                    <OrderStatusPill status={o.orderStatus} forCustomer />
                   </div>
                   <p className="mt-1 text-xs text-gray-400">
                     {new Date(o.createdAt).toLocaleString('en-IN', {
@@ -303,7 +286,9 @@ export default function AccountPage() {
                   )}
                 </div>
                 <div className="text-right">
-                  <p className="text-base font-bold text-[#1a4b8c]">{formatPrice(o.total)}</p>
+                  <p className="text-sm font-semibold text-gray-700">
+                    {o.items?.length || 0} item{(o.items?.length || 0) === 1 ? '' : 's'}
+                  </p>
                   <p className="mt-1 text-[11px] font-semibold text-gray-400 transition group-hover:text-[#1a4b8c]">
                     View receipt →
                   </p>
@@ -363,17 +348,38 @@ export default function AccountPage() {
         open={Boolean(viewOrder)}
         onClose={() => setViewOrder(null)}
         order={viewOrder}
+        forCustomer
         footer={
           viewOrder && canCustomerCancel(viewOrder.orderStatus) ? (
             <button
               type="button"
-              onClick={handleCancel}
+              onClick={() => setRejectOpen(true)}
               className="w-full rounded-2xl border border-rose-200 bg-white py-3 text-sm font-semibold text-rose-600 shadow-sm transition hover:bg-rose-50"
             >
-              Cancel order
+              Reject order
             </button>
           ) : null
         }
+      />
+
+      <ConfirmDialog
+        open={rejectOpen}
+        onClose={() => {
+          setRejectOpen(false);
+          setRejectReason('');
+        }}
+        onConfirm={handleCancel}
+        title="Reject this order?"
+        message="Tell us why you are rejecting. This cannot be undone."
+        confirmLabel="Yes, reject order"
+        cancelLabel="Keep order"
+        busyLabel="Rejecting..."
+        busy={rejectBusy}
+        requireReason
+        reasonLabel="Rejection reason"
+        reasonPlaceholder="Enter your reason..."
+        reason={rejectReason}
+        onReasonChange={setRejectReason}
       />
     </div>
   );

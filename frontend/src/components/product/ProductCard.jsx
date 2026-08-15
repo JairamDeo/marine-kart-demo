@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Eye, Heart, ShoppingCart } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { formatPrice } from '../../utils/format';
 import { productImageUrl } from '../../utils/productImage';
 import { useAuth } from '../../context/AuthContext';
 import { useCartUI } from '../../context/CartUIContext';
@@ -16,13 +15,16 @@ export default function ProductCard({ product }) {
   const inWishlist = productId && wishlistIds?.includes(productId);
   const title = product.productId || product.name;
   const subcategoryLabel = product.subcategory?.name || '';
-  const line2 = subcategoryLabel
-    ? `${subcategoryLabel} - ${title}`
-    : title;
+  const line2 = subcategoryLabel ? `${subcategoryLabel} - ${title}` : title;
+  const outOfStock = product.stockStatus === 'out_of_stock' || product.inStock === false;
 
   const handleAdd = async (e) => {
     e.preventDefault();
     e.stopPropagation();
+    if (outOfStock) {
+      toast.error('This product is out of stock');
+      return;
+    }
     try {
       await addToCart(product, 1);
       toast.success('Added to cart');
@@ -94,32 +96,22 @@ export default function ProductCard({ product }) {
       </Link>
 
       <div className="mt-auto pt-3">
-        <div className="mb-2.5">
-          {product.priceVisible ? (
-            <div>
-              {product.salePrice != null && (
-                <span className="mr-2 text-xs text-gray-400 line-through">
-                  {formatPrice(product.price)}
-                </span>
-              )}
-              <span className="text-sm font-bold text-navy">
-                {formatPrice(product.displayPrice ?? product.price)}
-              </span>
-            </div>
-          ) : (
-            <Link to="/login" className="text-xs font-semibold text-cyan hover:underline">
-              Login to View Price
-            </Link>
-          )}
-        </div>
+        <p
+          className={`mb-2.5 text-[11px] font-semibold ${
+            outOfStock ? 'text-rose-500' : 'text-emerald-600'
+          }`}
+        >
+          {outOfStock ? 'Out Of Stock' : 'Available In Stock'}
+        </p>
 
         <button
           type="button"
           onClick={handleAdd}
-          className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-[#78c6d4] px-3 py-2 text-xs font-bold uppercase tracking-wide text-white transition hover:bg-[#5bb5c6]"
+          disabled={outOfStock}
+          className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-[#78c6d4] px-3 py-2 text-xs font-bold uppercase tracking-wide text-white transition hover:bg-[#5bb5c6] disabled:cursor-not-allowed disabled:opacity-50"
         >
           <ShoppingCart size={14} />
-          Add to Cart
+          Ask For Price
         </button>
       </div>
     </div>

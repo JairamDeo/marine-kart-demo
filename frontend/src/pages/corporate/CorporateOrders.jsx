@@ -8,19 +8,9 @@ import { OrderStatusPill } from '../../components/common/OrderReceipt';
 import ReceiptModal from '../../components/common/ReceiptModal';
 import ConfirmDialog from '../../components/portal/ConfirmDialog';
 import { orderService } from '../../services/order.service';
-import { formatPrice } from '../../utils/format';
 import { friendlyError } from '../../utils/toastMsg';
-import { canCustomerCancel, formatOrderStatus } from '../../utils/orderStatusShared';
+import { canCustomerCancel, FILTERABLE_ORDER_STATUSES, formatOrderStatus } from '../../utils/orderStatusShared';
 
-const ORDER_STATUSES = [
-  'pending',
-  'quotation_sent',
-  'confirmed',
-  'shipped',
-  'delivered',
-  'cancelled',
-];
-const PAYMENT_STATUSES = ['pending', 'paid', 'failed', 'refunded'];
 const PAGE_SIZE = 10;
 
 function formatDate(d) {
@@ -38,10 +28,10 @@ export default function CorporateOrders() {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState('');
-  const [paymentFilter, setPaymentFilter] = useState('');
   const [dateFilter, setDateFilter] = useState('');
   const [sort, setSort] = useState('newest');
   const [viewOrder, setViewOrder] = useState(null);
+  const [rejectReason, setRejectReason] = useState('');
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
   const [cancelBusy, setCancelBusy] = useState(false);
 
@@ -61,7 +51,6 @@ export default function CorporateOrders() {
         page,
         limit: PAGE_SIZE,
         status: statusFilter || undefined,
-        paymentStatus: paymentFilter || undefined,
         sort,
         ...dateRange,
       });
@@ -73,7 +62,7 @@ export default function CorporateOrders() {
     } finally {
       setLoading(false);
     }
-  }, [page, statusFilter, paymentFilter, sort, dateRange]);
+  }, [page, statusFilter, sort, dateRange]);
 
   useEffect(() => {
     load();
@@ -88,26 +77,33 @@ export default function CorporateOrders() {
     }
   };
 
-  const handleCancel = async () => {
+  const handleCancel = async (reasonFromDialog) => {
     if (!viewOrder || !canCustomerCancel(viewOrder.orderStatus)) return;
+    const reason = String(reasonFromDialog || rejectReason || '').trim();
+    if (reason.length < 3) {
+      toast.error('Please enter a reason (at least 3 characters).');
+      return;
+    }
     setCancelBusy(true);
     try {
-      const { data } = await orderService.cancel(viewOrder._id);
+      const { data } = await orderService.cancel(viewOrder._id, { reason });
       setViewOrder(data.data.order);
       setCancelConfirmOpen(false);
-      toast.success('Order cancelled');
+      setRejectReason('');
+      toast.success('Order rejected');
       load();
     } catch (err) {
-      toast.error(friendlyError(err, 'Could not cancel order'));
+      toast.error(friendlyError(err, 'Could not reject order'));
     } finally {
       setCancelBusy(false);
     }
   };
 
   const summary = useMemo(() => {
-    const open = orders.filter((o) => !['delivered', 'cancelled'].includes(o.orderStatus)).length;
-    const totalSpend = orders.reduce((s, o) => s + (Number(o.total) || 0), 0);
-    return { count: pagination.total, open, totalSpend };
+    const open = orders.filter(
+      (o) => !['order_received', 'delivered', 'cancelled'].includes(o.orderStatus)
+    ).length;
+    return { count: pagination.total, open };
   }, [orders, pagination.total]);
 
   const columns = [
@@ -124,18 +120,8 @@ export default function CorporateOrders() {
       render: (row) => <span className="text-sm text-gray-600">{row.items?.length || 0}</span>,
     },
     {
-      header: 'Amount',
-      render: (row) => (
-        <span className="font-semibold text-gray-900">{formatPrice(row.total)}</span>
-      ),
-    },
-    {
       header: 'Status',
-      render: (row) => <OrderStatusPill status={row.orderStatus} />,
-    },
-    {
-      header: 'Payment',
-      render: (row) => <OrderStatusPill status={row.paymentStatus} />,
+      render: (row) => <OrderStatusPill status={row.orderStatus} forCustomer />,
     },
     {
       header: 'Action',
@@ -172,7 +158,7 @@ export default function CorporateOrders() {
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2">
         <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
           <p className="text-xs font-medium uppercase tracking-wide text-gray-400">Total orders</p>
           <p className="mt-1 text-2xl font-bold text-gray-900">{summary.count}</p>
@@ -180,10 +166,6 @@ export default function CorporateOrders() {
         <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
           <p className="text-xs font-medium uppercase tracking-wide text-gray-400">On this page · open</p>
           <p className="mt-1 text-2xl font-bold text-navy">{summary.open}</p>
-        </div>
-        <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-          <p className="text-xs font-medium uppercase tracking-wide text-gray-400">Page value</p>
-          <p className="mt-1 text-2xl font-bold text-navy">{formatPrice(summary.totalSpend)}</p>
         </div>
       </div>
 
@@ -206,25 +188,9 @@ export default function CorporateOrders() {
               className="w-full min-[480px]:w-[140px]"
             >
               <option value="">Status</option>
-              {ORDER_STATUSES.map((s) => (
+              {FILTERABLE_ORDER_STATUSES.map((s) => (
                 <option key={s} value={s}>
-                  {formatOrderStatus(s)}
-                </option>
-              ))}
-            </FilterSelect>
-            <FilterSelect
-              ariaLabel="Payment"
-              value={paymentFilter}
-              onChange={(e) => {
-                setPage(1);
-                setPaymentFilter(e.target.value);
-              }}
-              className="w-full min-[480px]:w-[140px]"
-            >
-              <option value="">Payment</option>
-              {PAYMENT_STATUSES.map((s) => (
-                <option key={s} value={s}>
-                  {s.charAt(0).toUpperCase() + s.slice(1)}
+                  {formatOrderStatus(s, { forCustomer: true })}
                 </option>
               ))}
             </FilterSelect>
@@ -253,8 +219,6 @@ export default function CorporateOrders() {
             >
               <option value="newest">Newest</option>
               <option value="oldest">Oldest</option>
-              <option value="amount_desc">Amount ↓</option>
-              <option value="amount_asc">Amount ↑</option>
             </FilterSelect>
           </>
         }
@@ -288,6 +252,7 @@ export default function CorporateOrders() {
         open={Boolean(viewOrder)}
         onClose={() => setViewOrder(null)}
         order={viewOrder}
+        forCustomer
         footer={
           viewOrder && canCustomerCancel(viewOrder.orderStatus) ? (
             <button
@@ -295,7 +260,7 @@ export default function CorporateOrders() {
               onClick={() => setCancelConfirmOpen(true)}
               className="w-full cursor-pointer rounded-2xl border border-rose-200 bg-white py-3 text-sm font-semibold text-rose-600 shadow-sm transition hover:bg-rose-50"
             >
-              Cancel order
+              Reject order
             </button>
           ) : null
         }
@@ -303,14 +268,22 @@ export default function CorporateOrders() {
 
       <ConfirmDialog
         open={cancelConfirmOpen}
-        onClose={() => setCancelConfirmOpen(false)}
+        onClose={() => {
+          setCancelConfirmOpen(false);
+          setRejectReason('');
+        }}
         onConfirm={handleCancel}
-        title="Cancel this order?"
-        message="This cannot be undone. You cannot cancel after the order is shipped."
-        confirmLabel="Yes, cancel order"
+        title="Reject this order?"
+        message="Tell us why you are rejecting. This cannot be undone."
+        confirmLabel="Yes, reject order"
         cancelLabel="Keep order"
-        busyLabel="Cancelling..."
+        busyLabel="Rejecting..."
         busy={cancelBusy}
+        requireReason
+        reasonLabel="Rejection reason"
+        reasonPlaceholder="Enter your reason..."
+        reason={rejectReason}
+        onReasonChange={setRejectReason}
       />
     </div>
   );

@@ -5,8 +5,6 @@ const SORT_OPTIONS = [
   { value: '-createdAt', label: 'Sort by newness' },
   { value: 'name', label: 'Name: A–Z' },
   { value: '-name', label: 'Name: Z–A' },
-  { value: 'price', label: 'Price: low to high' },
-  { value: '-price', label: 'Price: high to low' },
 ];
 
 const PAGE_SIZE_OPTIONS = [10, 20, 30, 50];

@@ -5,12 +5,14 @@ import {
   Layers,
   ShoppingCart,
   Users,
+  ClipboardCheck,
 } from 'lucide-react';
 import PortalShell from '../../components/portal/PortalShell';
 
 const navItems = [
   { to: '/admin', end: true, label: 'Dashboard', icon: LayoutDashboard },
   { to: '/admin/orders', label: 'Orders', icon: ShoppingCart },
+  { to: '/admin/approvals', label: 'Approvals', icon: ClipboardCheck },
   { to: '/admin/products', label: 'Products', icon: Package },
   { to: '/admin/categories', label: 'Categories', icon: FolderTree },
   { to: '/admin/subcategories', label: 'Subcategories', icon: Layers },

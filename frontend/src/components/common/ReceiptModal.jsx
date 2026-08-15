@@ -6,7 +6,7 @@ import OrderItemsTable from './OrderItemsTable';
  * Order receipt modal — same layout as admin:
  * receipt (no inline item list) + paginated items table.
  */
-export default function ReceiptModal({ open, onClose, order, footer }) {
+export default function ReceiptModal({ open, onClose, order, footer, forCustomer = false }) {
   useEffect(() => {
     if (!open) return;
     const onKey = (e) => e.key === 'Escape' && onClose?.();
@@ -41,6 +41,7 @@ export default function ReceiptModal({ open, onClose, order, footer }) {
               showItems={false}
               showCustomer
               compact
+              forCustomer={forCustomer}
             />
           </div>
           <div className="space-y-3 lg:col-span-7">

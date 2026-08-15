@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Loader2, Search, X } from 'lucide-react';
 import { productService } from '../../services/product.service';
 import { productImageUrl } from '../../utils/productImage';
-import { formatPrice } from '../../utils/format';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useThrottledCallback } from '../../hooks/useThrottledCallback';
 
@@ -187,7 +186,7 @@ export default function HeaderProductSearch() {
                       </span>
                     </span>
                     <span className="shrink-0 text-xs font-bold text-navy">
-                      {p.priceVisible ? formatPrice(p.displayPrice ?? p.price) : 'Login'}
+                      Ask for price
                     </span>
                   </Link>
                 </li>

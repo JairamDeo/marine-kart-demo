@@ -188,7 +188,7 @@ export default function CorporateDashboard() {
                   </p>
                 </div>
                 <span className="rounded-full bg-sky-50 px-2.5 py-1 text-[11px] font-semibold text-navy">
-                  {formatOrderStatus(o.orderStatus)}
+                  {formatOrderStatus(o.orderStatus, { forCustomer: true })}
                 </span>
               </li>
             ))}

@@ -22,6 +22,22 @@ const protect = async (req, res, next) => {
       return res.status(401).json({ success: false, message: 'User not found or inactive.' });
     }
 
+    if (
+      user.role !== 'admin' &&
+      (user.approvalStatus === 'pending' || user.approvalStatus === 'rejected')
+    ) {
+      return res.status(403).json({
+        success: false,
+        message:
+          user.approvalStatus === 'pending'
+            ? 'Your account is awaiting admin approval.'
+            : 'Your registration was not approved.',
+        data: {
+          code: user.approvalStatus === 'pending' ? 'PENDING_APPROVAL' : 'ACCOUNT_REJECTED',
+        },
+      });
+    }
+
     req.user = user;
     next();
   } catch (error) {

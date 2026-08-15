@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import ProductCard from '../product/ProductCard';
 import { productService } from '../../services/product.service';
 import { refreshAos } from '../../hooks/useAos';
@@ -8,6 +8,34 @@ const TABS = [
   { key: 'featured', label: 'Featured Products', params: { featured: 'true' } },
   { key: 'newArrival', label: 'New Arrivals', params: { newArrival: 'true' } },
 ];
+
+/** Enough cards so one half of the track always covers wide screens (~1920px). */
+const MIN_BASE_CARDS = 12;
+
+/** Build one segment long enough to fill the viewport, then duplicate it for a seamless -50% loop. */
+function buildMarqueeTrack(products) {
+  if (!products.length) return { track: [], baseCount: 0 };
+
+  const base = [];
+  let round = 0;
+  while (base.length < MIN_BASE_CARDS) {
+    products.forEach((p, i) => {
+      base.push({
+        ...p,
+        _mkKey: `${String(p.id || p._id || p.sku || i)}-r${round}`,
+      });
+    });
+    round += 1;
+  }
+
+  // Exact duplicate → CSS translateX(-50%) resets with no visible jump
+  const track = [
+    ...base.map((p) => ({ ...p, _mkKey: `${p._mkKey}-a` })),
+    ...base.map((p) => ({ ...p, _mkKey: `${p._mkKey}-b` })),
+  ];
+
+  return { track, baseCount: base.length };
+}
 
 export default function ProductTabs() {
   const [active, setActive] = useState('bestSeller');
@@ -33,14 +61,15 @@ export default function ProductTabs() {
     if (!loading) refreshAos();
   }, [loading, products]);
 
-  const loop = products.length > 0 ? [...products, ...products] : [];
-  // Slow by default; override with VITE_MARQUEE_DURATION_SEC (full loop seconds)
-  // or VITE_MARQUEE_SECONDS_PER_PRODUCT (seconds per card, default 4)
+  const { track, baseCount } = useMemo(() => buildMarqueeTrack(products), [products]);
+
+  // Slow by default; override with VITE_MARQUEE_DURATION_SEC or VITE_MARQUEE_SECONDS_PER_PRODUCT
   const envDuration = Number(import.meta.env.VITE_MARQUEE_DURATION_SEC);
   const perProduct = Number(import.meta.env.VITE_MARQUEE_SECONDS_PER_PRODUCT) || 4;
-  const durationSec = Number.isFinite(envDuration) && envDuration > 0
-    ? envDuration
-    : Math.max(60, products.length * perProduct);
+  const durationSec =
+    Number.isFinite(envDuration) && envDuration > 0
+      ? envDuration
+      : Math.max(60, baseCount * perProduct);
 
   return (
     <section className="py-12" data-aos="fade-up">
@@ -89,13 +118,13 @@ export default function ProductTabs() {
           <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-10 bg-gradient-to-r from-[#f9f9f9] to-transparent sm:w-16" />
           <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-gradient-to-l from-[#f9f9f9] to-transparent sm:w-16" />
           <div
-            className="mk-marquee-track flex w-max gap-4 py-1 pl-4 group-hover:[animation-play-state:paused]"
+            className="mk-marquee-track flex w-max flex-nowrap py-1 group-hover:[animation-play-state:paused]"
             style={{ animationDuration: `${durationSec}s` }}
           >
-            {loop.map((p, i) => (
+            {track.map((p) => (
               <div
-                key={`${p.id || p._id || p.sku}-${i}`}
-                className="w-[160px] shrink-0 sm:w-[180px] lg:w-[200px]"
+                key={p._mkKey}
+                className="mr-4 w-[160px] shrink-0 sm:w-[180px] lg:w-[200px]"
               >
                 <ProductCard product={p} />
               </div>

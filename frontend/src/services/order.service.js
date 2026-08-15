@@ -6,5 +6,5 @@ export const orderService = {
   myOrders: (params) => apiClient.get(API.ORDERS_MY, { params }),
   getMyOrders: (params) => apiClient.get(API.ORDERS_MY, { params }),
   myOrder: (id) => apiClient.get(API.ORDER_MY(id)),
-  cancel: (id) => apiClient.patch(API.ORDER_CANCEL(id)),
+  cancel: (id, payload = {}) => apiClient.patch(API.ORDER_CANCEL(id), payload),
 };

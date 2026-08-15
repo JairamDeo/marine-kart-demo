@@ -1,22 +1,20 @@
-import { formatPrice } from '../../utils/format';
 import { X, UserRound } from 'lucide-react';
 import OrderTracker from './OrderTracker';
 import { formatOrderStatus } from '../../utils/orderStatusShared';
 
 const STATUS_TONE = {
+  enquiry_received: 'bg-amber-50 text-amber-700 ring-amber-200',
   pending: 'bg-amber-50 text-amber-700 ring-amber-200',
   quotation_sent: 'bg-orange-50 text-orange-700 ring-orange-200',
   confirmed: 'bg-sky-50 text-sky-700 ring-sky-200',
-  shipped: 'bg-violet-50 text-violet-700 ring-violet-200',
+  order_received: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+  shipped: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
   delivered: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
   cancelled: 'bg-rose-50 text-rose-700 ring-rose-200',
-  paid: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
-  failed: 'bg-rose-50 text-rose-700 ring-rose-200',
-  refunded: 'bg-gray-50 text-gray-600 ring-gray-200',
   processing: 'bg-indigo-50 text-indigo-700 ring-indigo-200',
 };
 
-export function OrderStatusPill({ status }) {
+export function OrderStatusPill({ status, forCustomer = false }) {
   if (!status) return null;
   return (
     <span
@@ -24,7 +22,7 @@ export function OrderStatusPill({ status }) {
         STATUS_TONE[status] || 'bg-gray-50 text-gray-600 ring-gray-200'
       }`}
     >
-      {formatOrderStatus(status)}
+      {formatOrderStatus(status, { forCustomer })}
     </span>
   );
 }
@@ -39,6 +37,7 @@ export default function OrderReceipt({
   compact = false,
   showItems = true,
   showCustomer = true,
+  forCustomer = false,
 }) {
   if (!order) return null;
 
@@ -83,8 +82,7 @@ export default function OrderReceipt({
           {order.orderNumber}
         </p>
         <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-          <OrderStatusPill status={order.orderStatus} />
-          <OrderStatusPill status={order.paymentStatus} />
+          <OrderStatusPill status={order.orderStatus} forCustomer={forCustomer} />
         </div>
         {order.createdAt && (
           <p className="mt-2 text-[11px] text-white/75">
@@ -139,46 +137,56 @@ export default function OrderReceipt({
               Items
             </p>
             <ul className="divide-y divide-gray-100 overflow-hidden rounded-lg border border-gray-100 bg-gray-50/40">
-              {items.map((item, idx) => {
-                const line = item.totalPrice ?? (item.unitPrice || 0) * (item.quantity || 0);
-                return (
-                  <li
-                    key={item.product?._id || item.product || idx}
-                    className="flex items-start justify-between gap-2 px-3 py-2.5"
-                  >
-                    <div className="min-w-0">
-                      <p className="text-[13px] font-semibold leading-snug text-gray-900">
-                        {item.name}
-                      </p>
-                      <p className="mt-0.5 text-[10px] text-gray-400">
-                        Qty {item.quantity}
-                        {item.unitPrice != null ? ` · ${formatPrice(item.unitPrice)} each` : ''}
-                      </p>
-                    </div>
-                    <span className="shrink-0 text-[13px] font-bold text-gray-900">
-                      {formatPrice(line)}
-                    </span>
-                  </li>
-                );
-              })}
+              {items.map((item, idx) => (
+                <li
+                  key={item.product?._id || item.product || idx}
+                  className="flex items-start justify-between gap-2 px-3 py-2.5"
+                >
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-semibold leading-snug text-gray-900">
+                      {item.name}
+                    </p>
+                    <p className="mt-0.5 text-[10px] text-gray-400">Qty {item.quantity}</p>
+                  </div>
+                </li>
+              ))}
             </ul>
           </div>
         )}
 
-        <OrderTracker order={order} />
+        {order.quotation?.status === 'sent' && (
+          <div className="rounded-lg bg-[#f4f7fb] px-3 py-2.5 text-[13px]">
+            <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+              Quotation
+            </p>
+            <div className="flex justify-between text-gray-600">
+              <span>Items subtotal</span>
+              <span className="font-medium text-gray-900">
+                ₹{Number(order.quotation.itemsSubtotal || 0).toLocaleString('en-IN')}
+              </span>
+            </div>
+            <div className="mt-1 flex justify-between text-gray-600">
+              <span>Courier</span>
+              <span className="font-medium text-gray-900">
+                ₹{Number(order.quotation.courierCharges || 0).toLocaleString('en-IN')}
+              </span>
+            </div>
+            <div className="mt-1 flex justify-between text-gray-600">
+              <span>GST ({order.quotation.gstPercent || 0}%)</span>
+              <span className="font-medium text-gray-900">
+                ₹{Number(order.quotation.gstAmount || 0).toLocaleString('en-IN')}
+              </span>
+            </div>
+            <div className="mt-2 flex items-center justify-between border-t border-white/70 pt-2">
+              <span className="font-bold text-gray-900">Grand total</span>
+              <span className="text-base font-bold text-[#1a4b8c]">
+                ₹{Number(order.quotation.grandTotal || 0).toLocaleString('en-IN')}
+              </span>
+            </div>
+          </div>
+        )}
 
-        <div className="rounded-lg bg-[#f4f7fb] px-3 py-2.5 text-[13px]">
-          <div className="flex justify-between text-gray-600">
-            <span>Subtotal</span>
-            <span className="font-medium text-gray-900">{formatPrice(order.subtotal || 0)}</span>
-          </div>
-          <div className="mt-2 flex items-center justify-between border-t border-white/70 pt-2">
-            <span className="font-bold text-gray-900">Order total</span>
-            <span className="text-base font-bold text-[#1a4b8c]">
-              {formatPrice(order.total || 0)}
-            </span>
-          </div>
-        </div>
+        <OrderTracker order={order} forCustomer={forCustomer} />
       </div>
     </div>
   );

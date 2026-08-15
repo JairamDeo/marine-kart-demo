@@ -12,10 +12,17 @@ const {
   validateAdminStatusChange,
   canCustomerCancel,
 } = require('../utils/orderStatus');
+const {
+  normalizeQuotationPayload,
+  validateQuotationForSend,
+  seedQuotationItemsFromOrder,
+  enrichOrderItemsWithCategories,
+} = require('../utils/quotation');
 const { sendMail, sendMailToAdmins } = require('../utils/mail');
 const {
   adminNewOrderEmail,
   customerOrderStatusEmail,
+  customerQuotationSentEmail,
 } = require('../utils/emailTemplates');
 const { sendPushToAdmins, sendPushToUser } = require('../utils/push');
 const {
@@ -74,17 +81,15 @@ async function buildCartPricing(user) {
       throw err;
     }
 
-    const maxQty = Number(product.maxOrderQty);
-    if (Number.isFinite(maxQty) && maxQty > 0 && item.quantity > maxQty) {
-      const err = new Error(
-        `You can select up to ${Math.floor(maxQty)} of "${product.name}" at a time.`
-      );
+    if (product.stockStatus === 'out_of_stock') {
+      const err = new Error(`"${product.name}" is currently out of stock.`);
       err.statusCode = 400;
       throw err;
     }
 
     const unit =
-      Math.round((product.salePrice ?? product.price) * multiplier * 100) / 100;
+      Math.round((Number(product.salePrice) || Number(product.price) || 0) * multiplier * 100) /
+      100;
     const totalPrice = unit * item.quantity;
     subtotal += totalPrice;
 
@@ -142,12 +147,13 @@ exports.placeOrder = asyncHandler(async (req, res) => {
         total,
         paymentMethod,
         paymentStatus: paymentMethod === 'cod' ? 'pending' : 'pending',
-        orderStatus: 'pending',
+        orderStatus: 'enquiry_received',
+        quotation: { status: 'none', items: [], courierCharges: 0, gstPercent: 0 },
         notes,
         statusHistory: [
           historyEntry({
-            status: 'pending',
-            note: 'Order placed',
+            status: 'enquiry_received',
+            note: 'Enquiry submitted',
             actor,
             role: req.user.role || 'customer',
             fromStatus: '',
@@ -179,7 +185,7 @@ exports.placeOrder = asyncHandler(async (req, res) => {
       });
 
       await sendPushToAdmins({
-        title: 'New order',
+        title: 'New enquiry',
         body: `${order.orderNumber} · ${customer.name} · ${when}`,
         url: '/admin/orders',
         tag: `order-${order.orderNumber}`,
@@ -258,14 +264,22 @@ exports.cancelOrder = asyncHandler(async (req, res) => {
       message:
         order.orderStatus === 'cancelled'
           ? 'Order is already cancelled.'
-          : 'You cannot cancel after the order is shipped or delivered.',
+          : 'You cannot reject this order at its current status.',
+    });
+  }
+
+  const reason = String(req.body.reason || req.body.note || '').trim();
+  if (reason.length < 3) {
+    return res.status(400).json({
+      success: false,
+      message: 'Please provide a reason for rejecting this order (at least 3 characters).',
     });
   }
 
   const fromStatus = order.orderStatus;
   const role = actorRoleLabel(req.user);
   const actor = stampFromUser(req.user);
-  const note = `Cancelled by ${role === 'corporate' ? 'corporate customer' : 'customer'}: ${actor.name}`;
+  const note = `Rejected by ${role === 'corporate' ? 'corporate customer' : 'customer'}: ${reason}`;
 
   order.orderStatus = 'cancelled';
   order.cancelledBy = cancelledBySnapshot(req.user, role, note);
@@ -278,7 +292,7 @@ exports.cancelOrder = asyncHandler(async (req, res) => {
       fromStatus,
     })
   );
-  applyUpdateAudit(order, req.user, 'status_change', `Cancelled (was ${fromStatus})`);
+  applyUpdateAudit(order, req.user, 'status_change', `Rejected (was ${fromStatus})`);
   await order.save();
 
   res.json({ success: true, data: { order } });
@@ -380,7 +394,9 @@ exports.adminGetOrder = asyncHandler(async (req, res) => {
   if (!order) {
     return res.status(404).json({ success: false, message: 'Order not found.' });
   }
-  const allowed = getAllowedAdminStatuses(order.orderStatus);
+  const allowed = getAllowedAdminStatuses(order.orderStatus, {
+    quotationSent: order.quotation?.status === 'sent',
+  });
   res.json({
     success: true,
     data: {
@@ -389,6 +405,7 @@ exports.adminGetOrder = asyncHandler(async (req, res) => {
         nextStatus: allowed.next,
         canCancel: allowed.canCancel,
         allowedStatuses: allowed.options,
+        quotationRequired: Boolean(allowed.quotationRequired),
       },
     },
   });
@@ -405,21 +422,27 @@ exports.adminUpdateOrder = asyncHandler(async (req, res) => {
   }
 
   const actor = stampFromUser(req.user);
+  const quotationSent = order.quotation?.status === 'sent';
   let auditNote = '';
   let statusChangedTo = null;
 
   if (orderStatus && orderStatus !== order.orderStatus) {
-    const check = validateAdminStatusChange(order.orderStatus, orderStatus);
+    const check = validateAdminStatusChange(order.orderStatus, orderStatus, { quotationSent });
     if (!check.ok) {
       return res.status(400).json({ success: false, message: check.message });
     }
     const fromStatus = order.orderStatus;
-    order.orderStatus = orderStatus;
-    statusChangedTo = orderStatus;
     if (check.cancel) {
-      const cancelNote =
-        note ||
-        `Cancelled by admin: ${actor.name}${actor.email ? ` (${actor.email})` : ''}`;
+      const cancelReason = String(note || '').trim();
+      if (cancelReason.length < 3) {
+        return res.status(400).json({
+          success: false,
+          message: 'A cancellation reason is required (at least 3 characters).',
+        });
+      }
+      const cancelNote = `Cancelled by admin: ${cancelReason}`;
+      order.orderStatus = 'cancelled';
+      statusChangedTo = 'cancelled';
       order.cancelledBy = cancelledBySnapshot(req.user, 'admin', cancelNote);
       order.statusHistory.push(
         historyEntry({
@@ -430,7 +453,10 @@ exports.adminUpdateOrder = asyncHandler(async (req, res) => {
           fromStatus,
         })
       );
+      auditNote = `Status ${fromStatus} → cancelled`;
     } else {
+      order.orderStatus = orderStatus;
+      statusChangedTo = orderStatus;
       order.statusHistory.push(
         historyEntry({
           status: orderStatus,
@@ -440,8 +466,8 @@ exports.adminUpdateOrder = asyncHandler(async (req, res) => {
           fromStatus,
         })
       );
+      auditNote = `Status ${fromStatus} → ${orderStatus}`;
     }
-    auditNote = `Status ${fromStatus} → ${orderStatus}`;
   }
 
   if (paymentStatus && paymentStatus !== order.paymentStatus) {
@@ -460,7 +486,7 @@ exports.adminUpdateOrder = asyncHandler(async (req, res) => {
           const customer = order.user;
           if (!customer) return;
           const when = formatWhen(new Date());
-          const label = statusLabel(order.orderStatus);
+          const label = statusLabel(order.orderStatus, { forCustomer: true });
           const name = customerDisplayName(customer, order.billingAddress);
 
           if (customer.email) {
@@ -491,7 +517,9 @@ exports.adminUpdateOrder = asyncHandler(async (req, res) => {
     }
   }
 
-  const allowed = getAllowedAdminStatuses(order.orderStatus);
+  const allowed = getAllowedAdminStatuses(order.orderStatus, {
+    quotationSent: order.quotation?.status === 'sent',
+  });
   res.json({
     success: true,
     data: {
@@ -500,7 +528,270 @@ exports.adminUpdateOrder = asyncHandler(async (req, res) => {
         nextStatus: allowed.next,
         canCancel: allowed.canCancel,
         allowedStatuses: allowed.options,
+        quotationRequired: Boolean(allowed.quotationRequired),
       },
     },
+  });
+});
+
+function quotationWorkflow(order) {
+  const allowed = getAllowedAdminStatuses(order.orderStatus, {
+    quotationSent: order.quotation?.status === 'sent',
+  });
+  return {
+    nextStatus: allowed.next,
+    canCancel: allowed.canCancel,
+    allowedStatuses: allowed.options,
+    quotationRequired: Boolean(allowed.quotationRequired),
+  };
+}
+
+exports.getQuotation = asyncHandler(async (req, res) => {
+  let order = await Order.findById(req.params.id).populate(
+    'user',
+    'firstName lastName email phone role companyName'
+  );
+  if (!order) {
+    return res.status(404).json({ success: false, message: 'Order not found.' });
+  }
+
+  // If user populate failed (deleted account), keep a safe stub so UI can still show contact.
+  if (!order.user || typeof order.user !== 'object') {
+    order.user = {
+      firstName: order.billingAddress?.fullName || order.shippingAddress?.fullName || '',
+      lastName: '',
+      email: '',
+      phone: order.billingAddress?.phone || order.shippingAddress?.phone || '',
+    };
+  }
+
+  await enrichOrderItemsWithCategories(order);
+
+  let quotation = order.quotation?.toObject?.() || order.quotation || { status: 'none' };
+  if (!quotation.items?.length || quotation.status === 'none') {
+    quotation = {
+      ...quotation,
+      status: quotation.status === 'sent' ? 'sent' : quotation.status || 'none',
+      items: quotation.items?.length ? quotation.items : seedQuotationItemsFromOrder(order),
+      courierCharges: quotation.courierCharges || 0,
+      gstPercent: quotation.gstPercent || 0,
+    };
+  } else {
+    // Fill missing category names from enriched order items
+    const byProduct = new Map(
+      (order.items || []).map((i) => [String(i.product?._id || i.product), i])
+    );
+    quotation.items = (quotation.items || []).map((qi) => {
+      const match = byProduct.get(String(qi.product?._id || qi.product));
+      return {
+        ...(qi.toObject?.() || qi),
+        categoryName: qi.categoryName || match?.categoryName || '',
+        subcategoryName: qi.subcategoryName || match?.subcategoryName || '',
+      };
+    });
+  }
+
+  res.json({
+    success: true,
+    data: {
+      order,
+      quotation,
+      workflow: quotationWorkflow(order),
+    },
+  });
+});
+
+/** Validate + save quotation without sending / without status change to Quotation Sent. */
+exports.createQuotation = asyncHandler(async (req, res) => {
+  const order = await Order.findById(req.params.id).populate(
+    'user',
+    'firstName lastName email phone role companyName'
+  );
+  if (!order) {
+    return res.status(404).json({ success: false, message: 'Order not found.' });
+  }
+  if (order.quotation?.status === 'sent') {
+    return res.status(400).json({
+      success: false,
+      message: 'Quotation already sent. It cannot be recreated.',
+    });
+  }
+  if (['cancelled', 'order_received'].includes(order.orderStatus)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Cannot create quotation for this order status.',
+    });
+  }
+
+  const normalized = normalizeQuotationPayload(req.body, order.items);
+  const check = validateQuotationForSend(normalized);
+  if (!check.ok) {
+    return res.status(400).json({ success: false, message: check.message });
+  }
+
+  order.quotation = {
+    status: 'draft',
+    items: normalized.items,
+    courierCharges: normalized.courierCharges,
+    gstPercent: normalized.gstPercent,
+    itemsSubtotal: normalized.itemsSubtotal,
+    discountTotal: normalized.discountTotal,
+    taxableAmount: normalized.taxableAmount,
+    gstAmount: normalized.gstAmount,
+    grandTotal: normalized.grandTotal,
+    savedAt: new Date(),
+    sentAt: order.quotation?.sentAt || null,
+    sentBy: order.quotation?.sentBy || null,
+  };
+  applyUpdateAudit(order, req.user, 'update', 'Quotation created (not sent)');
+  await order.save();
+
+  res.json({
+    success: true,
+    message: 'Quotation created. Use Create and send to notify the customer.',
+    data: { order, quotation: order.quotation, workflow: quotationWorkflow(order) },
+  });
+});
+
+exports.saveQuotationDraft = asyncHandler(async (req, res) => {
+  const order = await Order.findById(req.params.id).populate(
+    'user',
+    'firstName lastName email phone role companyName'
+  );
+  if (!order) {
+    return res.status(404).json({ success: false, message: 'Order not found.' });
+  }
+  if (order.quotation?.status === 'sent') {
+    return res.status(400).json({
+      success: false,
+      message: 'Quotation already sent. It cannot be edited as a draft.',
+    });
+  }
+  if (['cancelled', 'order_received'].includes(order.orderStatus)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Cannot edit quotation for this order status.',
+    });
+  }
+
+  const normalized = normalizeQuotationPayload(req.body, order.items);
+  order.quotation = {
+    status: 'draft',
+    items: normalized.items,
+    courierCharges: normalized.courierCharges,
+    gstPercent: normalized.gstPercent,
+    itemsSubtotal: normalized.itemsSubtotal,
+    discountTotal: normalized.discountTotal,
+    taxableAmount: normalized.taxableAmount,
+    gstAmount: normalized.gstAmount,
+    grandTotal: normalized.grandTotal,
+    savedAt: new Date(),
+    sentAt: order.quotation?.sentAt || null,
+    sentBy: order.quotation?.sentBy || null,
+  };
+  applyUpdateAudit(order, req.user, 'update', 'Quotation draft saved');
+  await order.save();
+
+  res.json({
+    success: true,
+    data: { order, quotation: order.quotation, workflow: quotationWorkflow(order) },
+  });
+});
+
+exports.sendQuotation = asyncHandler(async (req, res) => {
+  const order = await Order.findById(req.params.id).populate(
+    'user',
+    'firstName lastName email phone role companyName'
+  );
+  if (!order) {
+    return res.status(404).json({ success: false, message: 'Order not found.' });
+  }
+  if (order.quotation?.status === 'sent') {
+    return res.status(400).json({
+      success: false,
+      message: 'Quotation has already been sent for this enquiry.',
+    });
+  }
+  if (!['enquiry_received', 'pending'].includes(order.orderStatus)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Quotation can only be sent while the enquiry is in Enquiry Received status.',
+    });
+  }
+
+  const normalized = normalizeQuotationPayload(req.body, order.items);
+  const check = validateQuotationForSend(normalized);
+  if (!check.ok) {
+    return res.status(400).json({ success: false, message: check.message });
+  }
+
+  const actor = stampFromUser(req.user);
+  const fromStatus = order.orderStatus;
+
+  order.quotation = {
+    status: 'sent',
+    items: normalized.items,
+    courierCharges: normalized.courierCharges,
+    gstPercent: normalized.gstPercent,
+    itemsSubtotal: normalized.itemsSubtotal,
+    discountTotal: normalized.discountTotal,
+    taxableAmount: normalized.taxableAmount,
+    gstAmount: normalized.gstAmount,
+    grandTotal: normalized.grandTotal,
+    savedAt: new Date(),
+    sentAt: new Date(),
+    sentBy: req.user._id,
+  };
+  order.subtotal = normalized.itemsSubtotal;
+  order.discount = normalized.discountTotal;
+  order.shippingCost = normalized.courierCharges;
+  order.total = normalized.grandTotal;
+  order.orderStatus = 'quotation_sent';
+  order.statusHistory.push(
+    historyEntry({
+      status: 'quotation_sent',
+      note: 'Quotation created and sent to customer',
+      actor,
+      role: 'admin',
+      fromStatus,
+    })
+  );
+  applyUpdateAudit(order, req.user, 'status_change', 'Quotation sent');
+  await order.save();
+
+  setImmediate(async () => {
+    try {
+      const customer = order.user;
+      if (!customer?.email) {
+        console.warn('[order] quotation email skipped — customer has no email', order.orderNumber);
+        return;
+      }
+      const when = formatWhen(new Date());
+      const name = customerDisplayName(customer, order.billingAddress);
+      const mail = customerQuotationSentEmail({
+        order,
+        customerName: name,
+        when,
+      });
+      await sendMail({
+        to: customer.email,
+        subject: mail.subject,
+        html: mail.html,
+        text: mail.text,
+      });
+      await sendPushToUser(customer._id || customer.id, {
+        title: 'Quotation created',
+        body: `${order.orderNumber} · ${when}`,
+        url: '/account/orders',
+        tag: `order-quote-${order.orderNumber}`,
+      });
+    } catch (err) {
+      console.error('[order] quotation email failed:', err.message);
+    }
+  });
+
+  res.json({
+    success: true,
+    data: { order, quotation: order.quotation, workflow: quotationWorkflow(order) },
   });
 });
