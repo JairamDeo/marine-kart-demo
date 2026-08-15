@@ -39,9 +39,12 @@ export function formatGuestCart() {
       product: {
         id: line.productId || product.id,
         _id: line.productId || product.id,
+        productId: product.productId || '',
         name: product.name || 'Product',
         slug: product.slug,
         images: product.images || [],
+        category: product.category || null,
+        subcategory: product.subcategory || null,
         priceVisible,
         price: product.price ?? null,
         salePrice: product.salePrice ?? null,
@@ -69,9 +72,12 @@ export function formatGuestCart() {
 function snapshotProduct(product) {
   return {
     id: product.id || product._id,
+    productId: product.productId || '',
     name: product.name,
     slug: product.slug,
     images: product.images || [],
+    category: product.category || null,
+    subcategory: product.subcategory || null,
     priceVisible: Boolean(product.priceVisible),
     price: product.price ?? null,
     salePrice: product.salePrice ?? null,

@@ -4,7 +4,6 @@ import toast from 'react-hot-toast';
 import { Building2, UserRound } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import BrandLogo from '../components/common/BrandLogo';
-import PasswordInput from '../components/portal/PasswordInput';
 import OtpVerifyModal from '../components/auth/OtpVerifyModal';
 import ApprovalPendingModal from '../components/auth/ApprovalPendingModal';
 import AddressLocationFields, {
@@ -18,8 +17,6 @@ const emptyIndividual = {
   email: '',
   phone: '',
   altPhone: '',
-  password: '',
-  confirmPassword: '',
   line1: '',
   line2: '',
   city: '',
@@ -33,7 +30,6 @@ const emptyIndividual = {
 const emptyCorporate = {
   companyName: '',
   gstNumber: '',
-  annualVolume: '',
   officeAddress: '',
   city: '',
   state: '',
@@ -45,8 +41,6 @@ const emptyCorporate = {
   fullName: '',
   email: '',
   phone: '',
-  password: '',
-  confirmPassword: '',
 };
 
 function Section({ title, children }) {
@@ -74,15 +68,6 @@ export default function RegisterPage() {
 
   const onSubmit = async (e) => {
     e.preventDefault();
-    const form = isCorporate ? corporate : individual;
-    if (form.password !== form.confirmPassword) {
-      toast.error('Passwords do not match');
-      return;
-    }
-    if (String(form.password).length < 6) {
-      toast.error('Password must be at least 6 characters');
-      return;
-    }
 
     setBusy(true);
     const toastId = toast.loading(
@@ -94,7 +79,6 @@ export default function RegisterPage() {
             accountType: 'corporate',
             companyName: corporate.companyName,
             gstNumber: corporate.gstNumber,
-            annualVolume: corporate.annualVolume,
             officeAddress: corporate.officeAddress,
             city: corporate.city,
             state: corporate.state,
@@ -104,7 +88,6 @@ export default function RegisterPage() {
             fullName: corporate.fullName,
             email: corporate.email,
             phone: corporate.phone,
-            password: corporate.password,
           }
         : {
             accountType: 'customer',
@@ -112,7 +95,6 @@ export default function RegisterPage() {
             email: individual.email,
             phone: individual.phone,
             altPhone: individual.altPhone,
-            password: individual.password,
             line1: individual.line1,
             line2: individual.line2,
             city: individual.city,
@@ -123,10 +105,13 @@ export default function RegisterPage() {
 
       const result = await register(payload);
       if (result?.needsVerification) {
-        toast.success('Account created. Enter the code sent to your email.', {
-          id: toastId,
-          duration: 5000,
-        });
+        toast.success(
+          'Account created. Verify the OTP sent to your email. After verification, admin approval is required — login details will be emailed once approved.',
+          {
+            id: toastId,
+            duration: 6000,
+          }
+        );
         setOtpEmail(result.email);
         setOtpAccountType(result.accountType || accountType);
         setOtpOpen(true);
@@ -273,27 +258,6 @@ export default function RegisterPage() {
                         onChange={(e) => setIndividual({ ...individual, altPhone: e.target.value })}
                       />
                     </Field>
-                    <Field label="Password" required>
-                      <PasswordInput
-                        required
-                        minLength={6}
-                        className="!h-9 !rounded-md !px-2.5 !py-1.5 text-[13px]"
-                        value={individual.password}
-                        onChange={(e) => setIndividual({ ...individual, password: e.target.value })}
-                      />
-                    </Field>
-                    <Field label="Confirm password" required>
-                      <PasswordInput
-                        required
-                        minLength={6}
-                        id="confirm-password"
-                        className="!h-9 !rounded-md !px-2.5 !py-1.5 text-[13px]"
-                        value={individual.confirmPassword}
-                        onChange={(e) =>
-                          setIndividual({ ...individual, confirmPassword: e.target.value })
-                        }
-                      />
-                    </Field>
                   </Section>
 
                   <Section title="Address">
@@ -327,16 +291,6 @@ export default function RegisterPage() {
                         value={corporate.gstNumber}
                         onChange={(e) =>
                           setCorporate({ ...corporate, gstNumber: e.target.value.toUpperCase() })
-                        }
-                      />
-                    </Field>
-                    <Field label="Annual volume" className="sm:col-span-2">
-                      <input
-                        className={inputCls}
-                        placeholder="Optional"
-                        value={corporate.annualVolume}
-                        onChange={(e) =>
-                          setCorporate({ ...corporate, annualVolume: e.target.value })
                         }
                       />
                     </Field>
@@ -384,30 +338,6 @@ export default function RegisterPage() {
                         value={corporate.designation}
                         onChange={(e) =>
                           setCorporate({ ...corporate, designation: e.target.value })
-                        }
-                      />
-                    </Field>
-                  </Section>
-
-                  <Section title="Login">
-                    <Field label="Password" required>
-                      <PasswordInput
-                        required
-                        minLength={6}
-                        className="!h-9 !rounded-md !px-2.5 !py-1.5 text-[13px]"
-                        value={corporate.password}
-                        onChange={(e) => setCorporate({ ...corporate, password: e.target.value })}
-                      />
-                    </Field>
-                    <Field label="Confirm password" required>
-                      <PasswordInput
-                        required
-                        minLength={6}
-                        id="confirm-password-corp"
-                        className="!h-9 !rounded-md !px-2.5 !py-1.5 text-[13px]"
-                        value={corporate.confirmPassword}
-                        onChange={(e) =>
-                          setCorporate({ ...corporate, confirmPassword: e.target.value })
                         }
                       />
                     </Field>

@@ -13,7 +13,9 @@ router.get('/dashboard', adminController.getDashboard);
 
 router.get('/customers', adminController.getCustomers);
 router.patch('/customers/:id', adminController.updateCustomer);
-router.get('/approvals', adminController.getApprovals);
+router.post('/customers/:id/approve', adminController.approveUser);
+router.post('/customers/:id/reject', adminController.rejectUser);
+/** @deprecated — use /customers/:id/approve */
 router.post('/approvals/:id/approve', adminController.approveUser);
 router.get('/reports/sales', adminController.getSalesReport);
 

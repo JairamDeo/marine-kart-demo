@@ -77,14 +77,14 @@ img {
 
 .container-mk {
   width: 100%;
-  max-width: 1200px;
+  max-width: 100%;
   margin-inline: auto;
-  padding-inline: 12px;
+  padding-inline: 16px;
 }
 
 @media (min-width: 480px) {
   .container-mk {
-    padding-inline: 16px;
+    padding-inline: 18px;
   }
 }
 
@@ -94,15 +94,40 @@ img {
   }
 }
 
+/* Laptop / desktop: use nearly full viewport width */
 @media (min-width: 1024px) {
   .container-mk {
     padding-inline: 24px;
+    max-width: 100%;
   }
 }
 
 @media (min-width: 1280px) {
   .container-mk {
+    padding-inline: 28px;
+    max-width: 100%;
+  }
+}
+
+@media (min-width: 1536px) {
+  .container-mk {
     padding-inline: 32px;
+    max-width: 1760px;
+  }
+}
+
+/* Tighter section spacing on laptop / desktop only — mobile unchanged */
+@media (min-width: 1024px) {
+  .mk-dense-lg {
+    --mk-section-y: 1.75rem;
+  }
+
+  .section-mk {
+    padding-block: 1.75rem;
+  }
+
+  .section-mk-sm {
+    padding-block: 1rem;
   }
 }
 
@@ -500,21 +525,29 @@ input[type='number'] {
 }
 
 .promo-card {
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  transition: transform 0.3s ease;
+  box-shadow: none;
 }
 
 .promo-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.1);
+  transform: scale(1.01);
+  box-shadow: none;
 }
 
 .product-card-store {
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  transition: transform 0.3s ease;
+  box-shadow: none;
 }
 
 .product-card-store:hover {
-  transform: translateY(-6px);
-  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.1);
+  transform: translateY(-2px);
+  box-shadow: none;
+}
+
+@media (min-width: 1024px) {
+  .product-card-store {
+    padding: 0.625rem;
+  }
 }
 
 /* Toast — compact horizontal bar + thin progress (~6s) */

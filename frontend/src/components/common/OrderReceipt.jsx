@@ -1,6 +1,7 @@
 import { X, UserRound } from 'lucide-react';
 import OrderTracker from './OrderTracker';
 import { formatOrderStatus } from '../../utils/orderStatusShared';
+import { formatProductTitle } from '../../utils/productTitle';
 
 const STATUS_TONE = {
   enquiry_received: 'bg-amber-50 text-amber-700 ring-amber-200',
@@ -144,7 +145,7 @@ export default function OrderReceipt({
                 >
                   <div className="min-w-0">
                     <p className="text-[13px] font-semibold leading-snug text-gray-900">
-                      {item.name}
+                      {formatProductTitle(item)}
                     </p>
                     <p className="mt-0.5 text-[10px] text-gray-400">Qty {item.quantity}</p>
                   </div>
@@ -162,9 +163,21 @@ export default function OrderReceipt({
             <div className="flex justify-between text-gray-600">
               <span>Items subtotal</span>
               <span className="font-medium text-gray-900">
-                ₹{Number(order.quotation.itemsSubtotal || 0).toLocaleString('en-IN')}
+                ₹
+                {(
+                  Number(order.quotation.itemsSubtotal || 0) +
+                  Number(order.quotation.discountTotal || 0)
+                ).toLocaleString('en-IN')}
               </span>
             </div>
+            {Number(order.quotation.discountTotal) > 0 && (
+              <div className="mt-1 flex justify-between text-gray-600">
+                <span>Discount</span>
+                <span className="font-medium text-gray-900">
+                  ₹{Number(order.quotation.discountTotal || 0).toLocaleString('en-IN')}
+                </span>
+              </div>
+            )}
             <div className="mt-1 flex justify-between text-gray-600">
               <span>Courier</span>
               <span className="font-medium text-gray-900">

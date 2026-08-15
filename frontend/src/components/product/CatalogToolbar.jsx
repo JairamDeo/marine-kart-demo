@@ -243,7 +243,7 @@ function PageBtn({ n, active, onClick }) {
 export function productGridClass(view) {
   if (view === 'list') return 'flex flex-col gap-3';
   if (view === 'zoom') return 'grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3';
-  return 'grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5';
+  return 'grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 xl:grid-cols-5';
 }
 
 export { SORT_OPTIONS, PAGE_SIZE_OPTIONS };

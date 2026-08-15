@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { Eye, Heart, ShoppingCart } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { productImageUrl } from '../../utils/productImage';
+import { formatProductTitle } from '../../utils/productTitle';
 import { useAuth } from '../../context/AuthContext';
 import { useCartUI } from '../../context/CartUIContext';
 import { wishlistService } from '../../services/wishlist.service';
@@ -13,9 +14,8 @@ export default function ProductCard({ product }) {
   const img = productImageUrl(product);
   const productId = String(product.id || product._id || '');
   const inWishlist = productId && wishlistIds?.includes(productId);
+  const line2 = formatProductTitle(product);
   const title = product.productId || product.name;
-  const subcategoryLabel = product.subcategory?.name || '';
-  const line2 = subcategoryLabel ? `${subcategoryLabel} - ${title}` : title;
   const outOfStock = product.stockStatus === 'out_of_stock' || product.inStock === false;
 
   const handleAdd = async (e) => {
@@ -53,13 +53,13 @@ export default function ProductCard({ product }) {
   };
 
   return (
-    <div className="product-card-store group flex h-full flex-col overflow-hidden rounded-xl bg-white p-3 shadow-sm ring-1 ring-gray-100 transition hover:-translate-y-0.5 hover:shadow-md">
-      <div className="relative mb-3 aspect-square overflow-hidden rounded-lg bg-gray-50">
+    <div className="product-card-store group flex h-full flex-col overflow-hidden rounded-xl bg-white p-2 ring-1 ring-gray-100 transition sm:p-3">
+      <div className="relative mb-2 aspect-square overflow-hidden rounded-lg bg-gray-50 sm:mb-3">
         <Link to={`/product/${product.slug}`} className="absolute inset-0 block">
           <img
             src={img}
             alt={title}
-            className="h-full w-full object-contain p-2 transition duration-500 group-hover:scale-110"
+            className="h-full w-full object-contain p-1.5 transition duration-500 group-hover:scale-110 sm:p-2"
             loading="lazy"
             decoding="async"
           />
@@ -67,7 +67,7 @@ export default function ProductCard({ product }) {
         <button
           type="button"
           onClick={toggleWish}
-          className={`absolute right-2 top-2 z-10 rounded-full bg-white/95 p-1.5 shadow-md transition hover:scale-110 ${
+          className={`absolute right-1.5 top-1.5 z-10 rounded-full bg-white/95 p-1.5 shadow-md transition hover:scale-110 sm:right-2 sm:top-2 ${
             inWishlist ? 'text-rose-500' : 'text-gray-400 hover:text-rose-500'
           }`}
           aria-label={inWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
@@ -95,9 +95,9 @@ export default function ProductCard({ product }) {
         </h3>
       </Link>
 
-      <div className="mt-auto pt-3">
+      <div className="mt-auto pt-2 sm:pt-3">
         <p
-          className={`mb-2.5 text-[11px] font-semibold ${
+          className={`mb-2 text-[11px] font-semibold ${
             outOfStock ? 'text-rose-500' : 'text-emerald-600'
           }`}
         >
@@ -108,10 +108,11 @@ export default function ProductCard({ product }) {
           type="button"
           onClick={handleAdd}
           disabled={outOfStock}
-          className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-[#78c6d4] px-3 py-2 text-xs font-bold uppercase tracking-wide text-white transition hover:bg-[#5bb5c6] disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex w-full items-center justify-center gap-1 whitespace-nowrap rounded-lg bg-[#78c6d4] px-1.5 py-2 text-[10px] font-bold uppercase tracking-wide text-white transition hover:bg-[#5bb5c6] disabled:cursor-not-allowed disabled:opacity-50 xs:gap-1.5 xs:px-2 xs:text-[11px] sm:gap-1.5 sm:px-3 sm:text-xs"
         >
-          <ShoppingCart size={14} />
-          Ask For Price
+          <ShoppingCart size={13} className="shrink-0 sm:hidden" />
+          <ShoppingCart size={14} className="hidden shrink-0 sm:block" />
+          <span className="whitespace-nowrap">Ask For Price</span>
         </button>
       </div>
     </div>

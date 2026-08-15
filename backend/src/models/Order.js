@@ -5,6 +5,11 @@ const orderItemSchema = new mongoose.Schema({
   product: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
   name: String,
   sku: String,
+  categoryName: { type: String, default: '' },
+  subcategoryName: { type: String, default: '' },
+  productId: { type: String, default: '' },
+  /** Main product image URL snapshot for admin/customer order views */
+  image: { type: String, default: '' },
   quantity: { type: Number, required: true, min: 1 },
   unitPrice: { type: Number, required: true, default: 0 },
   totalPrice: { type: Number, required: true, default: 0 },
@@ -33,6 +38,7 @@ const quotationItemSchema = new mongoose.Schema(
     subcategoryName: { type: String, default: '' },
     quantity: { type: Number, default: 1, min: 1 },
     amount: { type: Number, default: 0, min: 0 },
+    image: { type: String, default: '' },
     discountType: {
       type: String,
       enum: ['none', 'percent', 'amount'],
@@ -54,6 +60,13 @@ const quotationSchema = new mongoose.Schema(
     items: [quotationItemSchema],
     courierCharges: { type: Number, default: 0, min: 0 },
     gstPercent: { type: Number, default: 0, enum: [0, 5, 12, 18, 28] },
+    /** Enquiry-level discount (applies to all items together) */
+    discountType: {
+      type: String,
+      enum: ['none', 'percent', 'amount'],
+      default: 'none',
+    },
+    discountValue: { type: Number, default: 0, min: 0 },
     itemsSubtotal: { type: Number, default: 0 },
     discountTotal: { type: Number, default: 0 },
     taxableAmount: { type: Number, default: 0 },

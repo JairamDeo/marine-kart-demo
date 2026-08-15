@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { Eye, Heart, ShoppingCart } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { productImageUrl } from '../../utils/productImage';
+import { formatProductTitle } from '../../utils/productTitle';
 import { useAuth } from '../../context/AuthContext';
 import { useCartUI } from '../../context/CartUIContext';
 import { wishlistService } from '../../services/wishlist.service';
@@ -14,6 +15,7 @@ export default function ProductListItem({ product }) {
   const img = productImageUrl(product, 240);
   const productId = String(product.id || product._id || '');
   const inWishlist = productId && wishlistIds?.includes(productId);
+  const title = formatProductTitle(product);
   const outOfStock = product.stockStatus === 'out_of_stock' || product.inStock === false;
 
   const handleAdd = async () => {
@@ -54,7 +56,7 @@ export default function ProductListItem({ product }) {
       >
         <img
           src={img}
-          alt={product.productId || product.name}
+          alt={title}
           className="h-full w-full object-contain p-2 transition duration-500 group-hover:scale-105"
           loading="lazy"
           decoding="async"
@@ -72,9 +74,7 @@ export default function ProductListItem({ product }) {
           to={`/product/${product.slug}`}
           className="mt-1 block text-base font-bold uppercase leading-snug text-gray-900 transition hover:text-navy"
         >
-          {product.subcategory?.name
-            ? `${product.subcategory.name} - ${product.productId || product.name}`
-            : product.productId || product.name}
+          {title}
         </Link>
       </div>
 

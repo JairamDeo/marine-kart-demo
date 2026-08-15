@@ -17,6 +17,8 @@ const {
   validateQuotationForSend,
   seedQuotationItemsFromOrder,
   enrichOrderItemsWithCategories,
+  orderWithEnrichedItems,
+  attachProductImagesToQuotationItems,
 } = require('../utils/quotation');
 const { sendMail, sendMailToAdmins } = require('../utils/mail');
 const {
@@ -64,7 +66,14 @@ function cancelledBySnapshot(user, role, note = '') {
 }
 
 async function buildCartPricing(user) {
-  const cart = await Cart.findOne({ user: user._id }).populate('items.product');
+  const { formatProductTitle } = require('../utils/productTitle');
+  const cart = await Cart.findOne({ user: user._id }).populate({
+    path: 'items.product',
+    populate: [
+      { path: 'category', select: 'name' },
+      { path: 'subcategory', select: 'name' },
+    ],
+  });
   if (!cart || cart.items.length === 0) {
     return { cart: null, items: [], subtotal: 0 };
   }
@@ -81,8 +90,9 @@ async function buildCartPricing(user) {
       throw err;
     }
 
+    const displayName = formatProductTitle(product);
     if (product.stockStatus === 'out_of_stock') {
-      const err = new Error(`"${product.name}" is currently out of stock.`);
+      const err = new Error(`"${displayName}" is currently out of stock.`);
       err.statusCode = 400;
       throw err;
     }
@@ -95,7 +105,7 @@ async function buildCartPricing(user) {
 
     items.push({
       product: product._id,
-      name: product.name,
+      name: displayName,
       sku: product.sku,
       quantity: item.quantity,
       unitPrice: unit,
@@ -250,7 +260,8 @@ exports.getMyOrder = asyncHandler(async (req, res) => {
   if (!order) {
     return res.status(404).json({ success: false, message: 'Order not found.' });
   }
-  res.json({ success: true, data: { order } });
+  await enrichOrderItemsWithCategories(order);
+  res.json({ success: true, data: { order: orderWithEnrichedItems(order) } });
 });
 
 exports.cancelOrder = asyncHandler(async (req, res) => {
@@ -394,13 +405,14 @@ exports.adminGetOrder = asyncHandler(async (req, res) => {
   if (!order) {
     return res.status(404).json({ success: false, message: 'Order not found.' });
   }
+  await enrichOrderItemsWithCategories(order);
   const allowed = getAllowedAdminStatuses(order.orderStatus, {
     quotationSent: order.quotation?.status === 'sent',
   });
   res.json({
     success: true,
     data: {
-      order,
+      order: orderWithEnrichedItems(order),
       workflow: {
         nextStatus: allowed.next,
         canCancel: allowed.canCancel,
@@ -488,6 +500,7 @@ exports.adminUpdateOrder = asyncHandler(async (req, res) => {
           const when = formatWhen(new Date());
           const label = statusLabel(order.orderStatus, { forCustomer: true });
           const name = customerDisplayName(customer, order.billingAddress);
+          await enrichOrderItemsWithCategories(order);
 
           if (customer.email) {
             const mail = customerOrderStatusEmail({
@@ -575,6 +588,8 @@ exports.getQuotation = asyncHandler(async (req, res) => {
       items: quotation.items?.length ? quotation.items : seedQuotationItemsFromOrder(order),
       courierCharges: quotation.courierCharges || 0,
       gstPercent: quotation.gstPercent || 0,
+      discountType: quotation.discountType || 'none',
+      discountValue: quotation.discountValue || 0,
     };
   } else {
     // Fill missing category names from enriched order items
@@ -583,13 +598,24 @@ exports.getQuotation = asyncHandler(async (req, res) => {
     );
     quotation.items = (quotation.items || []).map((qi) => {
       const match = byProduct.get(String(qi.product?._id || qi.product));
+      const plain = qi.toObject?.() || qi;
+      const subcategoryName = plain.subcategoryName || match?.subcategoryName || '';
+      const { formatProductTitle } = require('../utils/productTitle');
       return {
-        ...(qi.toObject?.() || qi),
-        categoryName: qi.categoryName || match?.categoryName || '',
-        subcategoryName: qi.subcategoryName || match?.subcategoryName || '',
+        ...plain,
+        categoryName: plain.categoryName || match?.categoryName || '',
+        subcategoryName,
+        image: plain.image || match?.image || '',
+        name: formatProductTitle({
+          ...plain,
+          subcategoryName,
+          productId: match?.productId || plain.productId || '',
+        }),
       };
     });
   }
+
+  quotation.items = await attachProductImagesToQuotationItems(quotation.items || []);
 
   res.json({
     success: true,
@@ -634,6 +660,8 @@ exports.createQuotation = asyncHandler(async (req, res) => {
     items: normalized.items,
     courierCharges: normalized.courierCharges,
     gstPercent: normalized.gstPercent,
+    discountType: normalized.discountType,
+    discountValue: normalized.discountValue,
     itemsSubtotal: normalized.itemsSubtotal,
     discountTotal: normalized.discountTotal,
     taxableAmount: normalized.taxableAmount,
@@ -680,6 +708,8 @@ exports.saveQuotationDraft = asyncHandler(async (req, res) => {
     items: normalized.items,
     courierCharges: normalized.courierCharges,
     gstPercent: normalized.gstPercent,
+    discountType: normalized.discountType,
+    discountValue: normalized.discountValue,
     itemsSubtotal: normalized.itemsSubtotal,
     discountTotal: normalized.discountTotal,
     taxableAmount: normalized.taxableAmount,
@@ -733,6 +763,8 @@ exports.sendQuotation = asyncHandler(async (req, res) => {
     items: normalized.items,
     courierCharges: normalized.courierCharges,
     gstPercent: normalized.gstPercent,
+    discountType: normalized.discountType,
+    discountValue: normalized.discountValue,
     itemsSubtotal: normalized.itemsSubtotal,
     discountTotal: normalized.discountTotal,
     taxableAmount: normalized.taxableAmount,

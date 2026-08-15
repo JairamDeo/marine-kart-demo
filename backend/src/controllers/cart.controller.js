@@ -5,13 +5,19 @@ const { asyncHandler } = require('../utils/helpers');
 const getOrCreateCart = async (userId) => {
   let cart = await Cart.findOne({ user: userId }).populate({
     path: 'items.product',
-    populate: [{ path: 'category', select: 'name slug' }],
+    populate: [
+      { path: 'category', select: 'name slug' },
+      { path: 'subcategory', select: 'name slug' },
+    ],
   });
   if (!cart) {
     cart = await Cart.create({ user: userId, items: [] });
     cart = await Cart.findById(cart._id).populate({
       path: 'items.product',
-      populate: [{ path: 'category', select: 'name slug' }],
+      populate: [
+        { path: 'category', select: 'name slug' },
+        { path: 'subcategory', select: 'name slug' },
+      ],
     });
   }
   return cart;
@@ -115,7 +121,8 @@ exports.mergeCart = asyncHandler(async (req, res) => {
       continue;
     }
     if (product.stockStatus === 'out_of_stock') {
-      warnings.push(`"${product.name}" is out of stock and was skipped.`);
+      const { formatProductTitle } = require('../utils/productTitle');
+      warnings.push(`"${formatProductTitle(product)}" is out of stock and was skipped.`);
       continue;
     }
 

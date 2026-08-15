@@ -341,164 +341,41 @@ exports.bulkUpsertSubcategories = asyncHandler(async (req, res) => {
 });
 
 exports.getCustomers = asyncHandler(async (req, res) => {
-  const customers = await User.find({ role: { $in: ['customer', 'corporate', 'dealer'] } })
-    .select('-password')
-    .sort('-createdAt');
-  res.json({ success: true, data: { customers } });
-});
-
-function parsePageLimit(query, { defaultLimit = 10, maxLimit = 50 } = {}) {
-  const page = Math.max(1, parseInt(query.page, 10) || 1);
-  const limit = Math.min(maxLimit, Math.max(1, parseInt(query.limit, 10) || defaultLimit));
-  return { page, limit, skip: (page - 1) * limit };
-}
-
-function dateRangeFromQuery(query) {
-  const range = String(query.range || '').toLowerCase().trim();
-  const now = new Date();
-  let from = null;
-  let to = null;
-
-  if (range === 'day' || range === 'today') {
-    from = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    to = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-  } else if (range === 'month') {
-    from = new Date(now.getFullYear(), now.getMonth(), 1);
-    to = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-  } else if (range === 'year') {
-    from = new Date(now.getFullYear(), 0, 1);
-    to = new Date(now.getFullYear() + 1, 0, 1);
-  } else if (range === 'custom' || query.from || query.to) {
-    if (query.from) {
-      from = new Date(query.from);
-      if (Number.isNaN(from.getTime())) from = null;
-      else from.setHours(0, 0, 0, 0);
-    }
-    if (query.to) {
-      to = new Date(query.to);
-      if (Number.isNaN(to.getTime())) to = null;
-      else {
-        to.setHours(23, 59, 59, 999);
-      }
-    }
-  }
-
-  if (!from && !to) return null;
-  const createdAt = {};
-  if (from) createdAt.$gte = from;
-  if (to) createdAt.$lte = to;
-  return createdAt;
-}
-
-/** List storefront users for Approvals tab (pending / approved / rejected). */
-exports.getApprovals = asyncHandler(async (req, res) => {
-  const { page, limit, skip } = parsePageLimit(req.query);
-  const filter = {
+  // Only email-verified storefront users appear in Customers (pending / active / inactive).
+  const baseFilter = {
     role: { $in: ['customer', 'corporate', 'dealer'] },
     emailVerified: true,
   };
 
-  const status = String(req.query.status || '').toLowerCase().trim();
-  if (status === 'pending' || status === 'approved' || status === 'rejected') {
-    filter.approvalStatus = status;
-  }
-
-  const accountType = String(req.query.accountType || req.query.type || '')
-    .toLowerCase()
-    .trim();
-  if (accountType === 'customer') filter.role = 'customer';
-  if (accountType === 'corporate') filter.role = { $in: ['corporate', 'dealer'] };
-
-  const createdAt = dateRangeFromQuery(req.query);
-  if (createdAt) filter.createdAt = createdAt;
-
-  if (req.query.search) {
-    const q = String(req.query.search).trim();
-    if (q) {
-      const escapeRx = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const regex = new RegExp(escapeRx(q), 'i');
-      const parts = q.split(/\s+/).filter(Boolean);
-      filter.$or = [
-        { firstName: regex },
-        { lastName: regex },
-        { email: regex },
-        { phone: regex },
-        { companyName: regex },
-      ];
-      if (parts.length >= 2) {
-        filter.$or.push({
-          $and: [
-            { firstName: new RegExp(escapeRx(parts[0]), 'i') },
-            { lastName: new RegExp(escapeRx(parts.slice(1).join(' ')), 'i') },
-          ],
-        });
-      }
-    }
-  }
-
-  const [users, total, pendingCount] = await Promise.all([
-    User.find(filter).select('-password').sort('-createdAt').skip(skip).limit(limit),
-    User.countDocuments(filter),
-    User.countDocuments({
-      role: { $in: ['customer', 'corporate', 'dealer'] },
-      emailVerified: true,
-      approvalStatus: 'pending',
-    }),
+  const [customers, pendingCount] = await Promise.all([
+    User.find(baseFilter).select('-password').sort('-createdAt'),
+    User.countDocuments({ ...baseFilter, approvalStatus: 'pending' }),
   ]);
 
   res.json({
     success: true,
-    data: {
-      users,
-      pendingCount,
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.max(1, Math.ceil(total / limit)),
-      },
-    },
+    data: { customers, pendingCount },
   });
 });
 
-/** Approve a pending storefront account and email the customer. */
-exports.approveUser = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.params.id);
-  if (!user || !['customer', 'corporate', 'dealer'].includes(user.role)) {
-    return res.status(404).json({ success: false, message: 'Customer not found.' });
-  }
-  if (user.emailVerified === false) {
-    return res.status(400).json({
-      success: false,
-      message: 'Customer has not verified their email yet.',
-    });
-  }
-  if (user.approvalStatus === 'approved') {
-    const safe = user.toObject();
-    delete safe.password;
-    return res.json({
-      success: true,
-      message: 'Account is already approved.',
-      data: { user: safe },
-    });
-  }
-
-  user.approvalStatus = 'approved';
-  user.approvedAt = new Date();
-  user.approvedBy = req.user._id;
-  applyUpdateAudit(user, req.user, 'status_change', 'Account approved');
-  await user.save();
-
+async function issueLoginAndEmailWelcome(user) {
+  const { generateStrongPassword } = require('../utils/password');
   const env = require('../config/env');
   const { sendMail } = require('../utils/mail');
   const { accountApprovedEmail } = require('../utils/emailTemplates');
+
+  const plainPassword = generateStrongPassword(12);
+  user.password = plainPassword;
+
   const role = user.role === 'dealer' ? 'corporate' : user.role;
   const base = String(env.frontendUrl || '').replace(/\/$/, '');
   const loginUrl =
     role === 'corporate' ? `${base}/login?type=corporate` : `${base}/login`;
-  const name = `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'there';
+  const name = `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Customer';
   const mail = accountApprovedEmail({
     name,
+    email: user.email,
+    password: plainPassword,
     loginUrl,
     accountType: role,
   });
@@ -510,27 +387,155 @@ exports.approveUser = asyncHandler(async (req, res) => {
       text: mail.text,
     });
   } catch (err) {
-    console.warn('[approveUser] Approval email failed:', err.message);
+    console.warn('[issueLoginAndEmailWelcome] email failed:', err.message);
+  }
+}
+
+/** Approve a pending storefront account, set login password, and email credentials. */
+exports.approveUser = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.params.id).select('+password');
+  if (!user || !['customer', 'corporate', 'dealer'].includes(user.role)) {
+    return res.status(404).json({ success: false, message: 'Customer not found.' });
+  }
+  if (user.emailVerified === false) {
+    return res.status(400).json({
+      success: false,
+      message: 'Customer has not verified their email yet.',
+    });
+  }
+  if (user.approvalStatus === 'approved' && user.isActive !== false) {
+    const safe = user.toObject();
+    delete safe.password;
+    return res.json({
+      success: true,
+      message: 'Account is already active.',
+      data: { user: safe },
+    });
+  }
+
+  await issueLoginAndEmailWelcome(user);
+  user.approvalStatus = 'approved';
+  user.isActive = true;
+  user.approvedAt = new Date();
+  user.approvedBy = req.user._id;
+  user.rejectionReason = '';
+  user.rejectedAt = null;
+  applyUpdateAudit(user, req.user, 'status_change', 'Account approved — login password issued');
+  await user.save();
+
+  const safe = user.toObject();
+  delete safe.password;
+  res.json({
+    success: true,
+    message: 'Account activated. Login details have been emailed to the customer.',
+    data: { user: safe },
+  });
+});
+
+/** Reject a pending storefront account (inactive). Reason required. */
+exports.rejectUser = asyncHandler(async (req, res) => {
+  const reason = String(req.body?.reason || req.body?.note || '').trim();
+  if (reason.length < 3) {
+    return res.status(400).json({
+      success: false,
+      message: 'Please provide a rejection reason (at least 3 characters).',
+    });
+  }
+
+  const user = await User.findById(req.params.id);
+  if (!user || !['customer', 'corporate', 'dealer'].includes(user.role)) {
+    return res.status(404).json({ success: false, message: 'Customer not found.' });
+  }
+  if (user.emailVerified === false) {
+    return res.status(400).json({
+      success: false,
+      message: 'Customer has not verified their email yet.',
+    });
+  }
+  if (user.approvalStatus !== 'pending') {
+    return res.status(400).json({
+      success: false,
+      message: 'Only pending registrations can be rejected from this action.',
+    });
+  }
+
+  user.approvalStatus = 'rejected';
+  user.isActive = false;
+  user.rejectionReason = reason;
+  user.rejectedAt = new Date();
+  applyUpdateAudit(user, req.user, 'status_change', `Account rejected: ${reason}`);
+  await user.save();
+
+  try {
+    const { sendMail } = require('../utils/mail');
+    const { accountRejectedEmail } = require('../utils/emailTemplates');
+    const name = `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Customer';
+    const role = user.role === 'dealer' ? 'corporate' : user.role;
+    const mail = accountRejectedEmail({
+      name,
+      email: user.email,
+      accountType: role,
+      reason,
+    });
+    await sendMail({
+      to: user.email,
+      subject: mail.subject,
+      html: mail.html,
+      text: mail.text,
+    });
+  } catch (err) {
+    console.warn('[rejectUser] Rejection email to customer failed:', err.message);
   }
 
   const safe = user.toObject();
   delete safe.password;
   res.json({
     success: true,
-    message: 'Account approved. Customer has been notified by email.',
+    message: 'Account rejected. Customer has been notified by email.',
     data: { user: safe },
   });
 });
 
 exports.updateCustomer = asyncHandler(async (req, res) => {
   const { role, isActive, corporateDiscountType, corporateDiscountValue } = req.body;
-  const customer = await User.findById(req.params.id);
+  const customer = await User.findById(req.params.id).select('+password');
   if (!customer) {
     return res.status(404).json({ success: false, message: 'Customer not found.' });
   }
 
+  const wasRejected = customer.approvalStatus === 'rejected';
+  const wasInactive = customer.isActive === false;
+  const wantActive =
+    isActive === true || isActive === 'true' || isActive === 1 || isActive === '1';
+  const wantInactive =
+    isActive === false || isActive === 'false' || isActive === 0 || isActive === '0';
+
   if (role != null) customer.role = role;
-  if (isActive != null) customer.isActive = isActive;
+
+  let emailedCredentials = false;
+  if (isActive != null) {
+    if (wantActive && (wasRejected || wasInactive)) {
+      // Reactivating (e.g. after reject) → approve + send welcome + password
+      await issueLoginAndEmailWelcome(customer);
+      customer.approvalStatus = 'approved';
+      customer.isActive = true;
+      customer.approvedAt = new Date();
+      customer.approvedBy = req.user._id;
+      customer.rejectionReason = '';
+      customer.rejectedAt = null;
+      emailedCredentials = true;
+      applyUpdateAudit(
+        customer,
+        req.user,
+        'status_change',
+        'Account reactivated — welcome email with login credentials sent'
+      );
+    } else if (wantInactive) {
+      customer.isActive = false;
+    } else if (wantActive) {
+      customer.isActive = true;
+    }
+  }
 
   const resolvedRole = role != null ? role : customer.role === 'dealer' ? 'corporate' : customer.role;
   if (resolvedRole === 'corporate') {
@@ -546,12 +551,20 @@ exports.updateCustomer = asyncHandler(async (req, res) => {
     customer.corporateDiscountValue = 0;
   }
 
-  applyUpdateAudit(customer, req.user, 'update');
+  if (!emailedCredentials) {
+    applyUpdateAudit(customer, req.user, 'update');
+  }
   await customer.save();
 
   const safe = customer.toObject();
   delete safe.password;
-  res.json({ success: true, data: { customer: safe } });
+  res.json({
+    success: true,
+    message: emailedCredentials
+      ? 'Customer activated. Welcome email with login details sent.'
+      : 'Customer updated.',
+    data: { customer: safe },
+  });
 });
 
 exports.getSalesReport = asyncHandler(async (req, res) => {

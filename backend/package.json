@@ -17,7 +17,8 @@
     "migrate:order-statuses": "node src/seeders/migrateOrderStatuses.js",
     "migrate:enquiry-statuses": "node src/seeders/migrateEnquiryStatuses.js",
     "migrate:product-specs": "node src/seeders/migrateProductSpecsMaxQty.js",
-    "migrate:email-role-unique": "node src/seeders/migrateEmailRoleUnique.js"
+    "migrate:email-role-unique": "node src/seeders/migrateEmailRoleUnique.js",
+    "migrate:remove-annual-volume": "node src/seeders/migrateRemoveAnnualVolume.js"
   },
   "keywords": [
     "ecommerce",

@@ -6,6 +6,7 @@ import { wishlistService } from '../../services/wishlist.service';
 import { useAuth } from '../../context/AuthContext';
 import { useCartUI } from '../../context/CartUIContext';
 import { productImageUrl } from '../../utils/productImage';
+import { formatProductTitle } from '../../utils/productTitle';
 import { friendlyError } from '../../utils/toastMsg';
 
 export default function WishlistDrawer() {
@@ -161,7 +162,7 @@ export default function WishlistDrawer() {
                       >
                         <img
                           src={productImageUrl(product, 160)}
-                          alt={product.name}
+                          alt={formatProductTitle(product)}
                           className="h-full w-full object-contain p-1.5"
                           loading="lazy"
                           decoding="async"
@@ -174,7 +175,7 @@ export default function WishlistDrawer() {
                           onClick={closeWishlist}
                           className="line-clamp-2 text-[13px] font-bold text-gray-900"
                         >
-                          {product.name}
+                          {formatProductTitle(product)}
                         </Link>
                         <p className="mt-0.5 text-[11px] text-gray-400">
                           {product.category?.name || 'Marine'}

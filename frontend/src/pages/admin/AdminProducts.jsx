@@ -12,6 +12,7 @@ import ActionIcon, { ActionGroup } from '../../components/portal/ActionIcon';
 import { adminService } from '../../services/admin.service';
 import { friendlyError } from '../../utils/toastMsg';
 import { productImageUrl } from '../../utils/productImage';
+import { formatProductTitle } from '../../utils/productTitle';
 
 const emptyProduct = {
   productId: '',
@@ -292,7 +293,7 @@ export default function AdminProducts() {
             decoding="async"
           />
           <div className="min-w-0">
-            <p className="truncate font-medium text-gray-900">{row.productId || row.name}</p>
+            <p className="truncate font-medium text-gray-900">{formatProductTitle(row)}</p>
             {row.description ? (
               <p className="truncate text-xs text-gray-400">{row.description}</p>
             ) : null}

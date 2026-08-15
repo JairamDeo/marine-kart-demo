@@ -47,7 +47,6 @@ const userSchema = new mongoose.Schema(
     corporateDiscountValue: { type: Number, default: 0, min: 0 },
     companyName: { type: String, trim: true, default: '' },
     gstNumber: { type: String, trim: true, default: '' },
-    annualVolume: { type: String, trim: true, default: '' },
     designation: { type: String, trim: true, default: '' },
     companyAddress: {
       line1: { type: String, default: '' },
@@ -71,6 +70,8 @@ const userSchema = new mongoose.Schema(
     },
     approvedAt: { type: Date, default: null },
     approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    rejectionReason: { type: String, default: '' },
+    rejectedAt: { type: Date, default: null },
     emailOtpHash: { type: String, select: false, default: '' },
     emailOtpExpires: { type: Date, select: false, default: null },
     /** Forgot-password OTP — separate from registration email OTP. */
@@ -138,7 +139,6 @@ userSchema.methods.toSafeObject = function toSafeObject() {
     corporateDiscountValue: this.corporateDiscountValue || 0,
     companyName: this.companyName || '',
     gstNumber: this.gstNumber || '',
-    annualVolume: this.annualVolume || '',
     designation: this.designation || '',
     companyAddress: this.companyAddress || {},
     addresses: this.addresses,

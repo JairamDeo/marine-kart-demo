@@ -49,7 +49,7 @@ export default function Footer() {
   return (
     <footer>
       <div className="bg-navy text-white">
-        <div className="container-mk grid gap-8 py-10 sm:grid-cols-2 sm:gap-10 sm:py-12 lg:grid-cols-4">
+        <div className="container-mk grid gap-8 py-10 sm:grid-cols-2 sm:gap-10 sm:py-12 lg:grid-cols-4 lg:gap-6 lg:py-8">
           <div>
             <Link to="/" className="mb-5 inline-block">
               <BrandLogo className="h-[68px] w-auto" />
@@ -129,13 +129,24 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="border-t border-white/10 py-4 text-center">
-          <p className="text-xs text-white/50">
-            © {new Date().getFullYear()} MarineKart. All rights reserved.
-          </p>
-          <p className="mt-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/65">
-            Design and Developed by Goldleaf Production
-          </p>
+        <div className="border-t border-white/10 py-4">
+          <div className="flex flex-col items-center justify-center gap-1 text-center text-xs text-white/50 sm:flex-row sm:gap-2">
+            <span>© {new Date().getFullYear()} MarineKart. All rights reserved.</span>
+            <span className="hidden text-white/30 sm:inline" aria-hidden>
+              ·
+            </span>
+            <span>
+              Designed and Developed by{' '}
+              <a
+                href="https://www.goldleafpro.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold text-cyan transition hover:text-white"
+              >
+                GoldLeaf Production
+              </a>
+            </span>
+          </div>
         </div>
       </div>
 

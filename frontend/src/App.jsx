@@ -24,14 +24,13 @@ import CmsPage from './pages/CmsPage';
 import ContactPage from './pages/ContactPage';
 import NotFoundPage from './pages/NotFoundPage';
 import AdminLayout from './pages/admin/AdminLayout';
+import AdminCustomers from './pages/admin/AdminCustomers';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminProducts from './pages/admin/AdminProducts';
 import AdminCategories from './pages/admin/AdminCategories';
 import AdminSubcategories from './pages/admin/AdminSubcategories';
-import AdminCustomers from './pages/admin/AdminCustomers';
 import AdminOrders from './pages/admin/AdminOrders';
 import AdminQuotation from './pages/admin/AdminQuotation';
-import AdminApprovals from './pages/admin/AdminApprovals';
 
 function GlobalModals() {
   const { loginModal, closeLoginModal } = useAuth();
@@ -107,7 +106,7 @@ export default function App() {
                 <Route path="categories" element={<AdminCategories />} />
                 <Route path="subcategories" element={<AdminSubcategories />} />
                 <Route path="customers" element={<AdminCustomers />} />
-                <Route path="approvals" element={<AdminApprovals />} />
+                <Route path="approvals" element={<Navigate to="/admin/customers" replace />} />
                 <Route path="orders" element={<AdminOrders />} />
                 <Route path="orders/:id/quotation" element={<AdminQuotation />} />
               </Route>

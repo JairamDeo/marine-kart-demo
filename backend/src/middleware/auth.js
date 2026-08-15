@@ -19,7 +19,12 @@ const protect = async (req, res, next) => {
     const user = await User.findById(decoded.id).select('-password');
 
     if (!user || !user.isActive) {
-      return res.status(401).json({ success: false, message: 'User not found or inactive.' });
+      return res.status(401).json({
+        success: false,
+        message:
+          'Your account has been blocked by the administrator. Please contact admin for assistance.',
+        data: { code: 'ACCOUNT_BLOCKED' },
+      });
     }
 
     if (
@@ -31,9 +36,9 @@ const protect = async (req, res, next) => {
         message:
           user.approvalStatus === 'pending'
             ? 'Your account is awaiting admin approval.'
-            : 'Your registration was not approved.',
+            : 'Your account has been blocked by the administrator. Please contact admin for assistance.',
         data: {
-          code: user.approvalStatus === 'pending' ? 'PENDING_APPROVAL' : 'ACCOUNT_REJECTED',
+          code: user.approvalStatus === 'pending' ? 'PENDING_APPROVAL' : 'ACCOUNT_BLOCKED',
         },
       });
     }

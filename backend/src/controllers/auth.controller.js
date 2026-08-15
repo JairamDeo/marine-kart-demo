@@ -6,7 +6,7 @@ const {
   verificationOtpEmail,
   passwordResetOtpEmail,
   adminPendingApprovalEmail,
-  accountApprovedEmail,
+  emailVerifiedPendingApprovalEmail,
 } = require('../utils/emailTemplates');
 const { sendPushToAdmins } = require('../utils/push');
 const {
@@ -18,6 +18,7 @@ const {
   isOtpExpired,
   otpMatches,
 } = require('../utils/otp');
+const { generatePlaceholderPassword } = require('../utils/password');
 
 function splitFullName(fullName = '') {
   const parts = String(fullName).trim().split(/\s+/).filter(Boolean);
@@ -123,20 +124,14 @@ exports.register = asyncHandler(async (req, res) => {
   const isCorporate = accountType === 'corporate';
 
   const email = String(body.email || '').trim().toLowerCase();
-  const password = body.password;
   const phone = String(body.phone || '').trim();
+  // Password is generated & emailed when admin approves — not collected at signup.
+  const password = generatePlaceholderPassword();
 
-  if (!email || !password || !phone) {
+  if (!email || !phone) {
     return res.status(400).json({
       success: false,
-      message: 'Email, mobile and password are required.',
-    });
-  }
-
-  if (String(password).length < 6) {
-    return res.status(400).json({
-      success: false,
-      message: 'Password must be at least 6 characters.',
+      message: 'Email and mobile are required.',
     });
   }
 
@@ -198,7 +193,6 @@ exports.register = asyncHandler(async (req, res) => {
       approvalStatus: 'pending',
       companyName,
       gstNumber,
-      annualVolume: String(body.annualVolume || '').trim(),
       designation: String(body.designation || '').trim(),
       companyAddress: {
         line1: officeAddress,
@@ -316,11 +310,12 @@ exports.verifyEmail = asyncHandler(async (req, res) => {
         data: pendingApprovalResponse(user),
       });
     }
-    if (user.approvalStatus === 'rejected') {
+    if (user.approvalStatus === 'rejected' || user.isActive === false) {
       return res.status(403).json({
         success: false,
-        message: 'Your registration was not approved. Please contact support.',
-        data: { code: 'ACCOUNT_REJECTED', email: user.email },
+        message:
+          'Your account has been blocked by the administrator. Please contact admin for assistance.',
+        data: { code: 'ACCOUNT_BLOCKED', email: user.email },
       });
     }
     const token = signToken(user._id);
@@ -352,6 +347,22 @@ exports.verifyEmail = asyncHandler(async (req, res) => {
   user.emailOtpHash = '';
   user.emailOtpExpires = null;
   await user.save();
+
+  try {
+    const mail = emailVerifiedPendingApprovalEmail({
+      name: displayName(user),
+      email: user.email,
+      accountType: user.role === 'dealer' ? 'corporate' : user.role,
+    });
+    await sendMail({
+      to: user.email,
+      subject: mail.subject,
+      html: mail.html,
+      text: mail.text,
+    });
+  } catch (err) {
+    console.warn('[verifyEmail] Pending-approval email to customer failed:', err.message);
+  }
 
   try {
     await notifyAdminsOfPendingApproval(user);
@@ -433,7 +444,12 @@ exports.forgotPassword = asyncHandler(async (req, res) => {
     });
   }
   if (!user.isActive) {
-    return res.status(403).json({ success: false, message: 'Account is deactivated.' });
+    return res.status(403).json({
+      success: false,
+      message:
+        'Your account has been blocked by the administrator. Please contact admin for assistance.',
+      data: { code: 'ACCOUNT_BLOCKED', email: user.email },
+    });
   }
 
   const mailResult = await issueAndSendResetOtp(user);
@@ -546,7 +562,12 @@ exports.resetPassword = asyncHandler(async (req, res) => {
     });
   }
   if (!user.isActive) {
-    return res.status(403).json({ success: false, message: 'Account is deactivated.' });
+    return res.status(403).json({
+      success: false,
+      message:
+        'Your account has been blocked by the administrator. Please contact admin for assistance.',
+      data: { code: 'ACCOUNT_BLOCKED', email: user.email },
+    });
   }
 
   if (isOtpExpired(user.passwordResetOtpExpires)) {
@@ -592,7 +613,15 @@ exports.login = asyncHandler(async (req, res) => {
   }
 
   if (!user.isActive) {
-    return res.status(403).json({ success: false, message: 'Account is deactivated.' });
+    return res.status(403).json({
+      success: false,
+      message:
+        'Your account has been blocked by the administrator. Please contact admin for assistance.',
+      data: {
+        code: 'ACCOUNT_BLOCKED',
+        email: user.email,
+      },
+    });
   }
 
   if (user.emailVerified === false) {
@@ -627,8 +656,9 @@ exports.login = asyncHandler(async (req, res) => {
   if (user.role !== 'admin' && user.approvalStatus === 'rejected') {
     return res.status(403).json({
       success: false,
-      message: 'Your registration was not approved. Please contact support.',
-      data: { code: 'ACCOUNT_REJECTED', email: user.email },
+      message:
+        'Your account has been blocked by the administrator. Please contact admin for assistance.',
+      data: { code: 'ACCOUNT_BLOCKED', email: user.email },
     });
   }
 

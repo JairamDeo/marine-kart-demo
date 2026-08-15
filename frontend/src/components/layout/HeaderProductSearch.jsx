@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Loader2, Search, X } from 'lucide-react';
 import { productService } from '../../services/product.service';
 import { productImageUrl } from '../../utils/productImage';
+import { formatProductTitle } from '../../utils/productTitle';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useThrottledCallback } from '../../hooks/useThrottledCallback';
 
@@ -92,7 +93,7 @@ export default function HeaderProductSearch() {
   const showPanel = open && (loading || suggestions.length > 0 || debouncedQ.length >= 2);
 
   return (
-    <div ref={rootRef} className="relative mx-auto w-full max-w-[520px]">
+    <div ref={rootRef} className="relative mx-auto w-full max-w-[640px]">
       <form
         onSubmit={onSubmit}
         className="flex w-full overflow-hidden rounded-md bg-white shadow-sm"
@@ -179,7 +180,7 @@ export default function HeaderProductSearch() {
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-semibold text-navy">
-                        {p.name}
+                        {formatProductTitle(p)}
                       </span>
                       <span className="block truncate text-[11px] text-gray-400">
                         {p.category?.name || p.shortDescription || 'Marine product'}

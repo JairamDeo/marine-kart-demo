@@ -90,32 +90,34 @@ export default function HeroSection() {
   const current = hero[index] || LEFT_BANNERS[0];
 
   return (
-    <section className="container-mk py-6 md:py-8">
-      <div className="grid gap-4 lg:grid-cols-3">
+    <section className="container-mk py-4 md:py-5 lg:py-4">
+      <div className="grid gap-3 lg:grid-cols-3 lg:gap-3">
         <div
-          className="group relative min-h-[280px] overflow-hidden rounded-2xl bg-white shadow-sm sm:min-h-[320px] lg:col-span-2 lg:min-h-[400px]"
+          className="group relative min-h-[260px] overflow-hidden rounded-2xl bg-white sm:min-h-[300px] lg:col-span-2 lg:min-h-[340px]"
           data-aos="fade-right"
         >
           <img
             key={current.image}
             src={current.image}
             alt={current.title}
-            className="absolute inset-0 h-full w-full object-cover object-right transition duration-700 group-hover:scale-[1.03]"
+            className="absolute inset-0 h-full w-full object-contain object-right transition duration-700 group-hover:scale-[1.02]"
             loading="lazy"
             decoding="async"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-white via-white/85 to-transparent sm:via-white/70" />
-          <div className="relative z-10 flex h-full min-h-[280px] max-w-lg flex-col justify-center p-5 sm:min-h-[320px] sm:p-8 lg:min-h-[400px] lg:p-10">
-            <span className="mb-3 inline-flex w-fit rounded-full bg-cyan/20 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-navy">
+          <div className="absolute inset-0 bg-gradient-to-r from-white via-white/90 to-transparent sm:via-white/75 pointer-events-none" />
+          <div className="relative z-10 flex h-full min-h-[260px] max-w-lg flex-col justify-center p-4 sm:min-h-[300px] sm:p-6 lg:min-h-[340px] lg:p-7">
+            <span className="mb-2 inline-flex w-fit rounded-full bg-cyan/20 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-navy">
               Featured
             </span>
-            <h1 className="text-2xl font-extrabold uppercase leading-tight tracking-wide text-navy sm:text-3xl md:text-4xl lg:text-[2.6rem]">
+            <h1 className="text-2xl font-extrabold uppercase leading-tight tracking-wide text-navy sm:text-3xl md:text-4xl lg:text-[2.35rem]">
               {current.title}
             </h1>
-            <p className="mt-3 max-w-sm text-base leading-relaxed text-gray-600">{current.subtitle}</p>
+            <p className="mt-2 max-w-sm text-sm leading-relaxed text-gray-600 sm:text-base">
+              {current.subtitle}
+            </p>
           </div>
           {hero.length > 1 && (
-            <div className="absolute bottom-5 left-5 z-10 flex gap-2 sm:left-8 lg:left-10">
+            <div className="absolute bottom-4 left-4 z-10 flex gap-2 sm:bottom-5 sm:left-6 lg:left-7">
               {hero.map((_, i) => (
                 <button
                   key={i}
@@ -131,7 +133,7 @@ export default function HeroSection() {
           )}
         </div>
 
-        <div className="grid gap-4" data-aos="fade-left" data-aos-delay="120">
+        <div className="grid gap-3" data-aos="fade-left" data-aos-delay="120">
           <PromoBannerCard {...sideTop} />
           <PromoBannerCard {...sideBottom} />
         </div>
@@ -145,12 +147,12 @@ function PromoBannerCard({ image, link, alt }) {
   return (
     <Link
       to={link || '/shop'}
-      className="promo-card group relative block min-h-[175px] overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-gray-100/80"
+      className="promo-card group relative block min-h-[160px] overflow-hidden rounded-2xl bg-white lg:min-h-[164px]"
     >
       <img
         src={image}
         alt={alt || ''}
-        className="absolute inset-0 h-full w-full object-cover object-right transition duration-500 group-hover:scale-[1.04]"
+        className="absolute inset-0 h-full w-full object-fit object-center transition duration-500 group-hover:scale-[1.02]"
         loading="lazy"
         decoding="async"
       />

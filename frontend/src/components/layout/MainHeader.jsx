@@ -13,17 +13,17 @@ export default function MainHeader() {
   const cartCount = cart?.itemCount || 0;
 
   return (
-    <div className="bg-[#1a4b8c] py-3 sm:py-4">
-      <div className="container-mk grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-3 sm:grid-cols-[auto_1fr_auto] sm:gap-4 lg:grid-cols-[1fr_minmax(240px,520px)_1fr] lg:gap-6">
-        <Link to="/" className="shrink-0 justify-self-start">
-          <BrandLogo className="h-11 w-auto max-w-[160px] xs:max-w-none sm:h-14 md:h-16" />
+    <div className="bg-[#1a4b8c] py-2.5 sm:py-3.5 lg:py-2.5">
+      <div className="container-mk grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2.5 gap-y-2.5 sm:grid-cols-[auto_1fr_auto] sm:gap-4 lg:grid-cols-[1fr_minmax(280px,640px)_1fr] lg:gap-5">
+        <Link to="/" className="col-start-1 row-start-1 shrink-0 justify-self-start">
+          <BrandLogo className="h-10 w-auto max-w-[140px] xs:h-11 xs:max-w-[160px] sm:h-14 sm:max-w-none md:h-16" />
         </Link>
 
-        <div className="col-span-2 w-full min-w-0 justify-self-stretch sm:col-span-1 sm:col-start-2 sm:row-start-1 sm:max-w-none lg:justify-self-center">
+        <div className="col-span-2 row-start-2 w-full min-w-0 justify-self-stretch sm:col-span-1 sm:col-start-2 sm:row-start-1 sm:max-w-none lg:justify-self-center">
           <HeaderProductSearch />
         </div>
 
-        <div className="flex items-center justify-end gap-1.5 justify-self-end sm:gap-2.5 lg:justify-self-end">
+        <div className="col-start-2 row-start-1 flex items-center justify-end gap-1.5 justify-self-end sm:col-start-3 sm:gap-2.5 lg:col-start-3 lg:justify-self-end">
           <button
             type="button"
             onClick={() => {

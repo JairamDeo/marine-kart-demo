@@ -109,7 +109,7 @@ export default function CategoryPage() {
     return (
       <div className="container-mk py-10">
         <div className="mb-6 h-8 w-64 animate-pulse rounded bg-gray-200" />
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5">
           {Array.from({ length: 10 }).map((_, i) => (
             <div key={i} className="aspect-[3/4] animate-pulse rounded-xl bg-gray-200/70" />
           ))}

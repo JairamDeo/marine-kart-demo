@@ -29,7 +29,7 @@ export default function Navbar({ categories = [] }) {
   }, [open, activeCatId, categories]);
 
   const linkClass = ({ isActive }) =>
-    `px-3 py-3 text-xs font-semibold uppercase tracking-wide transition lg:px-4 lg:py-3.5 lg:text-sm ${
+    `px-3 py-2.5 text-xs font-semibold uppercase tracking-wide transition lg:px-3.5 lg:py-2.5 lg:text-[13px] ${
       isActive ? 'text-cyan' : 'text-white hover:text-cyan'
     }`;
 
@@ -40,7 +40,7 @@ export default function Navbar({ categories = [] }) {
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}
-            className="flex items-center gap-1.5 bg-[#78c6d4] px-2.5 py-3 text-[11px] font-bold uppercase text-white transition hover:bg-[#5bb5c6] sm:gap-2 sm:px-4 sm:py-3.5 sm:text-sm"
+            className="flex items-center gap-1.5 bg-[#78c6d4] px-2.5 py-2.5 text-[11px] font-bold uppercase text-white transition hover:bg-[#5bb5c6] sm:gap-2 sm:px-4 sm:py-3 sm:text-sm lg:py-2.5"
             aria-expanded={open}
           >
             <Menu size={16} className="shrink-0 sm:hidden" />
@@ -138,7 +138,7 @@ export default function Navbar({ categories = [] }) {
           </NavLink>
         </nav>
 
-        <div className="ml-auto hidden items-center gap-2 py-3.5 text-sm text-white min-[400px]:flex">
+        <div className="ml-auto hidden items-center gap-2 py-2.5 text-sm text-white min-[400px]:flex lg:py-2">
           <Phone size={14} className="shrink-0 text-cyan sm:hidden" />
           <Phone size={16} className="hidden shrink-0 text-cyan sm:block" />
           <span className="truncate text-xs sm:text-sm">

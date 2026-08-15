@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Icon } from '@iconify/react';
 import toast from 'react-hot-toast';
 import { friendlyError } from '../../utils/toastMsg';
 import DataTable from '../../components/portal/DataTable';
 import Modal from '../../components/portal/Modal';
+import ConfirmDialog from '../../components/portal/ConfirmDialog';
 import { FilterSelect } from '../../components/portal/FilterBar';
+import ActionIcon, { ActionGroup } from '../../components/portal/ActionIcon';
 import { adminService } from '../../services/admin.service';
 
 function formatCorporateDiscount(row) {
@@ -15,12 +16,21 @@ function formatCorporateDiscount(row) {
   return `${value}% off`;
 }
 
+function customerDisplayStatus(row) {
+  if (row.approvalStatus === 'pending') return 'pending';
+  if (row.isActive === false || row.approvalStatus === 'rejected') return 'inactive';
+  return 'active';
+}
+
 export default function AdminCustomers() {
   const [customers, setCustomers] = useState([]);
+  const [pendingCount, setPendingCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [roleFilter, setRoleFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [editTarget, setEditTarget] = useState(null);
+  const [approveTarget, setApproveTarget] = useState(null);
+  const [rejectTarget, setRejectTarget] = useState(null);
   const [form, setForm] = useState({
     role: 'customer',
     isActive: true,
@@ -34,6 +44,7 @@ export default function AdminCustomers() {
     try {
       const res = await adminService.customers();
       setCustomers(res.data.data.customers || []);
+      setPendingCount(res.data.data.pendingCount ?? 0);
     } catch (err) {
       toast.error(friendlyError(err));
     } finally {
@@ -49,8 +60,8 @@ export default function AdminCustomers() {
     return customers.filter((c) => {
       const role = c.role === 'dealer' ? 'corporate' : c.role;
       if (roleFilter && role !== roleFilter) return false;
-      if (statusFilter === 'active' && c.isActive === false) return false;
-      if (statusFilter === 'inactive' && c.isActive !== false) return false;
+      const status = customerDisplayStatus(c);
+      if (statusFilter && status !== statusFilter) return false;
       return true;
     });
   }, [customers, roleFilter, statusFilter]);
@@ -60,7 +71,7 @@ export default function AdminCustomers() {
     const role = customer.role === 'dealer' ? 'corporate' : customer.role || 'customer';
     setForm({
       role,
-      isActive: customer.isActive !== false,
+      isActive: customerDisplayStatus(customer) === 'active',
       discountType: customer.corporateDiscountType === 'cash' ? 'cash' : 'percent',
       discountValue:
         customer.corporateDiscountValue != null && Number(customer.corporateDiscountValue) > 0
@@ -86,9 +97,39 @@ export default function AdminCustomers() {
         payload.corporateDiscountType = '';
         payload.corporateDiscountValue = 0;
       }
-      await adminService.updateCustomer(editTarget._id, payload);
-      toast.success('Customer updated successfully');
+      const res = await adminService.updateCustomer(editTarget._id, payload);
+      toast.success(res.data?.message || 'Customer updated successfully');
       setEditTarget(null);
+      load();
+    } catch (err) {
+      toast.error(friendlyError(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const confirmApprove = async () => {
+    if (!approveTarget) return;
+    setBusy(true);
+    try {
+      await adminService.approveUser(approveTarget._id);
+      toast.success('Account activated. Login details emailed to the customer.');
+      setApproveTarget(null);
+      load();
+    } catch (err) {
+      toast.error(friendlyError(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const confirmReject = async (reason) => {
+    if (!rejectTarget) return;
+    setBusy(true);
+    try {
+      await adminService.rejectUser(rejectTarget._id, { reason });
+      toast.success('Account rejected. Customer is now inactive.');
+      setRejectTarget(null);
       load();
     } catch (err) {
       toast.error(friendlyError(err));
@@ -146,28 +187,50 @@ export default function AdminCustomers() {
     },
     {
       header: 'Status',
-      render: (row) => (
-        <span
-          className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
-            row.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500'
-          }`}
-        >
-          {row.isActive ? 'Active' : 'Inactive'}
-        </span>
-      ),
+      render: (row) => {
+        const status = customerDisplayStatus(row);
+        const styles =
+          status === 'pending'
+            ? 'bg-amber-50 text-amber-800'
+            : status === 'active'
+              ? 'bg-emerald-50 text-emerald-700'
+              : 'bg-gray-100 text-gray-500';
+        const label =
+          status === 'pending' ? 'Pending' : status === 'active' ? 'Active' : 'Inactive';
+        return (
+          <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${styles}`}>
+            {label}
+          </span>
+        );
+      },
     },
     {
       header: 'Action',
-      render: (row) => (
-        <button
-          type="button"
-          onClick={() => openEdit(row)}
-          className="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-50 text-sky-600 transition hover:bg-sky-100"
-          title="Edit"
-        >
-          <Icon icon="bx:edit-alt" width={18} height={18} />
-        </button>
-      ),
+      render: (row) => {
+        const pending = row.approvalStatus === 'pending';
+        if (pending) {
+          return (
+            <ActionGroup>
+              <ActionIcon
+                variant="default"
+                icon="bx:check"
+                title="Activate"
+                className="!bg-emerald-50 !text-emerald-600 hover:!bg-emerald-100"
+                onClick={() => setApproveTarget(row)}
+              />
+              <ActionIcon
+                variant="delete"
+                icon="bx:x"
+                title="Reject"
+                onClick={() => setRejectTarget(row)}
+              />
+            </ActionGroup>
+          );
+        }
+        return (
+          <ActionIcon variant="edit" title="Edit" onClick={() => openEdit(row)} />
+        );
+      },
     },
   ];
 
@@ -183,7 +246,12 @@ export default function AdminCustomers() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-gray-900">Customers</h1>
-        <p className="mt-1 text-sm text-gray-400">Manage normal and corporate customers</p>
+        <p className="mt-1 text-sm text-gray-400">
+          Email-verified customers only. Pending registrations need activate or reject.
+          {pendingCount > 0 ? (
+            <span className="ml-2 font-semibold text-amber-700">{pendingCount} pending</span>
+          ) : null}
+        </p>
       </div>
 
       <DataTable
@@ -192,10 +260,11 @@ export default function AdminCustomers() {
         searchKeys={['firstName', 'lastName', 'email', 'phone', 'companyName']}
         searchPlaceholder="Search customers..."
         sortOptions={[
+          { label: 'Newest', value: 'createdAt:desc' },
           { label: 'Name A–Z', value: 'firstName:asc' },
           { label: 'Email A–Z', value: 'email:asc' },
         ]}
-        defaultSort="firstName:asc"
+        defaultSort="createdAt:desc"
         filters={
           <>
             <FilterSelect
@@ -212,9 +281,10 @@ export default function AdminCustomers() {
               ariaLabel="Status"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-[120px]"
+              className="w-[130px]"
             >
               <option value="">Status</option>
+              <option value="pending">Pending</option>
               <option value="active">Active</option>
               <option value="inactive">Inactive</option>
             </FilterSelect>
@@ -225,7 +295,7 @@ export default function AdminCustomers() {
       <Modal
         open={Boolean(editTarget)}
         onClose={() => setEditTarget(null)}
-        title={`Edit ${editTarget?.firstName} ${editTarget?.lastName}`}
+        title={`Edit ${editTarget?.firstName || ''} ${editTarget?.lastName || ''}`.trim()}
       >
         <form onSubmit={handleSave} className="space-y-4">
           <div>
@@ -286,8 +356,18 @@ export default function AdminCustomers() {
             />
             Active account
           </label>
+          {customerDisplayStatus(editTarget || {}) === 'inactive' && form.isActive ? (
+            <p className="rounded-lg bg-cyan/10 px-3 py-2 text-xs text-navy">
+              Activating this account will email the customer a welcome message with new login
+              credentials.
+            </p>
+          ) : null}
           <div className="flex justify-end gap-3">
-            <button type="button" onClick={() => setEditTarget(null)} className="rounded-lg border px-4 py-2 text-sm">
+            <button
+              type="button"
+              onClick={() => setEditTarget(null)}
+              className="rounded-lg border px-4 py-2 text-sm"
+            >
               Cancel
             </button>
             <button type="submit" disabled={busy} className="btn-cyan rounded-lg px-4 py-2 text-sm">
@@ -296,6 +376,49 @@ export default function AdminCustomers() {
           </div>
         </form>
       </Modal>
+
+      <ConfirmDialog
+        open={Boolean(approveTarget)}
+        onClose={() => setApproveTarget(null)}
+        onConfirm={confirmApprove}
+        title="Activate this account?"
+        message={
+          approveTarget
+            ? `Activate ${
+                `${approveTarget.firstName || ''} ${approveTarget.lastName || ''}`.trim() ||
+                approveTarget.email
+              }? They will receive a welcome email with login credentials.`
+            : ''
+        }
+        confirmLabel="Activate"
+        cancelLabel="Cancel"
+        busyLabel="Activating..."
+        busy={busy}
+        danger={false}
+      />
+
+      <ConfirmDialog
+        open={Boolean(rejectTarget)}
+        onClose={() => setRejectTarget(null)}
+        onConfirm={confirmReject}
+        title="Reject this registration?"
+        message={
+          rejectTarget
+            ? `Reject ${
+                `${rejectTarget.firstName || ''} ${rejectTarget.lastName || ''}`.trim() ||
+                rejectTarget.email
+              }? The account will become inactive.`
+            : ''
+        }
+        confirmLabel="Reject"
+        cancelLabel="Cancel"
+        busyLabel="Rejecting..."
+        busy={busy}
+        danger
+        requireReason
+        reasonLabel="Rejection reason"
+        reasonPlaceholder="Why is this registration being rejected?"
+      />
     </div>
   );
 }

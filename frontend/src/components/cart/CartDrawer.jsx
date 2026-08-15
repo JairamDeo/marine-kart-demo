@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
@@ -15,6 +15,8 @@ import { useCartUI } from '../../context/CartUIContext';
 import { orderService } from '../../services/order.service';
 import { authService } from '../../services/auth.service';
 import { productImageUrl } from '../../utils/productImage';
+import { formatProductTitle } from '../../utils/productTitle';
+import { clampOrderQty } from '../../utils/maxOrderQty';
 import { friendlyError } from '../../utils/toastMsg';
 
 const emptyAddress = {
@@ -27,6 +29,48 @@ const emptyAddress = {
   postalCode: '',
   country: 'India',
 };
+
+/** Resolve city + state from Indian PIN (primary) or Zippopotam (fallback). */
+async function lookupCityStateFromPin(postalCode, country = 'India') {
+  const code = String(postalCode || '').trim();
+  if (!code) return null;
+
+  const isIndia = String(country || 'India').toLowerCase().includes('india');
+  if (isIndia && /^\d{6}$/.test(code)) {
+    try {
+      const res = await fetch(`https://api.postalpincode.in/pincode/${encodeURIComponent(code)}`);
+      if (res.ok) {
+        const data = await res.json();
+        const po = data?.[0]?.PostOffice?.[0];
+        if (data?.[0]?.Status === 'Success' && po) {
+          return {
+            city: po.District || po.Block || po.Name || '',
+            state: po.State || '',
+            country: 'India',
+          };
+        }
+      }
+    } catch {
+      /* fall through */
+    }
+  }
+
+  if (code.length < 3) return null;
+  try {
+    const res = await fetch(`https://api.zippopotam.us/in/${encodeURIComponent(code)}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    const place = data?.places?.[0];
+    if (!place) return null;
+    return {
+      city: place['place name'] || '',
+      state: place.state || place['state abbreviation'] || '',
+      country: data.country || country || 'India',
+    };
+  } catch {
+    return null;
+  }
+}
 
 function addressFromSaved(addr, user) {
   return {
@@ -80,10 +124,14 @@ export default function CartDrawer() {
 
   const [billing, setBilling] = useState(emptyAddress);
   const [selectedAddressId, setSelectedAddressId] = useState('');
+  const [showNewForm, setShowNewForm] = useState(false);
+  const [pinBusy, setPinBusy] = useState(false);
   const [busy, setBusy] = useState(false);
+  const pinTimer = useRef(null);
 
   const items = cart?.items || [];
   const itemCount = cart?.itemCount || 0;
+  const lineCount = items.filter((i) => i?.product).length;
 
   useEffect(() => {
     if (!cartOpen || !user) return;
@@ -110,11 +158,13 @@ export default function CartDrawer() {
 
   useEffect(() => {
     if (cartOpen) goToCartStep();
+    else setShowNewForm(false);
   }, [cartOpen, goToCartStep]);
 
   const selectSaved = (addr) => {
     setSelectedAddressId(String(addr._id));
     setBilling(addressFromSaved(addr, user));
+    setShowNewForm(false);
   };
 
   const startNewAddress = () => {
@@ -125,10 +175,63 @@ export default function CartDrawer() {
       phone: user?.phone || '',
       country: 'India',
     });
+    setShowNewForm(true);
   };
 
-  const setQty = async (productId, quantity) => {
-    const capped = Math.max(1, Number(quantity) || 1);
+  const cancelNewAddress = () => {
+    setShowNewForm(false);
+    const prev =
+      savedAddresses.find((a) => a.isDefault) || savedAddresses[0];
+    if (prev) {
+      setSelectedAddressId(String(prev._id));
+      setBilling(addressFromSaved(prev, user));
+    } else {
+      setSelectedAddressId('new');
+      setBilling({
+        ...emptyAddress,
+        fullName: `${user?.firstName || ''} ${user?.lastName || ''}`.trim(),
+        phone: user?.phone || '',
+        country: 'India',
+      });
+    }
+  };
+
+  const setAddr = (key, value) => setBilling((prev) => ({ ...prev, [key]: value }));
+
+  const onPostalCodeChange = (raw) => {
+    const postalCode = String(raw || '').replace(/\D/g, '').slice(0, 6);
+    setBilling((prev) => ({ ...prev, postalCode }));
+
+    if (pinTimer.current) clearTimeout(pinTimer.current);
+    if (postalCode.length < 6) return;
+
+    pinTimer.current = setTimeout(async () => {
+      setPinBusy(true);
+      try {
+        const hit = await lookupCityStateFromPin(postalCode, 'India');
+        if (!hit) return;
+        setBilling((prev) => ({
+          ...prev,
+          postalCode,
+          city: hit.city || prev.city,
+          state: hit.state || prev.state,
+          country: hit.country || prev.country || 'India',
+        }));
+      } finally {
+        setPinBusy(false);
+      }
+    }, 400);
+  };
+
+  useEffect(
+    () => () => {
+      if (pinTimer.current) clearTimeout(pinTimer.current);
+    },
+    []
+  );
+
+  const setQty = async (productId, quantity, product) => {
+    const capped = clampOrderQty(quantity, product);
     try {
       await updateCartQuantity(productId, capped);
     } catch (err) {
@@ -205,9 +308,6 @@ export default function CartDrawer() {
     }
   };
 
-  const editingNew = selectedAddressId === 'new';
-  const setAddr = (key, value) => setBilling({ ...billing, [key]: value });
-
   return (
     <>
       <div
@@ -256,6 +356,7 @@ export default function CartDrawer() {
                 <ul className="divide-y divide-gray-100">
                   {items.map((item) => {
                     const p = item.product;
+                    if (!p) return null;
                     const id = p.id || p._id;
                     return (
                       <li key={id} className="flex gap-3 p-3.5">
@@ -266,7 +367,7 @@ export default function CartDrawer() {
                         >
                           <img
                             src={productImageUrl(p, 128)}
-                            alt={p.name}
+                            alt={formatProductTitle(p)}
                             className="h-full w-full object-contain p-1"
                             loading="lazy"
                             decoding="async"
@@ -280,35 +381,38 @@ export default function CartDrawer() {
                               onClick={closeCart}
                               className="line-clamp-2 text-[13px] font-bold uppercase leading-snug text-gray-900"
                             >
-                              {p.productId || p.name}
+                              {formatProductTitle(p)}
                             </Link>
                             <button
                               type="button"
                               onClick={() => remove(id)}
-                              className="shrink-0 rounded-lg p-1 text-gray-300 transition hover:bg-red-50 hover:text-red-500"
+                              className="shrink-0 rounded-lg p-1 text-red-500 transition hover:bg-red-50 hover:text-red-600"
                               aria-label="Remove"
                             >
                               <Trash2 size={15} />
                             </button>
                           </div>
 
-                          <div className="mt-2 flex items-center justify-end gap-2">
+                          <div className="mt-2 flex items-center justify-end gap-1.5">
                             <button
                               type="button"
                               disabled={item.quantity <= 1}
-                              onClick={() => setQty(id, item.quantity - 1)}
+                              onClick={() => setQty(id, item.quantity - 1, p)}
                               className="flex h-7 w-7 items-center justify-center rounded-full bg-[#78c6d4] text-white transition hover:bg-[#5bb5c6] disabled:opacity-35"
+                              aria-label="Decrease quantity"
                             >
                               <Minus size={12} strokeWidth={3} />
                             </button>
-                            <span className="min-w-5 text-center text-sm font-bold text-gray-900">
-                              {item.quantity}
-                            </span>
+                            <CartQtyInput
+                              quantity={item.quantity}
+                              product={p}
+                              onCommit={(next) => setQty(id, next, p)}
+                            />
                             <button
                               type="button"
-                              onClick={() => setQty(id, item.quantity + 1)}
+                              onClick={() => setQty(id, item.quantity + 1, p)}
                               className="flex h-7 w-7 items-center justify-center rounded-full bg-[#78c6d4] text-white transition hover:bg-[#5bb5c6]"
-                              title="Increase"
+                              aria-label="Increase quantity"
                             >
                               <Plus size={12} strokeWidth={3} />
                             </button>
@@ -321,7 +425,8 @@ export default function CartDrawer() {
               </div>
 
               <p className="px-0.5 text-[11px] text-gray-400">
-                {itemCount} item{itemCount === 1 ? '' : 's'} in cart
+                {lineCount} item{lineCount === 1 ? '' : 's'}
+                {itemCount !== lineCount ? ` · Total qty ${itemCount}` : ' in cart'}
               </p>
 
               <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-gray-100">
@@ -389,8 +494,8 @@ export default function CartDrawer() {
                       type="button"
                       onClick={startNewAddress}
                       className={`mb-3 inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed px-3 py-2.5 text-xs font-semibold transition ${
-                        editingNew
-                          ? 'border-[#1a4b8c] bg-[#f3f8fb] text-[#1a4b8c]'
+                        showNewForm
+                          ? 'border-[#1a4b8c] bg-[#eef6fa] text-[#1a4b8c]'
                           : 'border-gray-300 text-gray-600 hover:border-gray-400 hover:bg-gray-50'
                       }`}
                     >
@@ -398,98 +503,123 @@ export default function CartDrawer() {
                       Add new address
                     </button>
 
-                    {(editingNew || savedAddresses.length === 0) && (
-                      <div className="grid grid-cols-1 gap-2.5 border-t border-gray-100 pt-3 min-[380px]:grid-cols-2">
-                        <div className="col-span-2">
-                          <label className="mb-1 block text-[11px] font-medium text-gray-500">
-                            Full name
-                          </label>
-                          <input
-                            required
-                            className="input-mk rounded-xl py-2 text-sm"
-                            value={billing.fullName}
-                            onChange={(e) => setAddr('fullName', e.target.value)}
-                          />
+                    {(showNewForm || savedAddresses.length === 0) && (
+                      <div className="relative mb-1 origin-top rotate-[0.6deg] rounded-2xl border border-[#78c6d4]/50 bg-gradient-to-br from-[#f0f9fb] to-white p-3.5 shadow-[0_8px_24px_rgba(26,75,140,0.12)] ring-1 ring-[#1a4b8c]/10">
+                        <div className="mb-2.5 flex items-center justify-between gap-2">
+                          <p className="text-xs font-bold text-[#1a4b8c]">New delivery address</p>
+                          {savedAddresses.length > 0 ? (
+                            <button
+                              type="button"
+                              onClick={cancelNewAddress}
+                              className="rounded-lg p-1 text-gray-400 transition hover:bg-white hover:text-gray-700"
+                              aria-label="Cancel new address"
+                            >
+                              <X size={16} />
+                            </button>
+                          ) : null}
                         </div>
-                        <div className="col-span-2">
-                          <label className="mb-1 block text-[11px] font-medium text-gray-500">
-                            Phone
-                          </label>
-                          <input
-                            required
-                            className="input-mk rounded-xl py-2 text-sm"
-                            value={billing.phone}
-                            onChange={(e) => setAddr('phone', e.target.value)}
-                          />
-                        </div>
-                        <div className="col-span-2">
-                          <label className="mb-1 block text-[11px] font-medium text-gray-500">
-                            Address
-                          </label>
-                          <input
-                            required
-                            placeholder="Street, building, area"
-                            className="input-mk rounded-xl py-2 text-sm"
-                            value={billing.line1}
-                            onChange={(e) => setAddr('line1', e.target.value)}
-                          />
-                        </div>
-                        <div className="col-span-2">
-                          <input
-                            placeholder="Landmark / line 2 (optional)"
-                            className="input-mk rounded-xl py-2 text-sm"
-                            value={billing.line2}
-                            onChange={(e) => setAddr('line2', e.target.value)}
-                          />
-                        </div>
-                        <div>
-                          <label className="mb-1 block text-[11px] font-medium text-gray-500">
-                            City
-                          </label>
-                          <input
-                            required
-                            className="input-mk rounded-xl py-2 text-sm"
-                            value={billing.city}
-                            onChange={(e) => setAddr('city', e.target.value)}
-                          />
-                        </div>
-                        <div>
-                          <label className="mb-1 block text-[11px] font-medium text-gray-500">
-                            State
-                          </label>
-                          <input
-                            required
-                            className="input-mk rounded-xl py-2 text-sm"
-                            value={billing.state}
-                            onChange={(e) => setAddr('state', e.target.value)}
-                          />
-                        </div>
-                        <div>
-                          <label className="mb-1 block text-[11px] font-medium text-gray-500">
-                            PIN
-                          </label>
-                          <input
-                            required
-                            className="input-mk rounded-xl py-2 text-sm"
-                            value={billing.postalCode}
-                            onChange={(e) => setAddr('postalCode', e.target.value)}
-                          />
-                        </div>
-                        <div>
-                          <label className="mb-1 block text-[11px] font-medium text-gray-500">
-                            Country
-                          </label>
-                          <input
-                            required
-                            className="input-mk rounded-xl py-2 text-sm"
-                            value={billing.country}
-                            onChange={(e) => setAddr('country', e.target.value)}
-                          />
+                        <div className="grid grid-cols-1 gap-2.5 min-[380px]:grid-cols-2">
+                          <div className="col-span-2">
+                            <label className="mb-1 block text-[11px] font-medium text-gray-500">
+                              Full name
+                            </label>
+                            <input
+                              required
+                              className="input-mk rounded-xl border-cyan/30 bg-white py-2 text-sm"
+                              value={billing.fullName}
+                              onChange={(e) => setAddr('fullName', e.target.value)}
+                            />
+                          </div>
+                          <div className="col-span-2">
+                            <label className="mb-1 block text-[11px] font-medium text-gray-500">
+                              Phone
+                            </label>
+                            <input
+                              required
+                              className="input-mk rounded-xl border-cyan/30 bg-white py-2 text-sm"
+                              value={billing.phone}
+                              onChange={(e) => setAddr('phone', e.target.value)}
+                            />
+                          </div>
+                          <div className="col-span-2">
+                            <label className="mb-1 block text-[11px] font-medium text-gray-500">
+                              Address
+                            </label>
+                            <input
+                              required
+                              placeholder="Street, building, area"
+                              className="input-mk rounded-xl border-cyan/30 bg-white py-2 text-sm"
+                              value={billing.line1}
+                              onChange={(e) => setAddr('line1', e.target.value)}
+                            />
+                          </div>
+                          <div className="col-span-2">
+                            <input
+                              placeholder="Landmark / line 2 (optional)"
+                              className="input-mk rounded-xl border-cyan/30 bg-white py-2 text-sm"
+                              value={billing.line2}
+                              onChange={(e) => setAddr('line2', e.target.value)}
+                            />
+                          </div>
+                          <div className="col-span-2">
+                            <label className="mb-1 block text-[11px] font-medium text-gray-500">
+                              PIN code
+                            </label>
+                            <div className="relative">
+                              <input
+                                required
+                                inputMode="numeric"
+                                maxLength={6}
+                                placeholder="6-digit PIN — city & state auto-fill"
+                                className="input-mk rounded-xl border-cyan/30 bg-white py-2 pr-10 text-sm"
+                                value={billing.postalCode}
+                                onChange={(e) => onPostalCodeChange(e.target.value)}
+                              />
+                              {pinBusy ? (
+                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-medium text-cyan">
+                                  …
+                                </span>
+                              ) : null}
+                            </div>
+                          </div>
+                          <div>
+                            <label className="mb-1 block text-[11px] font-medium text-gray-500">
+                              City
+                            </label>
+                            <input
+                              required
+                              className="input-mk rounded-xl border-cyan/30 bg-white py-2 text-sm"
+                              value={billing.city}
+                              onChange={(e) => setAddr('city', e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <label className="mb-1 block text-[11px] font-medium text-gray-500">
+                              State
+                            </label>
+                            <input
+                              required
+                              className="input-mk rounded-xl border-cyan/30 bg-white py-2 text-sm"
+                              value={billing.state}
+                              onChange={(e) => setAddr('state', e.target.value)}
+                            />
+                          </div>
+                          <div className="col-span-2">
+                            <label className="mb-1 block text-[11px] font-medium text-gray-500">
+                              Country
+                            </label>
+                            <input
+                              required
+                              className="input-mk rounded-xl border-cyan/30 bg-white py-2 text-sm"
+                              value={billing.country}
+                              onChange={(e) => setAddr('country', e.target.value)}
+                            />
+                          </div>
                         </div>
                       </div>
                     )}
 
-                    {!editingNew && savedAddresses.length > 0 && (
+                    {!showNewForm && savedAddresses.length > 0 && (
                       <p className="mt-1 text-[11px] text-gray-400">
                         Using saved address. Tap “Add new address” to enter another.
                       </p>
@@ -523,6 +653,42 @@ export default function CartDrawer() {
         )}
       </aside>
     </>
+  );
+}
+
+function CartQtyInput({ quantity, product, onCommit }) {
+  const [text, setText] = useState(String(quantity));
+
+  useEffect(() => {
+    setText(String(quantity));
+  }, [quantity]);
+
+  const commit = (raw) => {
+    const next = clampOrderQty(raw, product);
+    setText(String(next));
+    if (next !== Number(quantity)) onCommit(next);
+  };
+
+  return (
+    <input
+      type="text"
+      inputMode="numeric"
+      pattern="[0-9]*"
+      aria-label="Quantity"
+      value={text}
+      onChange={(e) => {
+        const digits = e.target.value.replace(/\D/g, '').slice(0, 4);
+        setText(digits);
+      }}
+      onBlur={() => commit(text)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          e.currentTarget.blur();
+        }
+      }}
+      className="h-7 w-10 rounded-md border border-gray-200 bg-white text-center text-sm font-bold text-gray-900 outline-none focus:border-[#78c6d4] focus:ring-1 focus:ring-[#78c6d4]/40"
+    />
   );
 }
 

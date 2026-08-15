@@ -235,9 +235,13 @@ export function AuthProvider({ children }) {
         e.accountType = payload?.accountType || accountType;
         throw e;
       }
-      if (payload?.code === 'ACCOUNT_REJECTED') {
-        const e = new Error(err.message || 'Registration was not approved');
-        e.code = 'ACCOUNT_REJECTED';
+      if (payload?.code === 'ACCOUNT_REJECTED' || payload?.code === 'ACCOUNT_BLOCKED') {
+        const e = new Error(
+          err.message ||
+            'Your account has been blocked by the administrator. Please contact admin for assistance.'
+        );
+        e.code = 'ACCOUNT_BLOCKED';
+        e.email = payload?.email || email;
         throw e;
       }
       throw err;

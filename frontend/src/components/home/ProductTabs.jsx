@@ -72,8 +72,8 @@ export default function ProductTabs() {
       : Math.max(60, baseCount * perProduct);
 
   return (
-    <section className="py-12" data-aos="fade-up">
-      <div className="container-mk mb-8 text-center">
+    <section className="py-8 sm:py-10 lg:py-7" data-aos="fade-up">
+      <div className="container-mk mb-5 text-center lg:mb-4">
         <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-cyan">Catalog</p>
         <h2 className="text-2xl font-bold uppercase tracking-wide text-navy md:text-3xl">
           Our Products
@@ -81,7 +81,7 @@ export default function ProductTabs() {
         <div className="mx-auto mt-3 h-1 w-16 rounded-full bg-cyan" />
       </div>
 
-      <div className="container-mk mb-8 flex flex-wrap items-center justify-center gap-2 sm:gap-3">
+      <div className="container-mk mb-5 flex flex-wrap items-center justify-center gap-2 sm:gap-3 lg:mb-4">
         {TABS.map((tab) => {
           const isActive = active === tab.key;
           return (
@@ -102,7 +102,7 @@ export default function ProductTabs() {
       </div>
 
       {loading ? (
-        <div className="container-mk grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+        <div className="container-mk grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 lg:grid-cols-6 lg:gap-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="aspect-[3/4] animate-pulse rounded-xl bg-gray-200/70" />
           ))}

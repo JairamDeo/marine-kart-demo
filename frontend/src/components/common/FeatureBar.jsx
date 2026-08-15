@@ -26,7 +26,7 @@ export default function FeatureBar({ variant = 'light' }) {
       }
       data-aos={dark ? undefined : 'fade-up'}
     >
-      <div className="container-mk grid grid-cols-2 gap-3 py-6 sm:grid-cols-3 lg:grid-cols-5">
+      <div className="container-mk grid grid-cols-2 gap-2 py-4 sm:grid-cols-3 sm:gap-3 sm:py-5 lg:grid-cols-5 lg:gap-2 lg:py-3.5">
         {FEATURES.map(({ icon: Icon, title, hint }, i) => (
           <div
             key={title}

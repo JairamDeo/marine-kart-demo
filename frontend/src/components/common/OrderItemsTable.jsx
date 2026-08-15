@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Package } from 'lucide-react';
+import { formatProductTitle } from '../../utils/productTitle';
+import { productImageUrl } from '../../utils/productImage';
 
 const PAGE_SIZES = [5, 10, 20, 50];
 
@@ -61,28 +63,40 @@ export default function OrderItemsTable({ items = [] }) {
             <tr>
               <th className="px-4 py-2.5 font-semibold">#</th>
               <th className="px-4 py-2.5 font-semibold">Product</th>
-              <th className="px-4 py-2.5 font-semibold">SKU</th>
               <th className="px-4 py-2.5 font-semibold text-right">Qty</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
             {slice.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-4 py-10 text-center text-sm text-gray-400">
+                <td colSpan={3} className="px-4 py-10 text-center text-sm text-gray-400">
                   No items on this order.
                 </td>
               </tr>
             ) : (
               slice.map((item, idx) => {
                 const rowNum = (safePage - 1) * pageSize + idx + 1;
+                const thumb = item.image
+                  ? productImageUrl({ images: [item.image] })
+                  : productImageUrl(
+                      typeof item.product === 'object' && item.product
+                        ? item.product
+                        : { images: [] }
+                    );
                 return (
                   <tr key={item.product?._id || item.product || rowNum} className="hover:bg-[#f8fafc]">
                     <td className="px-4 py-3 text-xs text-gray-400">{rowNum}</td>
                     <td className="px-4 py-3">
-                      <p className="font-semibold text-gray-900">{item.name || '—'}</p>
-                    </td>
-                    <td className="px-4 py-3 font-mono text-xs text-gray-500">
-                      {item.sku || '—'}
+                      <div className="flex min-w-0 items-center gap-2.5">
+                        <img
+                          src={thumb}
+                          alt=""
+                          className="h-9 w-9 shrink-0 rounded-md border border-gray-100 bg-gray-50 object-cover"
+                        />
+                        <p className="min-w-0 font-semibold leading-snug text-gray-900">
+                          {formatProductTitle(item)}
+                        </p>
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-right font-semibold text-gray-800">
                       {item.quantity}

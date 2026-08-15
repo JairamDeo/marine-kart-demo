@@ -1,10 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
   ArrowLeft,
   FileText,
-  FilePlus2,
   Mail,
   MapPin,
   Phone,
@@ -16,8 +15,87 @@ import {
 import { adminService } from '../../services/admin.service';
 import { friendlyError } from '../../utils/toastMsg';
 import { GST_PERCENT_OPTIONS, formatOrderStatus } from '../../utils/orderStatusShared';
+import { formatProductTitle } from '../../utils/productTitle';
+import { productImageUrl } from '../../utils/productImage';
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE_OPTIONS = [3, 5, 10, 50];
+const PAGE_PREF_KEY = 'mk:quotation-pageSize';
+const CACHE_PREFIX = 'mk:quotation-local:';
+const MAX_PAGE_SIZE = 200;
+
+function cacheKey(orderId) {
+  return `${CACHE_PREFIX}${orderId}`;
+}
+
+function readPageSizePref() {
+  try {
+    const n = Number(localStorage.getItem(PAGE_PREF_KEY));
+    if (Number.isFinite(n) && n >= 1 && n <= MAX_PAGE_SIZE) return Math.floor(n);
+  } catch {
+    /* ignore */
+  }
+  return 3;
+}
+
+function writePageSizePref(n) {
+  try {
+    localStorage.setItem(PAGE_PREF_KEY, String(n));
+  } catch {
+    /* ignore */
+  }
+}
+
+function readQuotationCache(orderId) {
+  try {
+    const raw = localStorage.getItem(cacheKey(orderId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function writeQuotationCache(orderId, payload) {
+  try {
+    localStorage.setItem(
+      cacheKey(orderId),
+      JSON.stringify({ ...payload, updatedAt: Date.now() })
+    );
+  } catch {
+    /* ignore quota */
+  }
+}
+
+function clearQuotationCache(orderId) {
+  try {
+    localStorage.removeItem(cacheKey(orderId));
+  } catch {
+    /* ignore */
+  }
+}
+
+function clampPageSize(raw) {
+  const n = Math.floor(Number(raw) || 0);
+  if (!Number.isFinite(n) || n < 1) return 3;
+  return Math.min(MAX_PAGE_SIZE, n);
+}
+
+function mapServerItems(rows) {
+  return (rows || []).map((row) => ({
+    product: row.product?._id || row.product || null,
+    name: row.name || '',
+    sku: row.sku || '',
+    categoryName: row.categoryName || '',
+    subcategoryName: row.subcategoryName || '',
+    image: row.image || '',
+    quantity: String(row.quantity || 1),
+    amount: row.amount === 0 || row.amount == null ? '' : String(row.amount),
+    discountValue:
+      row.discountValue === 0 || row.discountValue == null ? '' : String(row.discountValue),
+  }));
+}
 
 function money(n) {
   return `₹${Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
@@ -38,18 +116,30 @@ function sanitizeInt(raw) {
 function lineDiscount(amount, quantity, discountType, discountValue) {
   const base = (Number(amount) || 0) * (Number(quantity) || 0);
   const val = Math.max(0, Number(discountValue) || 0);
-  if (discountType === 'percent') return Math.min(base, (base * Math.min(val, 100)) / 100);
-  if (discountType === 'amount') return Math.min(base, val);
+  if (!val || discountType === 'none') return 0;
+  if (discountType === 'percent') {
+    return Math.round(Math.min(base, (base * Math.min(val, 100)) / 100) * 100) / 100;
+  }
+  if (discountType === 'amount') {
+    return Math.round(Math.min(base, val) * 100) / 100;
+  }
   return 0;
 }
 
-function computeTotals(items, courierCharges, gstPercent) {
+function computeTotals(items, courierCharges, gstPercent, discountType) {
   const itemsGross = items.reduce(
     (s, i) => s + (Number(i.amount) || 0) * (Number(i.quantity) || 0),
     0
   );
   const discountTotal = items.reduce(
-    (s, i) => s + lineDiscount(i.amount, i.quantity, i.discountType, i.discountValue),
+    (s, i) =>
+      s +
+      lineDiscount(
+        i.amount,
+        i.quantity,
+        Number(i.discountValue) > 0 ? discountType : 'none',
+        i.discountValue
+      ),
     0
   );
   const itemsSubtotal = Math.round((itemsGross - discountTotal) * 100) / 100;
@@ -101,42 +191,80 @@ export default function AdminQuotation() {
   const [items, setItems] = useState([]);
   const [courierCharges, setCourierCharges] = useState('0');
   const [gstPercent, setGstPercent] = useState(0);
+  const [discountType, setDiscountType] = useState('percent');
+  const [pageSize, setPageSize] = useState(() => readPageSizePref());
+  const [customPageSize, setCustomPageSize] = useState('');
   const [page, setPage] = useState(1);
   const [gotoDraft, setGotoDraft] = useState('1');
+  const [localDraftRestored, setLocalDraftRestored] = useState(false);
+  const cacheReady = useRef(false);
   const readOnly = order?.quotation?.status === 'sent';
 
   useEffect(() => {
     let cancelled = false;
+    cacheReady.current = false;
     (async () => {
       setLoading(true);
+      setLocalDraftRestored(false);
       try {
         const { data } = await adminService.getQuotation(id);
         if (cancelled) return;
         const o = data.data.order;
         const q = data.data.quotation || {};
+        const alreadySent = q.status === 'sent';
         setOrder(o);
-        setItems(
-          (q.items?.length ? q.items : o.items || []).map((row) => ({
-            product: row.product?._id || row.product || null,
-            name: row.name || '',
-            sku: row.sku || '',
-            categoryName: row.categoryName || '',
-            subcategoryName: row.subcategoryName || '',
-            quantity: String(row.quantity || 1),
-            amount: row.amount === 0 || row.amount == null ? '' : String(row.amount),
-            discountType: row.discountType || 'none',
-            discountValue:
-              row.discountValue === 0 || row.discountValue == null
-                ? ''
-                : String(row.discountValue),
-          }))
+
+        const serverItems = mapServerItems(q.items?.length ? q.items : o.items || []);
+        const serverCourier =
+          q.courierCharges === 0 || q.courierCharges == null ? '0' : String(q.courierCharges);
+        const serverGst = q.gstPercent || 0;
+        const fromItem = (q.items || []).find(
+          (i) => i.discountType === 'amount' || i.discountType === 'percent'
         );
-        setCourierCharges(
-          q.courierCharges === 0 || q.courierCharges == null ? '0' : String(q.courierCharges)
-        );
-        setGstPercent(q.gstPercent || 0);
+        const serverDiscountType =
+          q.discountType === 'amount' || q.discountType === 'percent'
+            ? q.discountType
+            : fromItem?.discountType === 'amount'
+              ? 'amount'
+              : 'percent';
+
+        let nextItems = serverItems;
+        let nextCourier = serverCourier;
+        let nextGst = serverGst;
+        let nextDiscountType = serverDiscountType;
+
+        if (!alreadySent) {
+          const cached = readQuotationCache(id);
+          const serverSavedAt = q.savedAt ? new Date(q.savedAt).getTime() : 0;
+          if (cached?.items && Array.isArray(cached.items) && cached.updatedAt > serverSavedAt) {
+            nextItems = cached.items;
+            nextCourier =
+              cached.courierCharges === 0 || cached.courierCharges == null
+                ? '0'
+                : String(cached.courierCharges);
+            nextGst = Number(cached.gstPercent) || 0;
+            nextDiscountType =
+              cached.discountType === 'amount' || cached.discountType === 'percent'
+                ? cached.discountType
+                : serverDiscountType;
+            setLocalDraftRestored(true);
+            toast.success('Restored unsaved quotation edits from this browser', {
+              duration: 3500,
+            });
+          } else {
+            clearQuotationCache(id);
+          }
+        } else {
+          clearQuotationCache(id);
+        }
+
+        setItems(nextItems);
+        setCourierCharges(nextCourier);
+        setGstPercent(nextGst);
+        setDiscountType(nextDiscountType);
         setPage(1);
         setGotoDraft('1');
+        cacheReady.current = true;
       } catch (err) {
         toast.error(friendlyError(err, 'Could not load quotation'));
         navigate('/admin/orders');
@@ -149,25 +277,54 @@ export default function AdminQuotation() {
     };
   }, [id, navigate]);
 
+  // Persist unsaved quotation edits locally (survives refresh)
+  useEffect(() => {
+    if (!id || loading || readOnly || !cacheReady.current) return undefined;
+    const t = setTimeout(() => {
+      writeQuotationCache(id, {
+        items,
+        courierCharges,
+        gstPercent,
+        discountType,
+      });
+    }, 350);
+    return () => clearTimeout(t);
+  }, [id, loading, readOnly, items, courierCharges, gstPercent, discountType]);
+
   const totals = useMemo(
-    () => computeTotals(items, courierCharges, gstPercent),
-    [items, courierCharges, gstPercent]
+    () => computeTotals(items, courierCharges, gstPercent, discountType),
+    [items, courierCharges, gstPercent, discountType]
   );
 
-  const pages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
-  const safePage = Math.min(page, pages);
+  const safePageSize = clampPageSize(pageSize);
+  const pages = Math.max(1, Math.ceil(items.length / safePageSize) || 1);
+  const safePage = Math.min(Math.max(1, page), pages);
+
+  useEffect(() => {
+    if (page !== safePage) setPage(safePage);
+  }, [page, safePage]);
+
   const slice = useMemo(() => {
-    const start = (safePage - 1) * PAGE_SIZE;
+    const start = (safePage - 1) * safePageSize;
     return items
       .map((item, globalIdx) => ({ item, globalIdx }))
-      .slice(start, start + PAGE_SIZE);
-  }, [items, safePage]);
-  const from = items.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
-  const to = Math.min(safePage * PAGE_SIZE, items.length);
+      .slice(start, start + safePageSize);
+  }, [items, safePage, safePageSize]);
+
+  const from = items.length === 0 ? 0 : (safePage - 1) * safePageSize + 1;
+  const to = Math.min(safePage * safePageSize, items.length);
 
   useEffect(() => {
     setGotoDraft(String(safePage));
   }, [safePage]);
+
+  const applyPageSize = (raw) => {
+    const next = clampPageSize(raw);
+    setPageSize(next);
+    writePageSizePref(next);
+    setPage(1);
+    setCustomPageSize('');
+  };
 
   const payload = () => ({
     items: items.map((i) => ({
@@ -176,13 +333,14 @@ export default function AdminQuotation() {
       sku: i.sku,
       categoryName: i.categoryName || '',
       subcategoryName: i.subcategoryName || '',
+      image: i.image || '',
       quantity: Math.max(1, Number(i.quantity) || 1),
       amount: Number(i.amount) || 0,
-      discountType: i.discountType || 'none',
       discountValue: Number(i.discountValue) || 0,
     })),
     courierCharges: Number(courierCharges) || 0,
     gstPercent: Number(gstPercent) || 0,
+    discountType,
   });
 
   const updateItem = (idx, patch) => {
@@ -195,23 +353,11 @@ export default function AdminQuotation() {
     try {
       const { data } = await adminService.saveQuotationDraft(id, payload());
       setOrder((prev) => mergeOrderKeepUser(prev, data.data.order));
+      clearQuotationCache(id);
+      setLocalDraftRestored(false);
       toast.success('Draft saved — you can leave and continue later', { id: toastId });
     } catch (err) {
       toast.error(friendlyError(err, 'Could not save draft'), { id: toastId });
-    } finally {
-      setBusy('');
-    }
-  };
-
-  const createQuote = async () => {
-    setBusy('create');
-    const toastId = toast.loading('Creating quotation...');
-    try {
-      const { data } = await adminService.createQuotation(id, payload());
-      setOrder((prev) => mergeOrderKeepUser(prev, data.data.order));
-      toast.success('Quotation created. Use Create and send when ready.', { id: toastId });
-    } catch (err) {
-      toast.error(friendlyError(err, 'Could not create quotation'), { id: toastId });
     } finally {
       setBusy('');
     }
@@ -222,6 +368,7 @@ export default function AdminQuotation() {
     const toastId = toast.loading('Creating and sending quotation...');
     try {
       await adminService.sendQuotation(id, payload());
+      clearQuotationCache(id);
       toast.success('Quotation sent — status is Quotation Sent', { id: toastId });
       navigate('/admin/orders');
     } catch (err) {
@@ -247,16 +394,18 @@ export default function AdminQuotation() {
     order.billingAddress?.fullName ||
     '—';
   const customerEmail = user.email || '';
+  const isCorporate = user.role === 'corporate' || user.role === 'dealer';
+  const customerTypeLabel = isCorporate ? 'Corporate' : 'Normal';
   const addr = order.shippingAddress || order.billingAddress || {};
   const qStatus = order.quotation?.status || 'none';
 
   return (
-    <div className="mx-auto max-w-6xl pb-20">
+    <div className="mx-auto max-w-6xl">
       {/* Hero header */}
-      <div className="mb-5 overflow-hidden rounded-2xl bg-gradient-to-br from-[#1a4b8c] via-[#1e5a9e] to-[#0f172a] px-5 py-4 text-white shadow-lg sm:px-6">
+      <div className="mb-4 overflow-hidden rounded-2xl bg-gradient-to-br from-[#1a4b8c] via-[#1e5a9e] to-[#0f172a] px-4 py-3 text-white shadow-lg sm:px-5">
         <Link
           to="/admin/orders"
-          className="mb-2 inline-flex items-center gap-1 text-[11px] font-semibold text-white/70 transition hover:text-white"
+          className="mb-1.5 inline-flex items-center gap-1 text-[11px] font-semibold text-white/70 transition hover:text-white"
         >
           <ArrowLeft size={12} />
           Back to orders
@@ -266,7 +415,7 @@ export default function AdminQuotation() {
             <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
               {readOnly ? 'View quotation' : 'Create quotation'}
             </h1>
-            <p className="mt-1 font-mono text-sm text-cyan/90">{order.orderNumber}</p>
+            <p className="mt-0.5 font-mono text-sm text-cyan/90">{order.orderNumber}</p>
           </div>
           <div className="flex flex-wrap gap-1.5">
             <span className="rounded-full bg-white/15 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ring-1 ring-white/20">
@@ -286,10 +435,10 @@ export default function AdminQuotation() {
         </div>
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-12">
-        <div className="space-y-5 lg:col-span-8">
+      <div className="grid items-start gap-4 lg:grid-cols-12">
+        <div className="space-y-4 lg:col-span-8">
           {/* Customer */}
-          <section className="rounded-2xl border border-gray-100/80 bg-white p-4 shadow-[0_8px_30px_rgba(15,23,42,0.04)] sm:p-5">
+          <section className="rounded-2xl border border-gray-100/80 bg-white p-3.5 shadow-[0_8px_30px_rgba(15,23,42,0.04)] sm:p-4">
             <div className="flex flex-wrap gap-4">
               <div className="flex min-w-[200px] flex-1 items-start gap-3">
                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#1a4b8c] to-[#78c6d4] text-white shadow-md">
@@ -297,9 +446,20 @@ export default function AdminQuotation() {
                 </span>
                 <div className="min-w-0 space-y-1.5">
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                      Customer
-                    </p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                        Customer
+                      </p>
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                          isCorporate
+                            ? 'bg-[#e8f4f8] text-navy ring-1 ring-[#1a4b8c]/15'
+                            : 'bg-gray-100 text-gray-600 ring-1 ring-gray-200'
+                        }`}
+                      >
+                        {customerTypeLabel}
+                      </span>
+                    </div>
                     <p className="text-sm font-bold text-gray-900">{customerName}</p>
                   </div>
                   <p className="flex items-center gap-1.5 text-sm text-gray-700">
@@ -326,31 +486,113 @@ export default function AdminQuotation() {
 
           {/* Items */}
           <section className="overflow-hidden rounded-2xl border border-gray-100/80 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.04)]">
-            <div className="flex items-center justify-between gap-2 border-b border-gray-100 px-4 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 px-3 py-2.5 sm:px-4">
               <div className="flex items-center gap-2.5">
-                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#e8f4f8] text-navy">
-                  <FileText size={16} />
+                <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#e8f4f8] text-navy">
+                  <FileText size={15} />
                 </span>
                 <div>
                   <p className="text-sm font-bold text-gray-900">Enquiry items</p>
                   <p className="text-[11px] text-gray-400">
-                    {items.length} item{items.length === 1 ? '' : 's'} · {PAGE_SIZE} per page
+                    {items.length} item{items.length === 1 ? '' : 's'}
+                    {localDraftRestored && !readOnly ? (
+                      <span className="ml-1 text-amber-600">· local draft</span>
+                    ) : null}
                   </p>
                 </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5 text-xs text-gray-500">
+                <span className="font-medium">Per page</span>
+                <select
+                  value={
+                    customPageSize !== '' || !PAGE_SIZE_OPTIONS.includes(safePageSize)
+                      ? 'custom'
+                      : String(safePageSize)
+                  }
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (v === 'custom') {
+                      setCustomPageSize(String(safePageSize));
+                      return;
+                    }
+                    applyPageSize(v);
+                  }}
+                  className="cursor-pointer rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs font-semibold text-navy outline-none"
+                  aria-label="Items per page"
+                >
+                  {PAGE_SIZE_OPTIONS.map((n) => (
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
+                  ))}
+                  <option value="custom">Custom</option>
+                </select>
+                {(!PAGE_SIZE_OPTIONS.includes(safePageSize) || customPageSize !== '') && (
+                  <form
+                    className="flex items-center gap-1"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      applyPageSize(customPageSize || safePageSize);
+                    }}
+                  >
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={customPageSize}
+                      onChange={(e) => setCustomPageSize(sanitizeInt(e.target.value))}
+                      placeholder="e.g. 7"
+                      className="w-14 rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-center text-xs font-semibold outline-none focus:border-navy"
+                      aria-label="Custom items per page"
+                    />
+                    <button
+                      type="submit"
+                      className="cursor-pointer rounded-lg bg-navy px-2 py-1.5 text-[10px] font-bold uppercase text-white"
+                    >
+                      Set
+                    </button>
+                  </form>
+                )}
               </div>
             </div>
 
             <div className="overflow-x-auto">
+              <div className="max-h-[220px] overflow-y-auto sm:max-h-[240px]">
               <table className="min-w-full text-left text-sm">
-                <thead>
+                <thead className="sticky top-0 z-10 bg-white">
                   <tr className="border-b border-gray-100 text-[10px] uppercase tracking-wider text-gray-400">
                     <th className="px-3 py-2.5 font-semibold">#</th>
                     <th className="px-3 py-2.5 font-semibold">Product</th>
                     <th className="px-3 py-2.5 font-semibold">Qty</th>
                     <th className="px-3 py-2.5 font-semibold">Amount</th>
-                    <th className="px-3 py-2.5 font-semibold">Discount</th>
-                    <th className="px-3 py-2.5 text-right font-semibold">Item price</th>
-                    <th className="px-3 py-2.5 text-right font-semibold">Discounted price</th>
+                    <th className="px-3 py-2.5 font-semibold normal-case tracking-normal">
+                      <div className="space-y-1.5">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+                          Discount
+                        </p>
+                        <div className="inline-flex rounded-lg bg-gray-100 p-0.5">
+                          {[
+                            { id: 'percent', label: '%' },
+                            { id: 'amount', label: '₹' },
+                          ].map((opt) => (
+                            <button
+                              key={opt.id}
+                              type="button"
+                              disabled={readOnly}
+                              onClick={() => setDiscountType(opt.id)}
+                              className={`min-w-[28px] cursor-pointer rounded-md px-1.5 py-1 text-[11px] font-semibold transition disabled:cursor-not-allowed ${
+                                discountType === opt.id
+                                  ? 'bg-white text-navy shadow-sm'
+                                  : 'text-gray-500 hover:text-gray-800'
+                              }`}
+                            >
+                              {opt.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </th>
+                    <th className="px-3 py-2.5 text-right font-semibold whitespace-nowrap">Item price</th>
+                    <th className="px-3 py-2.5 text-right font-semibold whitespace-nowrap">Disc. Price</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
@@ -362,35 +604,36 @@ export default function AdminQuotation() {
                     </tr>
                   ) : (
                     slice.map(({ item, globalIdx }) => {
-                      const disc = lineDiscount(
-                        item.amount,
-                        item.quantity,
-                        item.discountType,
-                        item.discountValue
-                      );
                       const itemPrice =
                         Math.round(
                           (Number(item.amount) || 0) * (Number(item.quantity) || 0) * 100
                         ) / 100;
-                      const discountedPrice = Math.round((itemPrice - disc) * 100) / 100;
+                      const disc = lineDiscount(
+                        item.amount,
+                        item.quantity,
+                        Number(item.discountValue) > 0 ? discountType : 'none',
+                        item.discountValue
+                      );
+                      const afterDiscount = Math.round((itemPrice - disc) * 100) / 100;
+                      const thumb = productImageUrl({
+                        images: item.image ? [item.image] : [],
+                      });
                       return (
-                        <tr key={`${item.sku}-${globalIdx}`} className="align-top hover:bg-[#fafbfd]">
-                          <td className="px-3 py-3 text-xs text-gray-400">{globalIdx + 1}</td>
-                          <td className="px-3 py-3">
-                            <p className="max-w-[220px] text-sm font-semibold leading-snug text-gray-900">
-                              {item.name}
-                            </p>
-                            {item.categoryName ? (
-                              <p className="mt-0.5 text-[11px] font-medium text-navy/80">
-                                {item.categoryName}
-                                {item.subcategoryName ? ` · ${item.subcategoryName}` : ''}
+                        <tr key={`${item.sku}-${globalIdx}`} className="align-middle hover:bg-[#fafbfd]">
+                          <td className="px-3 py-2 text-xs text-gray-400">{globalIdx + 1}</td>
+                          <td className="px-3 py-2">
+                            <div className="flex max-w-[260px] items-center gap-2">
+                              <img
+                                src={thumb}
+                                alt=""
+                                className="h-8 w-8 shrink-0 rounded-md border border-gray-100 object-cover bg-gray-50"
+                              />
+                              <p className="text-sm font-semibold leading-snug text-gray-900">
+                                {formatProductTitle(item)}
                               </p>
-                            ) : null}
-                            {item.sku ? (
-                              <p className="mt-0.5 font-mono text-[10px] text-gray-400">{item.sku}</p>
-                            ) : null}
+                            </div>
                           </td>
-                          <td className="w-14 px-2 py-3">
+                          <td className="w-14 px-2 py-2">
                             <input
                               type="text"
                               inputMode="numeric"
@@ -403,7 +646,7 @@ export default function AdminQuotation() {
                               placeholder="1"
                             />
                           </td>
-                          <td className="px-3 py-3">
+                          <td className="px-3 py-2">
                             <div className="relative w-[100px]">
                               <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-gray-400">
                                 ₹
@@ -423,57 +666,35 @@ export default function AdminQuotation() {
                               />
                             </div>
                           </td>
-                          <td className="px-3 py-3">
-                            <div className="flex items-center gap-1.5 whitespace-nowrap">
-                              <div className="inline-flex shrink-0 rounded-lg bg-gray-100 p-0.5">
-                                {[
-                                  { id: 'none', label: 'Off' },
-                                  { id: 'percent', label: '%' },
-                                  { id: 'amount', label: '₹' },
-                                ].map((opt) => (
-                                  <button
-                                    key={opt.id}
-                                    type="button"
-                                    disabled={readOnly}
-                                    onClick={() =>
-                                      updateItem(globalIdx, {
-                                        discountType: opt.id,
-                                        discountValue:
-                                          opt.id === 'none' ? '' : item.discountValue,
-                                      })
-                                    }
-                                    className={`min-w-[32px] cursor-pointer rounded-md px-1.5 py-1 text-[11px] font-semibold transition disabled:cursor-not-allowed ${
-                                      item.discountType === opt.id
-                                        ? 'bg-white text-navy shadow-sm'
-                                        : 'text-gray-500 hover:text-gray-800'
-                                    }`}
-                                  >
-                                    {opt.label}
-                                  </button>
-                                ))}
-                              </div>
-                              {item.discountType !== 'none' && (
-                                <input
-                                  type="text"
-                                  inputMode="decimal"
-                                  disabled={readOnly}
-                                  className="w-14 rounded-lg border border-gray-200 bg-white px-1.5 py-1.5 text-center text-sm text-gray-900 outline-none transition placeholder:text-gray-300 focus:border-[#1a4b8c] focus:ring-2 focus:ring-[#1a4b8c]/15 disabled:bg-gray-50 disabled:text-gray-500"
-                                  value={item.discountValue}
-                                  onChange={(e) =>
-                                    updateItem(globalIdx, {
-                                      discountValue: sanitizeDecimal(e.target.value),
-                                    })
-                                  }
-                                  placeholder={item.discountType === 'percent' ? '10' : '100'}
-                                />
+                          <td className="px-3 py-2">
+                            <div className="relative w-[72px]">
+                              {discountType === 'amount' && (
+                                <span className="pointer-events-none absolute left-1.5 top-1/2 -translate-y-1/2 text-[10px] text-gray-400">
+                                  ₹
+                                </span>
                               )}
+                              <input
+                                type="text"
+                                inputMode="decimal"
+                                disabled={readOnly}
+                                className={`w-full rounded-lg border border-gray-200 bg-white py-1.5 text-center text-sm text-gray-900 outline-none transition placeholder:text-gray-300 focus:border-[#1a4b8c] focus:ring-2 focus:ring-[#1a4b8c]/15 disabled:bg-gray-50 disabled:text-gray-500 ${
+                                  discountType === 'amount' ? 'pl-5 pr-1' : 'px-1'
+                                }`}
+                                value={item.discountValue}
+                                onChange={(e) =>
+                                  updateItem(globalIdx, {
+                                    discountValue: sanitizeDecimal(e.target.value),
+                                  })
+                                }
+                                placeholder="0"
+                              />
                             </div>
                           </td>
-                          <td className="px-3 py-3 text-right text-sm font-semibold text-gray-700">
+                          <td className="px-3 py-2 text-right text-sm font-semibold text-gray-700">
                             {money(itemPrice)}
                           </td>
-                          <td className="px-3 py-3 text-right text-sm font-bold text-navy">
-                            {money(discountedPrice)}
+                          <td className="px-3 py-2 text-right text-sm font-bold text-navy">
+                            {money(afterDiscount)}
                           </td>
                         </tr>
                       );
@@ -481,6 +702,7 @@ export default function AdminQuotation() {
                   )}
                 </tbody>
               </table>
+              </div>
             </div>
 
             <div className="flex flex-wrap items-center justify-between gap-2 border-t border-gray-100 bg-[#fafbfd] px-3 py-2.5 sm:px-4">
@@ -490,6 +712,7 @@ export default function AdminQuotation() {
                   {from}–{to}
                 </span>{' '}
                 of <span className="font-semibold text-gray-700">{items.length}</span>
+                <span className="text-gray-400"> · {safePageSize}/page</span>
               </p>
               <div className="flex flex-wrap items-center gap-1.5">
                 <button
@@ -541,8 +764,8 @@ export default function AdminQuotation() {
 
         {/* Sidebar */}
         <div className="lg:col-span-4">
-          <div className="space-y-4 lg:sticky lg:top-0">
-            <section className="rounded-2xl border border-gray-100/80 bg-white p-4 shadow-[0_8px_30px_rgba(15,23,42,0.04)] sm:p-5">
+          <div className="space-y-3 lg:sticky lg:top-0">
+            <section className="rounded-2xl border border-gray-100/80 bg-white p-3.5 shadow-[0_8px_30px_rgba(15,23,42,0.04)] sm:p-4">
               <div className="mb-3 flex items-center gap-2">
                 <Truck size={15} className="text-navy" />
                 <p className="text-sm font-bold text-gray-900">Charges</p>
@@ -587,7 +810,7 @@ export default function AdminQuotation() {
               </div>
             </section>
 
-            <section className="overflow-hidden rounded-2xl border border-[#1a4b8c]/10 bg-gradient-to-br from-[#1a4b8c] to-[#143a6e] p-4 text-white shadow-lg sm:p-5">
+            <section className="overflow-hidden rounded-2xl border border-[#1a4b8c]/10 bg-gradient-to-br from-[#1a4b8c] to-[#143a6e] p-3.5 text-white shadow-lg sm:p-4">
               <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.14em] text-white/60">
                 Quotation total
               </p>
@@ -618,43 +841,32 @@ export default function AdminQuotation() {
                 </div>
               </div>
             </section>
+
+            {!readOnly && (
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  disabled={Boolean(busy)}
+                  onClick={saveDraft}
+                  className="inline-flex min-w-0 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-gray-200 bg-white px-2.5 py-2.5 text-xs font-semibold text-navy shadow-sm transition hover:border-navy/30 hover:bg-[#f8fafc] disabled:opacity-60 sm:text-sm"
+                >
+                  <Save size={14} className="shrink-0" />
+                  <span className="truncate">{busy === 'draft' ? 'Saving...' : 'Save as draft'}</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={Boolean(busy)}
+                  onClick={sendQuote}
+                  className="inline-flex min-w-0 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-[#1a4b8c] px-2.5 py-2.5 text-xs font-semibold text-white shadow-md shadow-[#1a4b8c]/25 transition hover:bg-[#143a6e] disabled:opacity-60 sm:text-sm"
+                >
+                  <Send size={14} className="shrink-0" />
+                  <span className="truncate">{busy === 'send' ? 'Sending...' : 'Create and send'}</span>
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
-
-      {!readOnly && (
-        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gray-100/80 bg-white px-4 py-3 shadow-[0_8px_30px_rgba(15,23,42,0.04)] sm:px-5">
-          <button
-            type="button"
-            disabled={Boolean(busy)}
-            onClick={saveDraft}
-            className="inline-flex cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-navy shadow-sm transition hover:border-navy/30 hover:bg-[#f8fafc] disabled:opacity-60"
-          >
-            <Save size={15} className="shrink-0" />
-            {busy === 'draft' ? 'Saving...' : 'Save draft'}
-          </button>
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-            <button
-              type="button"
-              disabled={Boolean(busy)}
-              onClick={createQuote}
-              className="inline-flex cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-[#1a4b8c]/30 bg-[#e8f4f8] px-4 py-2.5 text-sm font-semibold text-navy transition hover:bg-[#d9eef5] disabled:opacity-60"
-            >
-              <FilePlus2 size={15} className="shrink-0" />
-              {busy === 'create' ? 'Creating...' : 'Create quotation'}
-            </button>
-            <button
-              type="button"
-              disabled={Boolean(busy)}
-              onClick={sendQuote}
-              className="inline-flex cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-[#1a4b8c] px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-[#1a4b8c]/25 transition hover:bg-[#143a6e] disabled:opacity-60"
-            >
-              <Send size={15} className="shrink-0" />
-              {busy === 'send' ? 'Sending...' : 'Create and send'}
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

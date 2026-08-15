@@ -1,4 +1,5 @@
 const env = require('../config/env');
+const { formatProductTitle } = require('./productTitle');
 
 const BRAND = {
   navy: '#1a4b8c',
@@ -246,31 +247,156 @@ function adminPendingApprovalEmail({ user }) {
   };
 }
 
-/** Customer: admin approved their account */
-function accountApprovedEmail({ name, loginUrl, accountType }) {
+/** Customer/corporate: email OTP verified — awaiting admin approval */
+function emailVerifiedPendingApprovalEmail({ name, accountType, email }) {
   const safeName = escapeHtml(name || 'there');
+  const isCorporate = accountType === 'corporate' || accountType === 'dealer';
+  const typeLabel = isCorporate ? 'corporate customer' : 'customer';
+  const typeSafe = escapeHtml(typeLabel);
+  const safeEmail = escapeHtml(email || '');
+  return {
+    subject: 'Email verified — your MarineKart account is under review',
+    html: wrapEmail({
+      title: 'Email verified',
+      eyebrow: 'Application sent for admin approval',
+      preheader:
+        'Your email is verified. Your MarineKart account is under review — login details will follow after approval.',
+      bodyHtml: `
+        <p style="margin:0 0 12px;">Hi ${safeName},</p>
+        <p style="margin:0 0 16px;">Thank you for verifying your email. Your <strong>${typeSafe}</strong> account registration with MarineKart has been received successfully.</p>
+        <div style="margin:0 0 18px;padding:14px 16px;border-radius:12px;background:rgba(120,198,212,0.15);border:1px solid ${BRAND.cyan};">
+          <p style="margin:0;font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:${BRAND.muted};">Current status</p>
+          <p style="margin:4px 0 0;font-size:18px;font-weight:800;color:${BRAND.navy};">Pending admin approval</p>
+        </div>
+        <p style="margin:0 0 12px;">What happens next:</p>
+        <ul style="margin:0 0 18px;padding-left:18px;color:${BRAND.ink};font-size:14px;line-height:1.6;">
+          <li style="margin-bottom:6px;">Our team will review your ${typeSafe} application.</li>
+          <li style="margin-bottom:6px;">Once approved, you will receive an email with your <strong>login credentials</strong>.</li>
+          <li>You will then be able to sign in and start using MarineKart.</li>
+        </ul>
+        ${
+          safeEmail
+            ? `<p style="margin:0 0 16px;color:${BRAND.muted};font-size:13px;">Registered email: <strong style="color:${BRAND.ink};">${safeEmail}</strong></p>`
+            : ''
+        }
+        <p style="margin:0;color:${BRAND.muted};font-size:13px;">No further action is required from you at this time. If you have questions, reply to this email or contact MarineKart support.</p>
+      `,
+    }),
+    text: `Hi ${name || 'there'},
+
+Thank you for verifying your email. Your ${typeLabel} account registration with MarineKart has been received successfully.
+
+Current status: Pending admin approval
+
+What happens next:
+• Our team will review your ${typeLabel} application.
+• Once approved, you will receive an email with your login credentials.
+• You will then be able to sign in and start using MarineKart.
+${email ? `\nRegistered email: ${email}\n` : ''}
+No further action is required from you at this time.
+
+— MarineKart`,
+  };
+}
+
+/** Customer: admin approved their account — includes login credentials */
+function accountApprovedEmail({ name, email, password, loginUrl, accountType }) {
+  const safeName = escapeHtml(name || 'there');
+  const safeEmail = escapeHtml(email || '');
+  const safePassword = escapeHtml(password || '');
   const typeLabel =
     accountType === 'corporate' ? 'corporate customer' : 'customer';
   const href = loginUrl || siteUrl('/login');
   return {
-    subject: 'Your MarineKart account has been approved',
+    subject: 'Welcome to MarineKart — your account has been approved',
     html: wrapEmail({
-      title: 'Account approved',
-      eyebrow: 'You can sign in now',
-      preheader: 'Your MarineKart account has been approved — you can sign in.',
+      title: 'Welcome aboard',
+      eyebrow: 'Your application has been approved',
+      preheader: `Welcome ${name || 'Customer'} — your MarineKart account is approved. Sign-in details inside.`,
       bodyHtml: `
-        <p style="margin:0 0 12px;">Hi ${safeName},</p>
-        <p style="margin:0 0 16px;">Good news — your <strong>${escapeHtml(typeLabel)}</strong> account has been approved by our team. You can now sign in to browse products, view pricing, and place orders.</p>
+        <p style="margin:0 0 12px;">Welcome ${safeName},</p>
+        <p style="margin:0 0 16px;">Hi — your <strong>${escapeHtml(typeLabel)}</strong> account on MarineKart is now <strong>approved</strong> and ready to use.</p>
+        <p style="margin:0 0 16px;">You can sign in to browse our marine hardware catalog, manage your wishlist, and send product enquiries.</p>
         <div style="margin:0 0 18px;padding:14px 16px;border-radius:12px;background:rgba(120,198,212,0.15);border:1px solid ${BRAND.cyan};">
-          <p style="margin:0;font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:${BRAND.muted};">Status</p>
-          <p style="margin:4px 0 0;font-size:18px;font-weight:800;color:${BRAND.navy};">Approved</p>
+          <p style="margin:0;font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:${BRAND.muted};">Account status</p>
+          <p style="margin:4px 0 0;font-size:18px;font-weight:800;color:${BRAND.navy};">Active</p>
         </div>
+        <p style="margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:${BRAND.muted};">Your login details</p>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:18px;background:${BRAND.soft};border:1px solid ${BRAND.line};border-radius:12px;overflow:hidden;">
+          ${metaRow('Email', safeEmail)}
+          ${metaRow('Temporary password', `<span style="font-family:Consolas,Monaco,monospace;font-weight:700;letter-spacing:0.04em;color:${BRAND.navy};">${safePassword}</span>`)}
+        </table>
+        <p style="margin:0 0 18px;color:${BRAND.muted};font-size:13px;">For your security, please sign in and change this password after your first login using <strong>Forgot password</strong> if you prefer a password of your own.</p>
         <p style="margin:0 0 22px;">${ctaButton(href, 'Sign in to MarineKart')}</p>
-        <p style="margin:0;color:${BRAND.muted};font-size:13px;">Welcome aboard — we look forward to serving you.</p>
+        <p style="margin:0;color:${BRAND.muted};font-size:13px;">Thank you for choosing MarineKart. We look forward to serving you.</p>
         <p style="margin:12px 0 0;color:${BRAND.muted};font-size:12px;">Or open: ${escapeHtml(href)}</p>
       `,
     }),
-    text: `Hi ${name || 'there'},\n\nYour MarineKart ${typeLabel} account has been approved. You can now sign in.\n\nSign in: ${href}\n\n— MarineKart`,
+    text: `Welcome ${name || 'Customer'},
+
+Your MarineKart ${typeLabel} account has been approved.
+
+Login details:
+Email: ${email || ''}
+Temporary password: ${password || ''}
+
+Sign in: ${href}
+
+For security, consider changing your password after first login via Forgot password.
+
+Thank you for choosing MarineKart.
+— MarineKart`,
+  };
+}
+
+/** Customer/corporate: admin rejected their account application */
+function accountRejectedEmail({ name, accountType, reason, email }) {
+  const safeName = escapeHtml(name || 'there');
+  const isCorporate = accountType === 'corporate' || accountType === 'dealer';
+  const typeLabel = isCorporate ? 'corporate customer' : 'customer';
+  const typeSafe = escapeHtml(typeLabel);
+  const safeReason = escapeHtml(reason || 'No reason provided.');
+  const safeEmail = escapeHtml(email || '');
+  return {
+    subject: 'Update on your MarineKart account application',
+    html: wrapEmail({
+      title: 'Application not approved',
+      eyebrow: 'Account registration update',
+      preheader:
+        'We are sorry — your MarineKart account application was not approved. Details inside.',
+      bodyHtml: `
+        <p style="margin:0 0 12px;">Hi ${safeName},</p>
+        <p style="margin:0 0 16px;">Thank you for your interest in MarineKart. After reviewing your <strong>${typeSafe}</strong> account application, we are unable to approve it at this time.</p>
+        <div style="margin:0 0 18px;padding:14px 16px;border-radius:12px;background:rgba(244,63,94,0.08);border:1px solid #fecdd3;">
+          <p style="margin:0;font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:${BRAND.muted};">Account status</p>
+          <p style="margin:4px 0 0;font-size:18px;font-weight:800;color:#be123c;">Not approved</p>
+        </div>
+        <p style="margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:${BRAND.muted};">Reason</p>
+        <div style="margin:0 0 18px;padding:14px 16px;border-radius:12px;background:${BRAND.soft};border:1px solid ${BRAND.line};color:${BRAND.ink};font-size:14px;line-height:1.55;">
+          ${safeReason}
+        </div>
+        ${
+          safeEmail
+            ? `<p style="margin:0 0 16px;color:${BRAND.muted};font-size:13px;">Registered email: <strong style="color:${BRAND.ink};">${safeEmail}</strong></p>`
+            : ''
+        }
+        <p style="margin:0 0 12px;">We apologize for any inconvenience. If you believe this was a mistake or would like to discuss your application further, please contact MarineKart support and we will be happy to help.</p>
+        <p style="margin:0;color:${BRAND.muted};font-size:13px;">Thank you for considering MarineKart.</p>
+      `,
+    }),
+    text: `Hi ${name || 'there'},
+
+Thank you for your interest in MarineKart. After reviewing your ${typeLabel} account application, we are unable to approve it at this time.
+
+Account status: Not approved
+
+Reason:
+${reason || 'No reason provided.'}
+${email ? `\nRegistered email: ${email}\n` : ''}
+We apologize for any inconvenience. If you believe this was a mistake or would like to discuss your application further, please contact MarineKart support.
+
+Thank you for considering MarineKart.
+— MarineKart`,
   };
 }
 
@@ -310,7 +436,7 @@ function adminNewOrderEmail({ order, customer, when }) {
             .map(
               (item) => `
       <tr>
-        <td style="padding:10px 8px;border-bottom:1px solid ${BRAND.line};color:#334155;">${escapeHtml(item.name)}</td>
+        <td style="padding:10px 8px;border-bottom:1px solid ${BRAND.line};color:#334155;">${escapeHtml(formatProductTitle(item))}</td>
         <td style="padding:10px 8px;border-bottom:1px solid ${BRAND.line};text-align:center;color:#334155;">${escapeHtml(item.quantity)}</td>
       </tr>`
             )
@@ -337,7 +463,7 @@ function customerOrderStatusEmail({ order, customerName, status, when }) {
     .map(
       (item) =>
         `<tr>
-          <td style="padding:8px;border-bottom:1px solid ${BRAND.line};">${escapeHtml(item.name)}</td>
+          <td style="padding:8px;border-bottom:1px solid ${BRAND.line};">${escapeHtml(formatProductTitle(item))}</td>
           <td style="padding:8px;border-bottom:1px solid ${BRAND.line};text-align:center;">×${escapeHtml(item.quantity)}</td>
         </tr>`
     )
@@ -400,33 +526,19 @@ function customerQuotationSentEmail({ order, customerName, when }) {
       const qty = Number(item.quantity) || 0;
       const amount = Number(item.amount) || 0;
       const itemPrice = Math.round(amount * qty * 100) / 100;
-      let discAmt = 0;
-      if (item.discountType === 'percent') {
-        discAmt = Math.min(itemPrice, (itemPrice * Math.min(Number(item.discountValue) || 0, 100)) / 100);
-      } else if (item.discountType === 'amount') {
-        discAmt = Math.min(itemPrice, Number(item.discountValue) || 0);
-      } else if (item.lineTotal != null && itemPrice > 0) {
-        discAmt = Math.max(0, Math.round((itemPrice - Number(item.lineTotal || 0)) * 100) / 100);
-      }
-      discAmt = Math.round(discAmt * 100) / 100;
-      const categoryBits = [item.categoryName, item.subcategoryName].filter(Boolean).join(' · ');
-      const categoryHtml = categoryBits
-        ? `<div style="margin-top:2px;font-size:11px;color:${BRAND.muted};">${escapeHtml(categoryBits)}</div>`
-        : '';
-      const skuHtml = item.sku
-        ? `<div style="margin-top:2px;font-size:10px;font-family:Consolas,Monaco,monospace;color:#94a3b8;">${escapeHtml(item.sku)}</div>`
-        : '';
+      const lineTotal =
+        item.lineTotal != null
+          ? Number(item.lineTotal)
+          : itemPrice;
+      const title = formatProductTitle(item);
       return `
       <tr>
         <td style="padding:10px 8px;border-bottom:1px solid ${BRAND.line};color:#334155;">
-          <div style="font-weight:600;color:${BRAND.ink};">${escapeHtml(item.name)}</div>
-          ${categoryHtml}
-          ${skuHtml}
+          <div style="font-weight:600;color:${BRAND.ink};">${escapeHtml(title)}</div>
         </td>
         <td style="padding:10px 8px;border-bottom:1px solid ${BRAND.line};text-align:center;color:#334155;">${escapeHtml(qty)}</td>
         <td style="padding:10px 8px;border-bottom:1px solid ${BRAND.line};text-align:right;color:#334155;">${escapeHtml(money(amount))}</td>
-        <td style="padding:10px 8px;border-bottom:1px solid ${BRAND.line};text-align:right;color:${BRAND.ink};font-weight:600;">${escapeHtml(money(itemPrice))}</td>
-        <td style="padding:10px 8px;border-bottom:1px solid ${BRAND.line};text-align:right;color:${BRAND.navy};font-weight:700;">${escapeHtml(money(Math.round((itemPrice - discAmt) * 100) / 100))}</td>
+        <td style="padding:10px 8px;border-bottom:1px solid ${BRAND.line};text-align:right;color:${BRAND.navy};font-weight:700;">${escapeHtml(money(lineTotal))}</td>
       </tr>`;
     })
     .join('');
@@ -436,15 +548,9 @@ function customerQuotationSentEmail({ order, customerName, when }) {
       const qty = Number(item.quantity) || 0;
       const amount = Number(item.amount) || 0;
       const itemPrice = Math.round(amount * qty * 100) / 100;
-      let discAmt = 0;
-      if (item.discountType === 'percent') {
-        discAmt = Math.min(itemPrice, (itemPrice * Math.min(Number(item.discountValue) || 0, 100)) / 100);
-      } else if (item.discountType === 'amount') {
-        discAmt = Math.min(itemPrice, Number(item.discountValue) || 0);
-      }
-      discAmt = Math.round(discAmt * 100) / 100;
-      const discountedPrice = Math.round((itemPrice - discAmt) * 100) / 100;
-      return `- ${item.name} ×${qty} @ ${money(amount)} · Item price ${money(itemPrice)} · Discounted price ${money(discountedPrice)}`;
+      const lineTotal =
+        item.lineTotal != null ? Number(item.lineTotal) : itemPrice;
+      return `- ${formatProductTitle(item)} ×${qty} @ ${money(amount)} · ${money(lineTotal)}`;
     })
     .join('\n');
 
@@ -473,7 +579,6 @@ function customerQuotationSentEmail({ order, customerName, when }) {
             <th style="padding:10px 8px;color:${BRAND.white};font-weight:600;">Qty</th>
             <th align="right" style="padding:10px 8px;color:${BRAND.white};font-weight:600;">Amount</th>
             <th align="right" style="padding:10px 8px;color:${BRAND.white};font-weight:600;">Item price</th>
-            <th align="right" style="padding:10px 8px;color:${BRAND.white};font-weight:600;">Discounted price</th>
           </tr>
           ${rows}
         </table>
@@ -569,7 +674,9 @@ module.exports = {
   welcomeEmail,
   adminNewUserEmail,
   adminPendingApprovalEmail,
+  emailVerifiedPendingApprovalEmail,
   accountApprovedEmail,
+  accountRejectedEmail,
   adminNewOrderEmail,
   customerOrderStatusEmail,
   customerQuotationSentEmail,
