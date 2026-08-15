@@ -174,10 +174,7 @@ export default function RegisterPage() {
         </aside>
 
         <div className="min-w-0">
-          <div className="mb-3 flex items-center justify-between gap-3 lg:hidden">
-            <Link to="/" className="inline-block">
-              <BrandLogo className="h-8 w-auto" />
-            </Link>
+          <div className="mb-3 flex items-center justify-end lg:hidden">
             <Link to="/login" className="text-xs font-semibold text-navy hover:underline">
               Sign in
             </Link>

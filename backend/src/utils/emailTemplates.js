@@ -507,6 +507,70 @@ function customerOrderStatusEmail({ order, customerName, status, when }) {
   };
 }
 
+/** Customer: admin cancelled their enquiry/order */
+function customerOrderCancelledEmail({ order, customerName, when, reason }) {
+  const name = escapeHtml(customerName || 'there');
+  const orderNumber = escapeHtml(order.orderNumber || '');
+  const whenSafe = escapeHtml(when);
+  const safeReason = escapeHtml(reason || 'No reason provided.');
+
+  const rows = (order.items || [])
+    .slice(0, 12)
+    .map(
+      (item) =>
+        `<tr>
+          <td style="padding:8px;border-bottom:1px solid ${BRAND.line};">${escapeHtml(formatProductTitle(item))}</td>
+          <td style="padding:8px;border-bottom:1px solid ${BRAND.line};text-align:center;">×${escapeHtml(item.quantity)}</td>
+        </tr>`
+    )
+    .join('');
+
+  return {
+    subject: `Enquiry ${order.orderNumber} cancelled — MarineKart`,
+    html: wrapEmail({
+      title: 'Enquiry cancelled',
+      eyebrow: 'We are sorry for the inconvenience',
+      preheader: `Your MarineKart enquiry ${order.orderNumber} has been cancelled.`,
+      bodyHtml: `
+        <p style="margin:0 0 12px;">Hi ${name},</p>
+        <p style="margin:0 0 16px;">We are sorry to let you know that your MarineKart enquiry has been <strong>cancelled</strong>. We apologize for any inconvenience this may cause.</p>
+        <div style="margin:0 0 18px;padding:14px 16px;border-radius:12px;background:rgba(244,63,94,0.08);border:1px solid #fecdd3;">
+          <p style="margin:0;font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:${BRAND.muted};">Current status</p>
+          <p style="margin:4px 0 0;font-size:18px;font-weight:800;color:#be123c;">Cancelled</p>
+        </div>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:16px;">
+          ${metaRow('Enquiry / Order', orderNumber)}
+          ${metaRow('Cancelled on', whenSafe)}
+        </table>
+        <p style="margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:${BRAND.muted};">Cancellation reason</p>
+        <div style="margin:0 0 18px;padding:14px 16px;border-radius:12px;background:${BRAND.soft};border:1px solid ${BRAND.line};color:${BRAND.ink};font-size:14px;line-height:1.55;">
+          ${safeReason}
+        </div>
+        <p style="margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:${BRAND.muted};">Items</p>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:13px;border:1px solid ${BRAND.line};border-radius:12px;overflow:hidden;margin-bottom:18px;">
+          ${rows || `<tr><td style="padding:12px;color:${BRAND.muted};">No items listed</td></tr>`}
+        </table>
+        <p style="margin:0 0 16px;color:${BRAND.muted};font-size:13px;">If you have questions about this cancellation or would like to place a new enquiry, please reply to this email or contact MarineKart support — we are happy to help.</p>
+        <p style="margin:0 0 16px;">${ctaButton(siteUrl('/account/orders'), 'View my orders')}</p>
+        <p style="margin:0;color:${BRAND.muted};font-size:13px;">Thank you for considering MarineKart.</p>
+      `,
+    }),
+    text: `Hi ${customerName || 'there'},
+
+We are sorry to let you know that your MarineKart enquiry has been cancelled. We apologize for any inconvenience this may cause.
+
+Enquiry / Order: ${order.orderNumber || ''}
+Cancelled on: ${when || ''}
+
+Cancellation reason:
+${reason || 'No reason provided.'}
+
+If you have questions, please contact MarineKart support.
+
+— MarineKart`,
+  };
+}
+
 function customerQuotationSentEmail({ order, customerName, when }) {
   const name = escapeHtml(customerName || 'there');
   const orderNumber = escapeHtml(order.orderNumber || '');
@@ -679,6 +743,7 @@ module.exports = {
   accountRejectedEmail,
   adminNewOrderEmail,
   customerOrderStatusEmail,
+  customerOrderCancelledEmail,
   customerQuotationSentEmail,
   adminNewEnquiryEmail,
   enquiryThankYouEmail,

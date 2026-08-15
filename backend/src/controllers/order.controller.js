@@ -24,6 +24,7 @@ const { sendMail, sendMailToAdmins } = require('../utils/mail');
 const {
   adminNewOrderEmail,
   customerOrderStatusEmail,
+  customerOrderCancelledEmail,
   customerQuotationSentEmail,
 } = require('../utils/emailTemplates');
 const { sendPushToAdmins, sendPushToUser } = require('../utils/push');
@@ -261,7 +262,11 @@ exports.getMyOrder = asyncHandler(async (req, res) => {
     return res.status(404).json({ success: false, message: 'Order not found.' });
   }
   await enrichOrderItemsWithCategories(order);
-  res.json({ success: true, data: { order: orderWithEnrichedItems(order) } });
+  const plain = orderWithEnrichedItems(order);
+  if (plain.quotation?.status === 'sent' && Array.isArray(plain.quotation.items)) {
+    plain.quotation.items = await attachProductImagesToQuotationItems(plain.quotation.items);
+  }
+  res.json({ success: true, data: { order: plain } });
 });
 
 exports.cancelOrder = asyncHandler(async (req, res) => {
@@ -437,6 +442,7 @@ exports.adminUpdateOrder = asyncHandler(async (req, res) => {
   const quotationSent = order.quotation?.status === 'sent';
   let auditNote = '';
   let statusChangedTo = null;
+  let cancelReasonForEmail = '';
 
   if (orderStatus && orderStatus !== order.orderStatus) {
     const check = validateAdminStatusChange(order.orderStatus, orderStatus, { quotationSent });
@@ -452,6 +458,7 @@ exports.adminUpdateOrder = asyncHandler(async (req, res) => {
           message: 'A cancellation reason is required (at least 3 characters).',
         });
       }
+      cancelReasonForEmail = cancelReason;
       const cancelNote = `Cancelled by admin: ${cancelReason}`;
       order.orderStatus = 'cancelled';
       statusChangedTo = 'cancelled';
@@ -503,12 +510,20 @@ exports.adminUpdateOrder = asyncHandler(async (req, res) => {
           await enrichOrderItemsWithCategories(order);
 
           if (customer.email) {
-            const mail = customerOrderStatusEmail({
-              order,
-              customerName: name,
-              status: label,
-              when,
-            });
+            const mail =
+              statusChangedTo === 'cancelled'
+                ? customerOrderCancelledEmail({
+                    order,
+                    customerName: name,
+                    when,
+                    reason: cancelReasonForEmail,
+                  })
+                : customerOrderStatusEmail({
+                    order,
+                    customerName: name,
+                    status: label,
+                    when,
+                  });
             await sendMail({
               to: customer.email,
               subject: mail.subject,
@@ -518,8 +533,11 @@ exports.adminUpdateOrder = asyncHandler(async (req, res) => {
           }
 
           await sendPushToUser(customer._id || customer.id, {
-            title: 'Order update',
-            body: `${order.orderNumber} is now ${label} · ${when}`,
+            title: statusChangedTo === 'cancelled' ? 'Enquiry cancelled' : 'Order update',
+            body:
+              statusChangedTo === 'cancelled'
+                ? `${order.orderNumber} was cancelled · ${when}`
+                : `${order.orderNumber} is now ${label} · ${when}`,
             url: '/account/orders',
             tag: `order-status-${order.orderNumber}`,
           });

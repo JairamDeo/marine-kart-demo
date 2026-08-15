@@ -156,10 +156,50 @@ export default function OrderReceipt({
         )}
 
         {order.quotation?.status === 'sent' && (
-          <div className="rounded-lg bg-[#f4f7fb] px-3 py-2.5 text-[13px]">
-            <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">
-              Quotation
-            </p>
+          <div className="rounded-lg border border-[#1a4b8c]/15 bg-[#f4f7fb] px-3 py-2.5 text-[13px]">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-1.5">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                Quotation
+              </p>
+              <span className="rounded-full bg-[#1a4b8c]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-navy">
+                View quotation
+              </span>
+            </div>
+
+            {Array.isArray(order.quotation.items) && order.quotation.items.length > 0 && (
+              <ul className="mb-2.5 divide-y divide-white/80 overflow-hidden rounded-lg border border-white/70 bg-white/70">
+                {order.quotation.items.map((qi, idx) => {
+                  const qty = Number(qi.quantity) || 0;
+                  const amount = Number(qi.amount) || 0;
+                  const lineTotal =
+                    qi.lineTotal != null
+                      ? Number(qi.lineTotal)
+                      : Math.round(amount * qty * 100) / 100;
+                  return (
+                    <li
+                      key={qi.product?._id || qi.product || qi.sku || idx}
+                      className="flex items-start justify-between gap-2 px-2.5 py-2"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-[12px] font-semibold leading-snug text-gray-900">
+                          {formatProductTitle(qi)}
+                        </p>
+                        <p className="mt-0.5 text-[10px] text-gray-400">
+                          Qty {qty}
+                          {amount > 0
+                            ? ` · ₹${amount.toLocaleString('en-IN')} each`
+                            : ''}
+                        </p>
+                      </div>
+                      <p className="shrink-0 text-[12px] font-bold text-navy">
+                        ₹{Number(lineTotal || 0).toLocaleString('en-IN')}
+                      </p>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+
             <div className="flex justify-between text-gray-600">
               <span>Items subtotal</span>
               <span className="font-medium text-gray-900">

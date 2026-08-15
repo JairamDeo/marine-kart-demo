@@ -124,12 +124,31 @@ export default function CorporateOrders() {
       render: (row) => <OrderStatusPill status={row.orderStatus} forCustomer />,
     },
     {
+      header: 'Quotation',
+      render: (row) =>
+        row.quotation?.status === 'sent' || row.orderStatus === 'quotation_sent' ? (
+          <span className="inline-flex rounded-full bg-orange-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-orange-700 ring-1 ring-orange-200">
+            Available
+          </span>
+        ) : (
+          <span className="text-xs text-gray-400">—</span>
+        ),
+    },
+    {
       header: 'Action',
-      render: (row) => (
-        <ActionGroup>
-          <ActionIcon variant="view" title="View receipt" onClick={() => openOrder(row)} />
-        </ActionGroup>
-      ),
+      render: (row) => {
+        const hasQuote =
+          row.quotation?.status === 'sent' || row.orderStatus === 'quotation_sent';
+        return (
+          <ActionGroup>
+            <ActionIcon
+              variant="view"
+              title={hasQuote ? 'View quotation' : 'View receipt'}
+              onClick={() => openOrder(row)}
+            />
+          </ActionGroup>
+        );
+      },
     },
   ];
 
@@ -187,7 +206,7 @@ export default function CorporateOrders() {
               }}
               className="w-full min-[480px]:w-[140px]"
             >
-              <option value="">Status</option>
+              <option value="">All</option>
               {FILTERABLE_ORDER_STATUSES.map((s) => (
                 <option key={s} value={s}>
                   {formatOrderStatus(s, { forCustomer: true })}
