@@ -22,7 +22,7 @@ function getTransporter() {
  * Send an email. Returns { ok, skipped?, error? }.
  * Never throws — callers can continue even if mail fails.
  */
-async function sendMail({ to, subject, html, text }) {
+async function sendMail({ to, subject, html, text, attachments }) {
   const tx = getTransporter();
   if (!tx) {
     console.warn('[mail] Skipped — EMAIL / EMAIL_PASSWORD not configured.');
@@ -36,13 +36,17 @@ async function sendMail({ to, subject, html, text }) {
   }
 
   try {
-    await tx.sendMail({
+    const payload = {
       from: `"MarineKart" <${env.email}>`,
       to: unique.join(', '),
       subject,
       html,
       text,
-    });
+    };
+    if (Array.isArray(attachments) && attachments.length) {
+      payload.attachments = attachments;
+    }
+    await tx.sendMail(payload);
     return { ok: true, sentTo: unique };
   } catch (err) {
     console.error('[mail] Failed:', err.message);

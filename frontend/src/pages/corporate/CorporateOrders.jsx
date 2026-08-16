@@ -34,6 +34,7 @@ export default function CorporateOrders() {
   const [rejectReason, setRejectReason] = useState('');
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
   const [cancelBusy, setCancelBusy] = useState(false);
+  const [downloadBusyId, setDownloadBusyId] = useState(null);
 
   const dateRange = useMemo(() => {
     if (!dateFilter) return {};
@@ -74,6 +75,21 @@ export default function CorporateOrders() {
       setViewOrder(data.data.order);
     } catch {
       setViewOrder(row);
+    }
+  };
+
+  const downloadQuotation = async (row) => {
+    const id = row._id || row.id;
+    if (!id) return;
+    setDownloadBusyId(id);
+    const toastId = toast.loading('Preparing quotation PDF...');
+    try {
+      await orderService.downloadQuotationPdf(id);
+      toast.success('Quotation downloaded', { id: toastId });
+    } catch (err) {
+      toast.error(friendlyError(err, 'Could not download quotation'), { id: toastId });
+    } finally {
+      setDownloadBusyId(null);
     }
   };
 
@@ -139,6 +155,7 @@ export default function CorporateOrders() {
       render: (row) => {
         const hasQuote =
           row.quotation?.status === 'sent' || row.orderStatus === 'quotation_sent';
+        const busy = downloadBusyId === (row._id || row.id);
         return (
           <ActionGroup>
             <ActionIcon
@@ -146,6 +163,14 @@ export default function CorporateOrders() {
               title={hasQuote ? 'View quotation' : 'View receipt'}
               onClick={() => openOrder(row)}
             />
+            {hasQuote && (
+              <ActionIcon
+                variant="download"
+                title={busy ? 'Downloading…' : 'Download quotation PDF'}
+                className={busy ? 'pointer-events-none opacity-50' : ''}
+                onClick={() => downloadQuotation(row)}
+              />
+            )}
           </ActionGroup>
         );
       },

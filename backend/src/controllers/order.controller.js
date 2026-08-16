@@ -27,6 +27,7 @@ const {
   customerOrderCancelledEmail,
   customerQuotationSentEmail,
 } = require('../utils/emailTemplates');
+const { buildQuotationPdf } = require('../utils/quotationPdf');
 const { sendPushToAdmins, sendPushToUser } = require('../utils/push');
 const {
   formatWhen,
@@ -267,6 +268,47 @@ exports.getMyOrder = asyncHandler(async (req, res) => {
     plain.quotation.items = await attachProductImagesToQuotationItems(plain.quotation.items);
   }
   res.json({ success: true, data: { order: plain } });
+});
+
+exports.downloadMyQuotationPdf = asyncHandler(async (req, res) => {
+  const order = await Order.findOne({ _id: req.params.id, user: req.user._id }).populate(
+    'user',
+    'firstName lastName email phone role companyName'
+  );
+  if (!order) {
+    return res.status(404).json({ success: false, message: 'Order not found.' });
+  }
+  if (order.quotation?.status !== 'sent') {
+    return res.status(400).json({
+      success: false,
+      message: 'Quotation is not available for download yet.',
+    });
+  }
+
+  const customer = order.user || req.user;
+  const name = customerDisplayName(customer, order.billingAddress);
+  const when = formatWhen(order.quotation.sentAt || order.quotation.savedAt || new Date());
+
+  try {
+    const pdfBuffer = await buildQuotationPdf({
+      order,
+      customer,
+      customerName: name,
+      sentAtLabel: when,
+    });
+    const safeNo = String(order.orderNumber || 'quotation').replace(/[^\w.-]+/g, '_');
+    const filename = `MarineKart-Quotation-${safeNo}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Length', pdfBuffer.length);
+    return res.send(pdfBuffer);
+  } catch (err) {
+    console.error('[order] quotation PDF download failed:', err.message);
+    return res.status(500).json({
+      success: false,
+      message: 'Could not generate quotation PDF.',
+    });
+  }
 });
 
 exports.cancelOrder = asyncHandler(async (req, res) => {
@@ -823,11 +865,33 @@ exports.sendQuotation = asyncHandler(async (req, res) => {
         customerName: name,
         when,
       });
+
+      let attachments = [];
+      try {
+        const pdfBuffer = await buildQuotationPdf({
+          order,
+          customer,
+          customerName: name,
+          sentAtLabel: when,
+        });
+        const safeNo = String(order.orderNumber || 'quotation').replace(/[^\w.-]+/g, '_');
+        attachments = [
+          {
+            filename: `MarineKart-Quotation-${safeNo}.pdf`,
+            content: pdfBuffer,
+            contentType: 'application/pdf',
+          },
+        ];
+      } catch (pdfErr) {
+        console.error('[order] quotation PDF failed:', pdfErr.message);
+      }
+
       await sendMail({
         to: customer.email,
         subject: mail.subject,
         html: mail.html,
         text: mail.text,
+        attachments,
       });
       await sendPushToUser(customer._id || customer.id, {
         title: 'Quotation created',

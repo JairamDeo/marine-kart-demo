@@ -4,6 +4,7 @@ const VARIANTS = {
   view: 'bg-violet-50 text-violet-600 hover:bg-violet-100 hover:shadow-violet-200/60',
   edit: 'bg-sky-50 text-sky-600 hover:bg-sky-100 hover:shadow-sky-200/60',
   delete: 'bg-rose-50 text-rose-500 hover:bg-rose-100 hover:shadow-rose-200/60',
+  download: 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 hover:shadow-emerald-200/60',
   default: 'bg-gray-50 text-gray-600 hover:bg-gray-100',
 };
 
@@ -11,6 +12,7 @@ const ICONS = {
   view: 'bx:show',
   edit: 'bx:edit-alt',
   delete: 'bx:trash',
+  download: 'bx:download',
 };
 
 /**

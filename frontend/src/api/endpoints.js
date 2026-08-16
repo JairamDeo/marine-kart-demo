@@ -51,6 +51,7 @@ export const API = {
   ORDERS_MY: '/orders/my',
   ORDER_MY: (id) => `/orders/my/${id}`,
   ORDER_CANCEL: (id) => `/orders/my/${id}/cancel`,
+  ORDER_MY_QUOTATION_PDF: (id) => `/orders/my/${id}/quotation/pdf`,
   ORDER_ADMIN: (id) => `/orders/${id}`,
   ADMIN_ORDER_GET: (id) => `/orders/${id}`,
 

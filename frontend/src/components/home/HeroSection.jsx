@@ -91,9 +91,9 @@ export default function HeroSection() {
 
   return (
     <section className="container-mk py-4 md:py-5 lg:py-4">
-      <div className="grid gap-3 lg:grid-cols-3 lg:gap-3">
+      <div className="grid gap-3 lg:grid-cols-3 lg:gap-3 lg:items-stretch">
         <div
-          className="group relative min-h-[260px] overflow-hidden rounded-2xl bg-white sm:min-h-[300px] lg:col-span-2 lg:min-h-[340px]"
+          className="group relative min-h-[320px] overflow-hidden rounded-2xl bg-white sm:min-h-[380px] lg:col-span-2 lg:min-h-[460px]"
           data-aos="fade-right"
         >
           <img
@@ -105,7 +105,7 @@ export default function HeroSection() {
             decoding="async"
           />
           <div className="absolute inset-0 bg-gradient-to-r from-white via-white/90 to-transparent sm:via-white/75 pointer-events-none" />
-          <div className="relative z-10 flex h-full min-h-[260px] max-w-lg flex-col justify-center p-4 sm:min-h-[300px] sm:p-6 lg:min-h-[340px] lg:p-7">
+          <div className="relative z-10 flex h-full min-h-[320px] max-w-lg flex-col justify-center p-4 sm:min-h-[380px] sm:p-6 lg:min-h-[460px] lg:p-8">
             <span className="mb-2 inline-flex w-fit rounded-full bg-cyan/20 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-navy">
               Featured
             </span>
@@ -117,7 +117,7 @@ export default function HeroSection() {
             </p>
           </div>
           {hero.length > 1 && (
-            <div className="absolute bottom-4 left-4 z-10 flex gap-2 sm:bottom-5 sm:left-6 lg:left-7">
+            <div className="absolute bottom-4 left-4 z-10 flex gap-2 sm:bottom-5 sm:left-6 lg:left-8">
               {hero.map((_, i) => (
                 <button
                   key={i}
@@ -133,7 +133,7 @@ export default function HeroSection() {
           )}
         </div>
 
-        <div className="grid gap-3" data-aos="fade-left" data-aos-delay="120">
+        <div className="grid grid-rows-2 gap-3" data-aos="fade-left" data-aos-delay="120">
           <PromoBannerCard {...sideTop} />
           <PromoBannerCard {...sideBottom} />
         </div>
@@ -147,12 +147,12 @@ function PromoBannerCard({ image, link, alt }) {
   return (
     <Link
       to={link || '/shop'}
-      className="promo-card group relative block min-h-[160px] overflow-hidden rounded-2xl bg-white lg:min-h-[164px]"
+      className="promo-card group relative block min-h-[200px] overflow-hidden rounded-2xl bg-white sm:min-h-[220px] lg:min-h-0 lg:h-full"
     >
       <img
         src={image}
         alt={alt || ''}
-        className="absolute inset-0 h-full w-full object-fit object-center transition duration-500 group-hover:scale-[1.02]"
+        className="absolute inset-0 h-full w-full object-cover object-center transition duration-500 group-hover:scale-[1.02]"
         loading="lazy"
         decoding="async"
       />

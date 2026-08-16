@@ -8,6 +8,7 @@ router.post('/', protect, orderController.placeOrder);
 router.get('/my', protect, orderController.getMyOrders);
 router.get('/my/:id', protect, orderController.getMyOrder);
 router.patch('/my/:id/cancel', protect, orderController.cancelOrder);
+router.get('/my/:id/quotation/pdf', protect, orderController.downloadMyQuotationPdf);
 
 router.get('/', protect, authorize('admin'), orderController.adminListOrders);
 router.get('/:id/quotation', protect, authorize('admin'), orderController.getQuotation);

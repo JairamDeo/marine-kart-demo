@@ -576,57 +576,18 @@ function customerQuotationSentEmail({ order, customerName, when }) {
   const orderNumber = escapeHtml(order.orderNumber || '');
   const whenSafe = escapeHtml(when);
   const q = order.quotation || {};
-  const addr = order.shippingAddress || order.billingAddress || {};
-  const addressLine = escapeHtml(
-    [addr.fullName, addr.line1, addr.line2, addr.city, addr.state, addr.postalCode, addr.country]
-      .filter(Boolean)
-      .join(', ') || '—'
-  );
   const money = (n) =>
     `₹${Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
-
-  const rows = (q.items || [])
-    .map((item) => {
-      const qty = Number(item.quantity) || 0;
-      const amount = Number(item.amount) || 0;
-      const itemPrice = Math.round(amount * qty * 100) / 100;
-      const lineTotal =
-        item.lineTotal != null
-          ? Number(item.lineTotal)
-          : itemPrice;
-      const title = formatProductTitle(item);
-      return `
-      <tr>
-        <td style="padding:10px 8px;border-bottom:1px solid ${BRAND.line};color:#334155;">
-          <div style="font-weight:600;color:${BRAND.ink};">${escapeHtml(title)}</div>
-        </td>
-        <td style="padding:10px 8px;border-bottom:1px solid ${BRAND.line};text-align:center;color:#334155;">${escapeHtml(qty)}</td>
-        <td style="padding:10px 8px;border-bottom:1px solid ${BRAND.line};text-align:right;color:#334155;">${escapeHtml(money(amount))}</td>
-        <td style="padding:10px 8px;border-bottom:1px solid ${BRAND.line};text-align:right;color:${BRAND.navy};font-weight:700;">${escapeHtml(money(lineTotal))}</td>
-      </tr>`;
-    })
-    .join('');
-
-  const textLines = (q.items || [])
-    .map((item) => {
-      const qty = Number(item.quantity) || 0;
-      const amount = Number(item.amount) || 0;
-      const itemPrice = Math.round(amount * qty * 100) / 100;
-      const lineTotal =
-        item.lineTotal != null ? Number(item.lineTotal) : itemPrice;
-      return `- ${formatProductTitle(item)} ×${qty} @ ${money(amount)} · ${money(lineTotal)}`;
-    })
-    .join('\n');
 
   return {
     subject: `Quotation created — ${order.orderNumber} — MarineKart`,
     html: wrapEmail({
       title: 'Quotation created',
       eyebrow: `Enquiry ${order.orderNumber || ''}`,
-      preheader: `Quotation created for ${order.orderNumber} · Total ${money(q.grandTotal)}`,
+      preheader: `Your quotation PDF for ${order.orderNumber} is attached · Total ${money(q.grandTotal)}`,
       bodyHtml: `
         <p style="margin:0 0 12px;">Hi ${name},</p>
-        <p style="margin:0 0 16px;">Your quotation has been created for your MarineKart enquiry. Please review the details below.</p>
+        <p style="margin:0 0 16px;">Your quotation has been created for your MarineKart enquiry. Please find the full quotation details in the <strong>PDF attachment</strong> with this email.</p>
         <div style="margin:0 0 18px;padding:14px 16px;border-radius:12px;background:rgba(120,198,212,0.15);border:1px solid ${BRAND.cyan};">
           <p style="margin:0;font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:${BRAND.muted};">Current status</p>
           <p style="margin:4px 0 0;font-size:18px;font-weight:800;color:${BRAND.navy};">Quotation Sent</p>
@@ -634,34 +595,12 @@ function customerQuotationSentEmail({ order, customerName, when }) {
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:18px;">
           ${metaRow('Enquiry', orderNumber)}
           ${metaRow('Created', whenSafe)}
-          ${metaRow('Delivery address', addressLine)}
+          ${metaRow('Grand total', escapeHtml(money(q.grandTotal)))}
         </table>
-        <p style="margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:${BRAND.muted};">Quotation details</p>
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:13px;background:${BRAND.soft};border-radius:12px;overflow:hidden;border:1px solid ${BRAND.line};">
-          <tr style="background:${BRAND.navy};">
-            <th align="left" style="padding:10px 8px;color:${BRAND.white};font-weight:600;">Item</th>
-            <th style="padding:10px 8px;color:${BRAND.white};font-weight:600;">Qty</th>
-            <th align="right" style="padding:10px 8px;color:${BRAND.white};font-weight:600;">Amount</th>
-            <th align="right" style="padding:10px 8px;color:${BRAND.white};font-weight:600;">Item price</th>
-          </tr>
-          ${rows}
-        </table>
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-top:16px;">
-          ${metaRow(
-            'Items subtotal',
-            escapeHtml(money(Number(q.itemsSubtotal || 0) + Number(q.discountTotal || 0)))
-          )}
-          ${
-            Number(q.discountTotal) > 0
-              ? metaRow('Discount', escapeHtml(money(q.discountTotal)))
-              : ''
-          }
-          ${metaRow('Courier charges', escapeHtml(money(q.courierCharges)))}
-          ${metaRow(`GST (${q.gstPercent || 0}%)`, escapeHtml(money(q.gstAmount)))}
-        </table>
-        <div style="margin:16px 0 0;padding:14px 16px;border-radius:12px;background:linear-gradient(135deg,${BRAND.navy} 0%,${BRAND.navyDark} 100%);">
-          <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.7);">Grand total</p>
-          <p style="margin:4px 0 0;font-size:24px;font-weight:800;color:${BRAND.white};letter-spacing:-0.02em;">${escapeHtml(money(q.grandTotal))}</p>
+        <div style="margin:0 0 18px;padding:14px 16px;border-radius:12px;background:${BRAND.soft};border:1px solid ${BRAND.line};">
+          <p style="margin:0;font-size:13px;color:#334155;line-height:1.55;">
+            📎 <strong>Attachment:</strong> Quotation PDF with item-wise amounts, taxes, terms &amp; bank details.
+          </p>
         </div>
         <p style="margin:20px 0 0;">${ctaButton(siteUrl('/account/orders'), 'View my enquiry')}</p>
         <p style="margin:16px 0 0;color:${BRAND.muted};font-size:13px;">If you have questions about this quotation, reply to this email or contact MarineKart support.</p>
@@ -672,14 +611,9 @@ function customerQuotationSentEmail({ order, customerName, when }) {
 Quotation created for ${order.orderNumber}.
 Status: Quotation Sent
 Created: ${when}
-
-Items:
-${textLines}
-
-Items subtotal: ${money(Number(q.itemsSubtotal || 0) + Number(q.discountTotal || 0))}
-${Number(q.discountTotal) > 0 ? `Discount: ${money(q.discountTotal)}\n` : ''}Courier: ${money(q.courierCharges)}
-GST (${q.gstPercent || 0}%): ${money(q.gstAmount)}
 Grand total: ${money(q.grandTotal)}
+
+Please open the attached PDF for full quotation details (items, charges, terms & bank details).
 
 View: ${siteUrl('/account/orders')}
 

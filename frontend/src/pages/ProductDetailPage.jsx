@@ -188,15 +188,15 @@ export default function ProductDetailPage() {
           </span>
         </nav>
 
-        {/* Right card = content height. Left gallery matches that height on desktop. */}
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-stretch lg:gap-8">
-          {/* Gallery — fills right-card height on lg; fixed own height on mobile */}
-          <div className="relative w-full min-w-0 lg:w-[41.666%] lg:min-h-0 lg:self-stretch">
-            <div className="relative h-[260px] w-full overflow-hidden rounded-2xl bg-white p-2 shadow-sm ring-1 ring-gray-100 sm:h-[280px] sm:p-2.5 lg:absolute lg:inset-0 lg:h-auto">
-              <div className="flex h-full gap-2">
+        {/* Equal-height cards — full container width; clearer gap between cards */}
+        <div className="flex w-full flex-col gap-5 lg:flex-row lg:items-stretch lg:gap-8">
+          {/* Gallery */}
+          <div className="flex w-full min-w-0 lg:w-[48%]">
+            <div className="flex h-[280px] w-full overflow-hidden rounded-2xl bg-white p-2 shadow-sm ring-1 ring-gray-100 sm:h-[320px] sm:p-2.5 lg:h-auto lg:min-h-[360px] lg:flex-1">
+              <div className="flex h-full min-h-0 w-full gap-3">
                 {gallery.length > 0 && (
                   <div
-                    className="hidden h-full shrink-0 flex-col gap-2 overflow-y-auto p-0.5 sm:flex sm:w-[56px]"
+                    className="hidden h-full shrink-0 flex-col gap-2.5 overflow-y-auto p-0.5 sm:flex sm:w-[76px]"
                     role="listbox"
                     aria-label="Product images"
                   >
@@ -205,7 +205,7 @@ export default function ProductDetailPage() {
                       return (
                         <div
                           key={`${src}-${i}`}
-                          className={`group relative h-[48px] w-[48px] shrink-0 overflow-hidden rounded-lg bg-[#f3f7fa] ${
+                          className={`group relative h-[72px] w-[72px] shrink-0 overflow-hidden rounded-lg bg-[#f3f7fa] ${
                             selected ? 'border-2 border-cyan' : 'border border-gray-200/80'
                           }`}
                         >
@@ -215,7 +215,7 @@ export default function ProductDetailPage() {
                             aria-selected={selected}
                             aria-label={`Select image ${i + 1}`}
                             onClick={() => setActiveImg(i)}
-                            className="absolute inset-0 p-0.5"
+                            className="absolute inset-0 p-1"
                           >
                             <img
                               src={src}
@@ -232,11 +232,11 @@ export default function ProductDetailPage() {
                               setActiveImg(i);
                               setPreviewOpen(true);
                             }}
-                            className="absolute bottom-0.5 right-0.5 z-10 flex h-5 w-5 items-center justify-center rounded bg-navy/85 text-white shadow-sm"
+                            className="absolute bottom-1 right-1 z-10 flex h-6 w-6 items-center justify-center rounded bg-navy/85 text-white shadow-sm"
                             aria-label={`Preview image ${i + 1}`}
                             title="Preview"
                           >
-                            <Eye size={11} strokeWidth={2.5} />
+                            <Eye size={12} strokeWidth={2.5} />
                           </button>
                         </div>
                       );
@@ -249,7 +249,7 @@ export default function ProductDetailPage() {
                     key={currentSrc}
                     src={currentSrc}
                     alt={formatProductTitle(product)}
-                    className="absolute inset-0 h-full w-full object-contain p-2 sm:p-3"
+                    className="absolute inset-0 h-full w-full object-contain object-center p-1.5 sm:p-2"
                     loading="lazy"
                     decoding="async"
                   />
@@ -264,112 +264,86 @@ export default function ProductDetailPage() {
                   </button>
                   <div className="absolute left-2 top-2 z-10 flex flex-wrap gap-1.5">
                     {product.isNewArrival && (
-                      <span className="rounded-full bg-cyan px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white shadow">
+                      <span className="rounded-full bg-cyan px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-white shadow">
                         New
                       </span>
                     )}
                     {product.isBestSeller && (
-                      <span className="rounded-full bg-navy px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white shadow">
+                      <span className="rounded-full bg-navy px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-white shadow">
                         Best seller
                       </span>
                     )}
                   </div>
                   {gallery.length > 1 && (
-                    <div className="absolute bottom-2 right-2 z-10 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-semibold text-gray-600 shadow-sm ring-1 ring-gray-100">
+                    <div className="absolute bottom-2 right-2 z-10 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-semibold text-gray-600 shadow-sm ring-1 ring-gray-100">
                       {activeImg + 1} / {gallery.length}
                     </div>
                   )}
                 </div>
               </div>
             </div>
-            {/* Mobile thumbs */}
-            {gallery.length > 1 && (
-              <div className="mt-2 flex gap-2 overflow-x-auto p-0.5 sm:hidden">
-                {gallery.map((src, i) => (
-                  <button
-                    key={`m-${src}-${i}`}
-                    type="button"
-                    onClick={() => setActiveImg(i)}
-                    className={`h-11 w-11 shrink-0 overflow-hidden rounded-lg bg-[#f3f7fa] ${
-                      activeImg === i ? 'border-2 border-cyan' : 'border border-gray-200/80'
-                    }`}
-                  >
-                    <img src={src} alt="" className="h-full w-full object-contain p-0.5" />
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
 
-          {/* Buy box — height from content only (description grows with text) */}
-          <div className="relative w-full min-w-0 lg:w-[58.333%]">
-            <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-gray-100 sm:p-5">
-              <div className="flex min-w-0 items-center gap-2">
-                <p className="min-w-0 flex-1 truncate text-[11px] font-medium uppercase tracking-wide text-cyan sm:text-xs">
+          {/* Buy box — same height as gallery */}
+          <div className="flex w-full min-w-0 lg:w-[52%]">
+            <div className="flex w-full flex-col rounded-2xl bg-white p-4 shadow-sm ring-1 ring-gray-100 sm:p-5 lg:min-h-[360px] lg:flex-1">
+              <div className="flex min-w-0 items-center gap-3">
+                <p className="min-w-0 flex-1 truncate text-sm font-semibold uppercase tracking-wide text-cyan sm:text-base">
                   {category?.name || 'Marine Product'}
                 </p>
                 <span
-                  className={`inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide ring-1 sm:gap-1.5 sm:rounded-lg sm:px-2.5 sm:py-1 sm:text-[11px] ${
+                  className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ring-1 sm:text-xs ${
                     outOfStock
                       ? 'bg-rose-50 text-rose-700 ring-rose-200'
                       : 'bg-emerald-50 text-emerald-700 ring-emerald-200'
                   }`}
                 >
-                  {outOfStock ? (
-                    <XCircle size={11} className="sm:hidden" />
-                  ) : (
-                    <CheckCircle2 size={11} className="sm:hidden" />
-                  )}
-                  {outOfStock ? (
-                    <XCircle size={14} className="hidden sm:block" />
-                  ) : (
-                    <CheckCircle2 size={14} className="hidden sm:block" />
-                  )}
+                  {outOfStock ? <XCircle size={15} /> : <CheckCircle2 size={15} />}
                   {outOfStock ? 'Out Of Stock' : 'Available In Stock'}
                 </span>
               </div>
 
-              <h1 className="mt-1.5 w-full truncate text-lg font-extrabold leading-snug tracking-tight text-navy sm:mt-2 sm:text-2xl">
+              <h1 className="mt-2.5 w-full truncate text-xl font-extrabold leading-snug tracking-tight text-navy sm:text-2xl">
                 {formatProductTitle(product)}
               </h1>
 
-              <div className="mt-3 rounded-xl bg-gradient-to-br from-[#f3f8fb] to-[#eaf3f7] px-3.5 py-3">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+              <div className="mt-3.5 h-auto rounded-xl bg-gradient-to-br from-[#f3f8fb] to-[#eaf3f7] px-4 py-3">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
                   Description
                 </p>
-                <div className="mt-1.5 whitespace-pre-line text-sm leading-relaxed text-gray-600">
+                <div className="mt-1.5 whitespace-pre-line text-[15px] leading-relaxed text-gray-700 sm:text-base">
                   {product.description ||
                     product.shortDescription ||
                     'No detailed description available for this product yet.'}
                 </div>
               </div>
 
-              <div className="mt-3">
-                <div className="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-1.5 sm:gap-2">
-                  <div className="flex h-10 items-center overflow-hidden rounded-lg border border-gray-200 bg-white">
+              <div className="mt-auto pt-4">
+                <div className="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 sm:gap-2.5">
+                  <div className="flex h-11 items-center overflow-hidden rounded-lg border border-gray-200 bg-white">
                     <button
                       type="button"
                       disabled={qty <= 1}
                       onClick={() => setQty((q) => clampQty(q - 1))}
-                      className="flex h-full w-7 items-center justify-center text-navy transition hover:bg-gray-50 disabled:opacity-30 sm:w-9"
+                      className="flex h-full w-8 items-center justify-center text-navy transition hover:bg-gray-50 disabled:opacity-30 sm:w-9"
                       aria-label="Decrease quantity"
                     >
-                      <Minus size={14} />
+                      <Minus size={15} />
                     </button>
                     <input
                       type="number"
                       min={1}
                       value={qty}
                       onChange={(e) => setQty(clampQty(e.target.value))}
-                      className="h-full w-8 border-x border-gray-200 text-center text-sm font-bold outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none sm:w-12"
+                      className="h-full w-10 border-x border-gray-200 text-center text-base font-bold outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none sm:w-12"
                     />
                     <button
                       type="button"
                       onClick={() => setQty((q) => clampQty(q + 1))}
-                      className="flex h-full w-7 items-center justify-center text-navy transition hover:bg-gray-50 sm:w-9"
+                      className="flex h-full w-8 items-center justify-center text-navy transition hover:bg-gray-50 sm:w-9"
                       aria-label="Increase quantity"
                     >
-                      <Plus size={14} />
+                      <Plus size={15} />
                     </button>
                   </div>
 
@@ -377,9 +351,9 @@ export default function ProductDetailPage() {
                     type="button"
                     disabled={busy || outOfStock}
                     onClick={handleAdd}
-                    className="inline-flex h-10 w-full min-w-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg bg-[#1a4b8c] px-1.5 text-[11px] font-bold text-white transition hover:bg-[#143a6e] disabled:opacity-50 sm:gap-2 sm:px-4 sm:text-sm"
+                    className="inline-flex h-11 w-full min-w-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-[#1a4b8c] px-2 text-sm font-bold text-white transition hover:bg-[#143a6e] disabled:opacity-50 sm:px-4"
                   >
-                    <ShoppingCart size={14} className="shrink-0" />
+                    <ShoppingCart size={16} className="shrink-0" />
                     <span className="whitespace-nowrap">
                       {busy ? 'Sending...' : outOfStock ? 'Out of stock' : 'Ask For Price'}
                     </span>
@@ -389,7 +363,7 @@ export default function ProductDetailPage() {
                     type="button"
                     disabled={wishBusy}
                     onClick={handleWishlist}
-                    className={`flex h-10 w-9 shrink-0 items-center justify-center rounded-lg border transition sm:w-10 ${
+                    className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border transition ${
                       inWishlist
                         ? 'border-rose-200 bg-rose-50 text-rose-500'
                         : 'border-gray-200 bg-white text-gray-400 hover:border-rose-200 hover:text-rose-500'
@@ -397,13 +371,31 @@ export default function ProductDetailPage() {
                     aria-label={inWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
                     title={inWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
                   >
-                    <Heart size={17} fill={inWishlist ? 'currentColor' : 'none'} />
+                    <Heart size={18} fill={inWishlist ? 'currentColor' : 'none'} />
                   </button>
                 </div>
               </div>
             </div>
           </div>
         </div>
+
+        {/* Mobile thumbs */}
+        {gallery.length > 1 && (
+          <div className="mt-2 flex w-full gap-2.5 overflow-x-auto p-0.5 sm:hidden">
+            {gallery.map((src, i) => (
+              <button
+                key={`m-${src}-${i}`}
+                type="button"
+                onClick={() => setActiveImg(i)}
+                className={`h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-[#f3f7fa] ${
+                  activeImg === i ? 'border-2 border-cyan' : 'border border-gray-200/80'
+                }`}
+              >
+                <img src={src} alt="" className="h-full w-full object-contain p-1" />
+              </button>
+            ))}
+          </div>
+        )}
 
         {related.length > 0 && (
           <section className="mt-14">
