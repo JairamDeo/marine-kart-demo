@@ -21,6 +21,7 @@ import CheckoutPage from './pages/CheckoutPage';
 import AccountArea from './pages/AccountArea';
 import WishlistPage from './pages/WishlistPage';
 import CmsPage from './pages/CmsPage';
+import AboutPage from './pages/AboutPage';
 import ContactPage from './pages/ContactPage';
 import NotFoundPage from './pages/NotFoundPage';
 import AdminLayout from './pages/admin/AdminLayout';
@@ -78,7 +79,7 @@ export default function App() {
               <Route path="cart" element={<CartPage />} />
               <Route path="checkout" element={<CheckoutPage />} />
               <Route path="wishlist" element={<WishlistPage />} />
-              <Route path="about-us" element={<CmsPage slug="about-us" fallbackTitle="About Us" />} />
+              <Route path="about-us" element={<AboutPage />} />
               <Route path="faq" element={<CmsPage slug="faq" fallbackTitle="FAQ" />} />
               <Route
                 path="privacy-policy"

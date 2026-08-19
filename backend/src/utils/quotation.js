@@ -102,8 +102,11 @@ function validateQuotationForSend(normalized) {
     if (!item.name) {
       return { ok: false, message: 'Each quotation item needs a name.' };
     }
+    const amount = Number(item.amount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return { ok: false, message: 'Amount is required for every item.' };
+    }
   }
-  // Amount, discount, courier, and GST are optional (may be 0).
   return { ok: true };
 }
 

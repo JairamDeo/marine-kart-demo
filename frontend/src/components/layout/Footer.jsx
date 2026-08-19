@@ -105,9 +105,13 @@ export default function Footer() {
                 </button>
               </li>
               <li>
-                <Link to="/faq" className="hover:text-cyan">
+                <a
+                  href="#"
+                  className="hover:text-cyan"
+                  onClick={(e) => e.preventDefault()}
+                >
                   FAQ
-                </Link>
+                </a>
               </li>
               <li>
                 <Link to="/contact-us" className="hover:text-cyan">

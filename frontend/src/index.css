@@ -178,25 +178,6 @@ input[type='number'] {
   appearance: textfield;
 }
 
-/* Home products marquee — seamless infinite scroll (track is 2 identical halves) */
-@keyframes mk-marquee {
-  from {
-    transform: translate3d(0, 0, 0);
-  }
-  to {
-    /* Exact half width → second half snaps under first with no gap/jump */
-    transform: translate3d(-50%, 0, 0);
-  }
-}
-
-.mk-marquee-track {
-  animation-name: mk-marquee;
-  animation-timing-function: linear;
-  animation-iteration-count: infinite;
-  will-change: transform;
-  backface-visibility: hidden;
-}
-
 /* Product specification markdown */
 .mk-markdown h1,
 .mk-markdown h2,

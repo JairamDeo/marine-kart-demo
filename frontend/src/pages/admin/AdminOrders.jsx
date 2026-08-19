@@ -10,6 +10,7 @@ import ActionIcon, { ActionGroup } from '../../components/portal/ActionIcon';
 import OrderReceipt, { OrderStatusPill } from '../../components/common/OrderReceipt';
 import AdminOrderItemsTable from '../../components/admin/AdminOrderItemsTable';
 import { adminService } from '../../services/admin.service';
+import { orderService } from '../../services/order.service';
 import {
   FILTERABLE_ORDER_STATUSES,
   formatOrderStatus,
@@ -43,6 +44,7 @@ export default function AdminOrders() {
   const [sort, setSort] = useState('newest');
   const [search, setSearch] = useState('');
   const [searchDraft, setSearchDraft] = useState('');
+  const [downloadBusyId, setDownloadBusyId] = useState(null);
   const [viewOrder, setViewOrder] = useState(null);
   const [workflow, setWorkflow] = useState({
     nextStatus: null,
@@ -99,6 +101,21 @@ export default function AdminOrders() {
     } catch (err) {
       toast.error(friendlyError(err));
       applyOrderState(order, null);
+    }
+  };
+
+  const downloadQuotation = async (row) => {
+    const id = row._id || row.id;
+    if (!id) return;
+    setDownloadBusyId(id);
+    const toastId = toast.loading('Preparing quotation PDF...');
+    try {
+      await orderService.downloadAdminQuotationPdf(id);
+      toast.success('Quotation downloaded', { id: toastId });
+    } catch (err) {
+      toast.error(friendlyError(err, 'Could not download quotation'), { id: toastId });
+    } finally {
+      setDownloadBusyId(null);
     }
   };
 
@@ -283,7 +300,10 @@ export default function AdminOrders() {
                 orders.map((row) => {
                   const qStatus = row.quotation?.status || 'none';
                   const quoteCreated = qStatus === 'draft' || qStatus === 'sent';
+                  const hasQuotePdf =
+                    qStatus === 'sent' || row.orderStatus === 'quotation_sent';
                   const quoteLabel = quoteCreated ? 'View Quotation' : 'Create Quotation';
+                  const downloadBusy = downloadBusyId === (row._id || row.id);
                   return (
                     <tr
                       key={row._id}
@@ -338,6 +358,14 @@ export default function AdminOrders() {
                               />
                               {quoteLabel}
                             </Link>
+                          )}
+                          {hasQuotePdf && (
+                            <ActionIcon
+                              variant="download"
+                              title={downloadBusy ? 'Downloading…' : 'Download quotation PDF'}
+                              className={downloadBusy ? 'pointer-events-none opacity-50' : ''}
+                              onClick={() => downloadQuotation(row)}
+                            />
                           )}
                         </ActionGroup>
                       </td>

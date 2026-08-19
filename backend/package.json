@@ -13,6 +13,7 @@
     "seed:category-images": "node src/seeders/assignCategoryImages.js",
     "seed:placeholder": "node src/seeders/createPlaceholderWebp.js",
     "seed:related": "node src/seeders/linkRelatedProducts.js",
+    "seed:catalog-flags": "node src/seeders/markCatalogFlags.js",
     "seed:product-images": "node src/seeders/assignProductWebpImages.js",
     "migrate:order-statuses": "node src/seeders/migrateOrderStatuses.js",
     "migrate:enquiry-statuses": "node src/seeders/migrateEnquiryStatuses.js",

@@ -91,6 +91,7 @@ export const API = {
   ADMIN_ORDER_QUOTATION_DRAFT: (id) => `/orders/${id}/quotation/draft`,
   ADMIN_ORDER_QUOTATION_CREATE: (id) => `/orders/${id}/quotation/create`,
   ADMIN_ORDER_QUOTATION_SEND: (id) => `/orders/${id}/quotation/send`,
+  ADMIN_ORDER_QUOTATION_PDF: (id) => `/orders/${id}/quotation/pdf`,
   ADMIN_UPLOAD: '/admin/uploads',
   ADMIN_UPLOAD_MANY: '/admin/uploads/many',
 };

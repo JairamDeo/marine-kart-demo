@@ -85,6 +85,7 @@ exports.getProducts = asyncHandler(async (req, res) => {
     Product.countDocuments(filter),
   ]);
 
+  res.set('Cache-Control', 'no-store');
   res.json({
     success: true,
     data: {

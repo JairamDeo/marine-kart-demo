@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import ProductCard from '../product/ProductCard';
 import { productService } from '../../services/product.service';
 import { refreshAos } from '../../hooks/useAos';
@@ -9,32 +9,108 @@ const TABS = [
   { key: 'newArrival', label: 'New Arrivals', params: { newArrival: 'true' } },
 ];
 
-/** Enough cards so one half of the track always covers wide screens (~1920px). */
-const MIN_BASE_CARDS = 12;
+const SLIDE_MS = 2800;
+const TRANSITION_MS = 550;
 
-/** Build one segment long enough to fill the viewport, then duplicate it for a seamless -50% loop. */
-function buildMarqueeTrack(products) {
-  if (!products.length) return { track: [], baseCount: 0 };
-
-  const base = [];
-  let round = 0;
-  while (base.length < MIN_BASE_CARDS) {
-    products.forEach((p, i) => {
-      base.push({
-        ...p,
-        _mkKey: `${String(p.id || p._id || p.sku || i)}-r${round}`,
-      });
-    });
-    round += 1;
+function uniqueProducts(products) {
+  const seen = new Set();
+  const list = [];
+  for (const p of products) {
+    const id = String(p.id || p._id || p.productId || p.sku || '');
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    list.push(p);
   }
+  return list;
+}
 
-  // Exact duplicate → CSS translateX(-50%) resets with no visible jump
+/** Unique products once, then one clone at the end so the loop can wrap seamlessly. */
+function buildLoopTrack(products) {
+  const base = uniqueProducts(products).map((p) => ({
+    ...p,
+    _mkKey: String(p.id || p._id || p.productId || p.sku),
+  }));
+  if (!base.length) return { track: [], baseCount: 0 };
+
   const track = [
     ...base.map((p) => ({ ...p, _mkKey: `${p._mkKey}-a` })),
     ...base.map((p) => ({ ...p, _mkKey: `${p._mkKey}-b` })),
   ];
 
   return { track, baseCount: base.length };
+}
+
+function ProductCarousel({ products }) {
+  const { track, baseCount } = useMemo(() => buildLoopTrack(products), [products]);
+  const [index, setIndex] = useState(0);
+  const [animate, setAnimate] = useState(true);
+  const [paused, setPaused] = useState(false);
+  const [stepPx, setStepPx] = useState(0);
+  const itemRef = useRef(null);
+
+  useEffect(() => {
+    setIndex(0);
+    setAnimate(false);
+  }, [products]);
+
+  useEffect(() => {
+    const el = itemRef.current;
+    if (!el) return;
+    const measure = () => {
+      const mr = parseFloat(getComputedStyle(el).marginRight) || 0;
+      setStepPx(el.offsetWidth + mr);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [track]);
+
+  useEffect(() => {
+    if (paused || !stepPx || baseCount < 1) return;
+    const id = window.setInterval(() => {
+      setAnimate(true);
+      setIndex((i) => i + 1);
+    }, SLIDE_MS);
+    return () => window.clearInterval(id);
+  }, [paused, stepPx, baseCount]);
+
+  useEffect(() => {
+    if (index !== baseCount) return;
+    const id = window.setTimeout(() => {
+      setAnimate(false);
+      setIndex(0);
+    }, TRANSITION_MS);
+    return () => window.clearTimeout(id);
+  }, [index, baseCount]);
+
+  return (
+    <div
+      className="group relative overflow-hidden"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+    >
+      <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-10 bg-gradient-to-r from-[#f9f9f9] to-transparent sm:w-16" />
+      <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-gradient-to-l from-[#f9f9f9] to-transparent sm:w-16" />
+      <div
+        className="flex w-max flex-nowrap py-1"
+        style={{
+          transform: `translate3d(-${index * stepPx}px, 0, 0)`,
+          transition: animate ? `transform ${TRANSITION_MS}ms ease-in-out` : 'none',
+        }}
+      >
+        {track.map((p, i) => (
+          <div
+            key={p._mkKey}
+            ref={i === 0 ? itemRef : undefined}
+            className="mr-4 w-[160px] shrink-0 sm:w-[180px] lg:w-[200px]"
+          >
+            <ProductCard product={p} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export default function ProductTabs() {
@@ -48,7 +124,7 @@ export default function ProductTabs() {
     setLoading(true);
     setError('');
     productService
-      .list({ ...tab.params, limit: 24 })
+      .list({ ...tab.params, limit: 30 })
       .then((res) => setProducts(res.data.data.products || []))
       .catch((err) => {
         setProducts([]);
@@ -60,16 +136,6 @@ export default function ProductTabs() {
   useEffect(() => {
     if (!loading) refreshAos();
   }, [loading, products]);
-
-  const { track, baseCount } = useMemo(() => buildMarqueeTrack(products), [products]);
-
-  // Slow by default; override with VITE_MARQUEE_DURATION_SEC or VITE_MARQUEE_SECONDS_PER_PRODUCT
-  const envDuration = Number(import.meta.env.VITE_MARQUEE_DURATION_SEC);
-  const perProduct = Number(import.meta.env.VITE_MARQUEE_SECONDS_PER_PRODUCT) || 4;
-  const durationSec =
-    Number.isFinite(envDuration) && envDuration > 0
-      ? envDuration
-      : Math.max(60, baseCount * perProduct);
 
   return (
     <section className="py-8 sm:py-10 lg:py-7" data-aos="fade-up">
@@ -114,23 +180,7 @@ export default function ProductTabs() {
       ) : products.length === 0 ? (
         <p className="container-mk py-10 text-center text-gray-500">No products found.</p>
       ) : (
-        <div className="mk-marquee group relative overflow-hidden">
-          <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-10 bg-gradient-to-r from-[#f9f9f9] to-transparent sm:w-16" />
-          <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-gradient-to-l from-[#f9f9f9] to-transparent sm:w-16" />
-          <div
-            className="mk-marquee-track flex w-max flex-nowrap py-1 group-hover:[animation-play-state:paused]"
-            style={{ animationDuration: `${durationSec}s` }}
-          >
-            {track.map((p) => (
-              <div
-                key={p._mkKey}
-                className="mr-4 w-[160px] shrink-0 sm:w-[180px] lg:w-[200px]"
-              >
-                <ProductCard product={p} />
-              </div>
-            ))}
-          </div>
-        </div>
+        <ProductCarousel products={products} />
       )}
     </section>
   );

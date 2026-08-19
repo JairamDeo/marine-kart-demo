@@ -6,11 +6,9 @@ const { formatProductTitle } = require('./productTitle');
 const ASSETS = path.join(__dirname, '../assets/quotation');
 const LOGO_PATH = path.join(ASSETS, 'logo-header.png');
 const LOGO_FALLBACK = path.join(ASSETS, 'logo-dark.png');
-const FOOTER_PATH = path.join(ASSETS, 'footer.png');
 
 const COLORS = {
   navy: '#0b2c5f',
-  navyDark: '#071f42',
   cyan: '#78c6d4',
   ink: '#1e293b',
   muted: '#64748b',
@@ -20,12 +18,14 @@ const COLORS = {
   rowAlt: '#f8fafc',
 };
 
+const HEADER_H = 72;
+const FOOTER_H = 40;
+
 const PAGE = {
   marginLeft: 40,
   marginRight: 40,
-  // Logo bar + company info strip
-  marginTop: 128,
-  marginBottom: 92,
+  marginTop: HEADER_H + 12,
+  marginBottom: FOOTER_H + 10,
 };
 
 const COMPANY = {
@@ -58,17 +58,18 @@ function safeText(v, fallback = '—') {
   return s || fallback;
 }
 
-function drawHeader(doc, { sentAtLabel, orderNumber }) {
+/** Draw fixed header — logo left (vertically centred), office + showroom on the right. */
+function drawHeader(doc) {
   const pageW = doc.page.width;
-  const barH = 56;
-  const infoH = 46;
-  const totalH = barH + 3 + infoH;
+  const ml = PAGE.marginLeft;
+  const mr = PAGE.marginRight;
 
   doc.save();
-  // Brand bar
-  doc.rect(0, 0, pageW, barH).fill(COLORS.navy);
-  doc.rect(0, barH, pageW, 3).fill(COLORS.cyan);
+  doc.rect(0, 0, pageW, HEADER_H).fill(COLORS.navy);
+  doc.rect(0, HEADER_H, pageW, 2).fill(COLORS.cyan);
 
+  const logoH = 34;
+  const logoY = (HEADER_H - logoH) / 2;
   const logoFile = fs.existsSync(LOGO_PATH)
     ? LOGO_PATH
     : fs.existsSync(LOGO_FALLBACK)
@@ -77,166 +78,173 @@ function drawHeader(doc, { sentAtLabel, orderNumber }) {
 
   if (logoFile) {
     try {
-      doc.image(logoFile, PAGE.marginLeft, 6, { fit: [140, 44], valign: 'center' });
+      doc.image(logoFile, ml, logoY, { fit: [120, logoH] });
     } catch {
       doc
         .fillColor(COLORS.white)
         .font('Helvetica-Bold')
-        .fontSize(16)
-        .text('MarineKart', PAGE.marginLeft, 20, { width: 180 });
+        .fontSize(13)
+        .text('MarineKart', ml, logoY + 8, { lineBreak: false });
     }
   } else {
     doc
       .fillColor(COLORS.white)
       .font('Helvetica-Bold')
-      .fontSize(16)
-      .text('MarineKart', PAGE.marginLeft, 20, { width: 180 });
+      .fontSize(13)
+      .text('MarineKart', ml, logoY + 8, { lineBreak: false });
   }
 
-  const rightX = pageW - PAGE.marginRight - 200;
-  doc
-    .fillColor(COLORS.cyan)
-    .font('Helvetica')
-    .fontSize(8)
-    .text('DATE OF SENT', rightX, 12, { width: 200, align: 'right' });
-  doc
-    .fillColor(COLORS.white)
-    .font('Helvetica-Bold')
-    .fontSize(11)
-    .text(sentAtLabel || '—', rightX, 24, { width: 200, align: 'right' });
-  if (orderNumber) {
-    doc
-      .fillColor(COLORS.cyan)
-      .font('Helvetica')
-      .fontSize(8)
-      .text(`Quotation · ${orderNumber}`, rightX, 40, { width: 200, align: 'right' });
-  }
+  const blockW = 195;
+  const gap = 12;
+  const totalW = blockW * 2 + gap;
+  const startX = pageW - mr - totalW;
+  const regX = startX;
+  const showX = startX + blockW + gap;
+  const infoBlockH = 38;
+  const infoY = (HEADER_H - infoBlockH) / 2;
 
-  // Company info strip (every page)
-  const infoY = barH + 3;
-  doc.rect(0, infoY, pageW, infoH).fill(COLORS.soft);
-  doc
-    .moveTo(0, infoY + infoH)
-    .lineTo(pageW, infoY + infoH)
-    .lineWidth(0.6)
-    .strokeColor(COLORS.line)
-    .stroke();
+  doc.font('Helvetica-Bold').fontSize(8);
+  doc.fillColor(COLORS.cyan).text(COMPANY.registered.title.toUpperCase(), regX, infoY, {
+    lineBreak: false,
+  });
+  doc.fillColor(COLORS.white).font('Helvetica').fontSize(7.5);
+  COMPANY.registered.lines.forEach((line, i) => {
+    doc.text(line, regX, infoY + 11 + i * 10, { lineBreak: false });
+  });
 
-  const colGap = 16;
-  const usableW = pageW - PAGE.marginLeft - PAGE.marginRight;
-  const colW = (usableW - colGap) / 2;
-  const leftX = PAGE.marginLeft;
-  const rightColX = PAGE.marginLeft + colW + colGap;
-  const textTop = infoY + 7;
-
-  // Divider between office / showroom
-  const midX = PAGE.marginLeft + colW + colGap / 2;
-  doc
-    .moveTo(midX, infoY + 8)
-    .lineTo(midX, infoY + infoH - 8)
-    .lineWidth(0.8)
-    .strokeColor(COLORS.cyan)
-    .stroke();
-
-  doc
-    .fillColor(COLORS.navy)
-    .font('Helvetica-Bold')
-    .fontSize(7.5)
-    .text(COMPANY.registered.title.toUpperCase(), leftX, textTop, { width: colW });
-  doc
-    .fillColor(COLORS.ink)
-    .font('Helvetica')
-    .fontSize(7.5)
-    .text(COMPANY.registered.lines.join('\n'), leftX, textTop + 11, {
-      width: colW,
-      lineGap: 1.5,
-    });
-
-  doc
-    .fillColor(COLORS.navy)
-    .font('Helvetica-Bold')
-    .fontSize(7.5)
-    .text(COMPANY.showroom.title.toUpperCase(), rightColX, textTop, { width: colW });
-  doc
-    .fillColor(COLORS.ink)
-    .font('Helvetica')
-    .fontSize(7.5)
-    .text(COMPANY.showroom.lines.join('\n'), rightColX, textTop + 11, {
-      width: colW,
-      lineGap: 1.5,
-    });
+  doc.fillColor(COLORS.cyan).font('Helvetica-Bold').fontSize(8);
+  doc.text(COMPANY.showroom.title.toUpperCase(), showX, infoY, { lineBreak: false });
+  doc.fillColor(COLORS.white).font('Helvetica').fontSize(7.5);
+  COMPANY.showroom.lines.forEach((line, i) => {
+    doc.text(line, showX, infoY + 11 + i * 10, { lineBreak: false });
+  });
 
   doc.restore();
-  // Keep content clear of header chrome
-  if (doc.y < totalH + 8) {
-    doc.y = totalH + 8;
-  }
+}
+
+function drawPhoneIcon(doc, x, y, size) {
+  const cx = x + size / 2;
+  const cy = y + size / 2;
+  doc.save();
+  doc.strokeColor(COLORS.white).lineWidth(0.65);
+  doc.circle(cx, cy, size / 2 - 0.5).stroke();
+  doc
+    .moveTo(cx - size * 0.18, cy - size * 0.12)
+    .lineTo(cx + size * 0.22, cy + size * 0.22)
+    .stroke();
+  doc.restore();
+}
+
+function drawGlobeIcon(doc, x, y, size) {
+  const cx = x + size / 2;
+  const cy = y + size / 2;
+  const r = size / 2 - 0.5;
+  doc.save();
+  doc.strokeColor(COLORS.white).lineWidth(0.65);
+  doc.circle(cx, cy, r).stroke();
+  doc.moveTo(x + 1, cy).lineTo(x + size - 1, cy).stroke();
+  doc
+    .moveTo(cx, y + 1)
+    .bezierCurveTo(cx + r * 0.9, cy, cx + r * 0.9, cy, cx, y + size - 1)
+    .stroke();
+  doc
+    .moveTo(cx, y + 1)
+    .bezierCurveTo(cx - r * 0.9, cy, cx - r * 0.9, cy, cx, y + size - 1)
+    .stroke();
+  doc.restore();
+}
+
+function drawEmailIcon(doc, x, y, size) {
+  doc.save();
+  doc.strokeColor(COLORS.white).lineWidth(0.65);
+  doc.rect(x + 0.5, y + 1.5, size - 1, size - 3).stroke();
+  doc
+    .moveTo(x + 0.5, y + 1.5)
+    .lineTo(x + size / 2, y + size / 2)
+    .lineTo(x + size - 0.5, y + 1.5)
+    .stroke();
+  doc.restore();
 }
 
 function drawFooter(doc) {
   const pageW = doc.page.width;
   const pageH = doc.page.height;
-  // Footer asset is ~1024×140 → keep aspect on A4 width
-  const footerH = Math.round((pageW * 140) / 1024);
-  const y = pageH - footerH;
+  const barTop = pageH - FOOTER_H;
 
-  if (fs.existsSync(FOOTER_PATH)) {
-    try {
-      doc.image(FOOTER_PATH, 0, y, { width: pageW, height: footerH });
-      return;
-    } catch {
-      /* fall through */
-    }
+  doc.rect(0, barTop, pageW, 2).fill(COLORS.cyan);
+  doc.rect(0, barTop + 2, pageW, FOOTER_H - 2).fill(COLORS.navy);
+
+  const midY = barTop + FOOTER_H / 2;
+  const iconSize = 10;
+  const iconY = midY - iconSize / 2;
+  const textY = midY - 4;
+
+  doc.fillColor(COLORS.white).font('Helvetica').fontSize(8);
+
+  const phoneX = PAGE.marginLeft;
+  drawPhoneIcon(doc, phoneX, iconY, iconSize);
+  doc.text('+91-9923026865  +91-9518999484', phoneX + 14, textY, { lineBreak: false });
+
+  const webLabel = 'www.marinekartindia.com';
+  doc.font('Helvetica').fontSize(8);
+  const webW = doc.widthOfString(webLabel);
+  const webX = (pageW - webW - iconSize - 6) / 2;
+  drawGlobeIcon(doc, webX, iconY, iconSize);
+  doc.text(webLabel, webX + 14, textY, { lineBreak: false });
+
+  const emailLabel = 'info@marinekartindia.com';
+  const emailW = doc.widthOfString(emailLabel);
+  const emailX = pageW - PAGE.marginRight - emailW - iconSize - 6;
+  drawEmailIcon(doc, emailX, iconY, iconSize);
+  doc.text(emailLabel, emailX + 14, textY, { lineBreak: false });
+}
+
+function paintAllPages(doc) {
+  const range = doc.bufferedPageRange();
+  for (let i = range.start; i < range.start + range.count; i += 1) {
+    doc.switchToPage(i);
+    drawHeader(doc);
+    drawFooter(doc);
   }
+}
 
-  doc.save();
-  doc.rect(0, y + 14, pageW, footerH - 14).fill(COLORS.navy);
-  doc
-    .fillColor(COLORS.white)
-    .font('Helvetica')
-    .fontSize(8)
-    .text('+91-9923026865  +91-9518999484', 30, y + 28, { width: 180 })
-    .text('www.marinekartindia.com', 220, y + 28, { width: 160, align: 'center' })
-    .text('info@marinekartindia.com', pageW - 210, y + 28, { width: 180, align: 'right' });
-  doc.restore();
+function contentBottom(doc) {
+  return doc.page.height - PAGE.marginBottom;
 }
 
 function ensureSpace(doc, needed) {
-  const bottom = doc.page.height - PAGE.marginBottom;
-  if (doc.y + needed > bottom) {
+  if (doc.y + needed > contentBottom(doc)) {
     doc.addPage();
   }
 }
 
 function sectionTitle(doc, title) {
-  ensureSpace(doc, 28);
+  ensureSpace(doc, 26);
+  const y = doc.y;
+  const contentW = doc.page.width - PAGE.marginLeft - PAGE.marginRight;
   doc
     .fillColor(COLORS.navy)
     .font('Helvetica-Bold')
-    .fontSize(11)
-    .text(title, PAGE.marginLeft, doc.y);
-  const underlineY = doc.y + 2;
+    .fontSize(10)
+    .text(title, PAGE.marginLeft, y, { lineBreak: false });
+  const underlineY = y + 13;
   doc
     .moveTo(PAGE.marginLeft, underlineY)
-    .lineTo(PAGE.marginLeft + 120, underlineY)
-    .lineWidth(1.5)
+    .lineTo(PAGE.marginLeft + contentW, underlineY)
+    .lineWidth(1.2)
     .strokeColor(COLORS.cyan)
     .stroke();
-  doc.moveDown(0.7);
+  doc.x = PAGE.marginLeft;
+  doc.y = underlineY + 8;
 }
 
-/**
- * Build quotation PDF buffer.
- * @param {{ order: object, customer: object, customerName: string, sentAtLabel: string }} opts
- * @returns {Promise<Buffer>}
- */
-function buildQuotationPdf({ order, customer, customerName, sentAtLabel }) {
+function buildQuotationPdf({ order, customer, customerName, sentAtLabel: _sentAtLabel }) {
   return new Promise((resolve, reject) => {
     const q = order.quotation || {};
     const addr = order.shippingAddress || order.billingAddress || {};
-    const email = customer?.email || '';
     const phone = customer?.phone || addr.phone || '';
     const address = formatAddress(addr);
+    const orderNumber = order.orderNumber || '';
 
     const doc = new PDFDocument({
       size: 'A4',
@@ -246,8 +254,9 @@ function buildQuotationPdf({ order, customer, customerName, sentAtLabel }) {
         left: PAGE.marginLeft,
         right: PAGE.marginRight,
       },
+      bufferPages: true,
       info: {
-        Title: `Quotation ${order.orderNumber || ''}`,
+        Title: `Quotation ${orderNumber}`,
         Author: 'MarineKart India',
         Subject: 'Product quotation',
       },
@@ -258,117 +267,83 @@ function buildQuotationPdf({ order, customer, customerName, sentAtLabel }) {
     doc.on('end', () => resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
 
-    const headerOpts = {
-      sentAtLabel,
-      orderNumber: order.orderNumber || '',
-    };
+    const contentW = doc.page.width - PAGE.marginLeft - PAGE.marginRight;
 
-    const paintChrome = () => {
-      const savedX = doc.x;
-      const savedY = doc.y;
-      drawHeader(doc, headerOpts);
-      drawFooter(doc);
-      doc.x = savedX;
-      doc.y = Math.max(savedY, PAGE.marginTop);
-    };
-
-    doc.on('pageAdded', () => {
-      paintChrome();
-      doc.x = PAGE.marginLeft;
-      doc.y = PAGE.marginTop;
+    // Title
+    doc.fillColor(COLORS.navy).font('Helvetica-Bold').fontSize(17).text('QUOTATION', {
+      width: contentW,
+      align: 'center',
     });
-    paintChrome();
-
-    // Title band
-    doc
-      .fillColor(COLORS.navy)
-      .font('Helvetica-Bold')
-      .fontSize(18)
-      .text('QUOTATION', PAGE.marginLeft, PAGE.marginTop - 8, {
-        width: doc.page.width - PAGE.marginLeft - PAGE.marginRight,
-        align: 'center',
-      });
     doc.moveDown(0.6);
 
-    // To block
-    const toBoxTop = doc.y;
-    const toBoxW = doc.page.width - PAGE.marginLeft - PAGE.marginRight;
-    doc.roundedRect(PAGE.marginLeft, toBoxTop, toBoxW, 92, 8).fill(COLORS.soft);
+    // To box
+    const toTop = doc.y;
+    const toH = 78;
+    doc.roundedRect(PAGE.marginLeft, toTop, contentW, toH, 6).fill(COLORS.soft);
+
     doc
       .fillColor(COLORS.navy)
       .font('Helvetica-Bold')
-      .fontSize(10)
-      .text('To,', PAGE.marginLeft + 14, toBoxTop + 12);
+      .fontSize(9)
+      .text('To,', PAGE.marginLeft + 12, toTop + 10, { lineBreak: false });
+
     doc
       .fillColor(COLORS.ink)
       .font('Helvetica-Bold')
-      .fontSize(12)
-      .text(safeText(customerName || addr.fullName, 'Customer'), PAGE.marginLeft + 14, toBoxTop + 28, {
-        width: toBoxW - 28,
-      });
-    doc
-      .fillColor(COLORS.muted)
-      .font('Helvetica')
-      .fontSize(9)
-      .text(`Address: ${safeText(address)}`, PAGE.marginLeft + 14, toBoxTop + 46, {
-        width: toBoxW - 28,
-      })
-      .text(`Email: ${safeText(email)}`, PAGE.marginLeft + 14, toBoxTop + 60, {
-        width: (toBoxW - 28) / 2,
-        continued: false,
-      })
-      .text(`Mobile: ${safeText(phone)}`, PAGE.marginLeft + 14 + (toBoxW - 28) / 2, toBoxTop + 60, {
-        width: (toBoxW - 28) / 2,
+      .fontSize(11)
+      .text(safeText(customerName || addr.fullName, 'Customer'), PAGE.marginLeft + 12, toTop + 24, {
+        width: contentW - 24,
+        lineBreak: false,
       });
 
-    doc.y = toBoxTop + 104;
-
-    // Intro
     doc
       .fillColor(COLORS.ink)
       .font('Helvetica')
-      .fontSize(10)
-      .text(
-        'Dear Sir / Madam,\n\nPlease find below our quotation for the items as per your enquiry. We look forward to your confirmation.',
-        PAGE.marginLeft,
-        doc.y,
-        { width: toBoxW, align: 'left', lineGap: 2 }
-      );
-    doc.moveDown(1);
+      .fontSize(8.5)
+      .text(safeText(address), PAGE.marginLeft + 12, toTop + 38, { width: contentW - 24, lineBreak: false });
 
-    // Table
+    doc
+      .fillColor(COLORS.ink)
+      .font('Helvetica')
+      .fontSize(8.5)
+      .text(`Mobile: ${safeText(phone)}`, PAGE.marginLeft + 12, toTop + 50, { lineBreak: false });
+
+    doc
+      .fillColor(COLORS.navy)
+      .font('Helvetica-Bold')
+      .fontSize(8.5)
+      .text(`Quotation: ${safeText(orderNumber)}`, PAGE.marginLeft + 12, toTop + 62, {
+        lineBreak: false,
+      });
+
+    doc.y = toTop + toH + 10;
+
     sectionTitle(doc, 'QUOTATION DETAILS');
 
-    const col = {
-      no: 28,
-      item: 210,
-      qty: 36,
-      rate: 70,
-      disc: 55,
-      amount: 76,
-    };
+    const col = { no: 26, qty: 34, rate: 68, disc: 52, amount: 76 };
+    const fixedCols = col.no + col.qty + col.rate + col.disc + col.amount;
+    col.item = contentW - fixedCols;
     const tableX = PAGE.marginLeft;
-    const tableW = col.no + col.item + col.qty + col.rate + col.disc + col.amount;
+    const tableW = contentW;
 
     const drawTableHeader = () => {
-      ensureSpace(doc, 24);
+      ensureSpace(doc, 22);
       const y = doc.y;
-      doc.rect(tableX, y, tableW, 22).fill(COLORS.navy);
-      doc.fillColor(COLORS.white).font('Helvetica-Bold').fontSize(8);
+      doc.rect(tableX, y, tableW, 20).fill(COLORS.navy);
+      doc.fillColor(COLORS.white).font('Helvetica-Bold').fontSize(7.5);
       let x = tableX;
-      const cells = [
+      for (const [label, w, align] of [
         ['#', col.no, 'center'],
         ['Item / Description', col.item, 'left'],
         ['Qty', col.qty, 'center'],
         ['Unit amount', col.rate, 'right'],
         ['Discount', col.disc, 'right'],
         ['Line total', col.amount, 'right'],
-      ];
-      for (const [label, w, align] of cells) {
-        doc.text(label, x + 4, y + 7, { width: w - 8, align });
+      ]) {
+        doc.text(label, x + 4, y + 6, { width: w - 8, align, lineBreak: false });
         x += w;
       }
-      doc.y = y + 22;
+      doc.y = y + 20;
     };
 
     drawTableHeader();
@@ -378,24 +353,19 @@ function buildQuotationPdf({ order, customer, customerName, sentAtLabel }) {
       const qty = Number(item.quantity) || 0;
       const amount = Number(item.amount) || 0;
       const lineTotal =
-        item.lineTotal != null
-          ? Number(item.lineTotal)
-          : Math.round(amount * qty * 100) / 100;
+        item.lineTotal != null ? Number(item.lineTotal) : Math.round(amount * qty * 100) / 100;
       const gross = Math.round(amount * qty * 100) / 100;
       const disc = Math.max(0, Math.round((gross - lineTotal) * 100) / 100);
       const title = formatProductTitle(item);
-      const titleH = doc.heightOfString(title, { width: col.item - 8, fontSize: 8 });
-      const rowH = Math.max(28, titleH + 10);
+      doc.font('Helvetica-Bold').fontSize(7.5);
+      const titleH = doc.heightOfString(title, { width: col.item - 8 });
+      const rowH = Math.max(24, titleH + 8);
 
       ensureSpace(doc, rowH + 4);
-      if (doc.y < PAGE.marginTop + 5) {
-        drawTableHeader();
-      }
+      if (doc.y < PAGE.marginTop) drawTableHeader();
 
       const y = doc.y;
-      if (idx % 2 === 1) {
-        doc.rect(tableX, y, tableW, rowH).fill(COLORS.rowAlt);
-      }
+      if (idx % 2 === 1) doc.rect(tableX, y, tableW, rowH).fill(COLORS.rowAlt);
       doc
         .moveTo(tableX, y + rowH)
         .lineTo(tableX + tableW, y + rowH)
@@ -403,186 +373,149 @@ function buildQuotationPdf({ order, customer, customerName, sentAtLabel }) {
         .strokeColor(COLORS.line)
         .stroke();
 
-      doc.fillColor(COLORS.ink).font('Helvetica').fontSize(8);
       let x = tableX;
-      doc.text(String(idx + 1), x + 4, y + 8, { width: col.no - 8, align: 'center' });
+      doc.fillColor(COLORS.ink).font('Helvetica').fontSize(7.5);
+      doc.text(String(idx + 1), x + 4, y + 7, { width: col.no - 8, align: 'center', lineBreak: false });
       x += col.no;
-      doc.font('Helvetica-Bold').text(title, x + 4, y + 8, { width: col.item - 8 });
+      doc.font('Helvetica-Bold').text(title, x + 4, y + 7, { width: col.item - 8, lineBreak: false });
       x += col.item;
-      doc.font('Helvetica').text(String(qty), x + 4, y + 8, { width: col.qty - 8, align: 'center' });
+      doc.font('Helvetica').text(String(qty), x + 4, y + 7, { width: col.qty - 8, align: 'center', lineBreak: false });
       x += col.qty;
-      doc.text(money(amount), x + 4, y + 8, { width: col.rate - 8, align: 'right' });
+      doc.text(money(amount), x + 4, y + 7, { width: col.rate - 8, align: 'right', lineBreak: false });
       x += col.rate;
-      doc.text(disc > 0 ? money(disc) : '—', x + 4, y + 8, { width: col.disc - 8, align: 'right' });
+      doc.text(disc > 0 ? money(disc) : '—', x + 4, y + 7, { width: col.disc - 8, align: 'right', lineBreak: false });
       x += col.disc;
       doc
         .font('Helvetica-Bold')
         .fillColor(COLORS.navy)
-        .text(money(lineTotal), x + 4, y + 8, { width: col.amount - 8, align: 'right' });
+        .text(money(lineTotal), x + 4, y + 7, { width: col.amount - 8, align: 'right', lineBreak: false });
 
       doc.y = y + rowH;
     });
 
     if (!items.length) {
-      ensureSpace(doc, 30);
-      doc
-        .fillColor(COLORS.muted)
-        .font('Helvetica-Oblique')
-        .fontSize(9)
-        .text('No line items in this quotation.', tableX, doc.y + 8);
-      doc.moveDown(1);
+      doc.fillColor(COLORS.muted).font('Helvetica-Oblique').fontSize(8).text('No line items.');
+      doc.moveDown(0.5);
     }
 
-    // Totals panel
-    doc.moveDown(0.8);
-    ensureSpace(doc, 110);
-    const totalsW = 220;
+    doc.moveDown(0.6);
+    ensureSpace(doc, 100);
+
+    const totalsW = 215;
     const totalsX = PAGE.marginLeft + tableW - totalsW;
     const itemsGross = Number(q.itemsSubtotal || 0) + Number(q.discountTotal || 0);
 
-    const totalRows = [
+    let ty = doc.y;
+    for (const [label, value] of [
       ['Items subtotal', money(itemsGross)],
-      Number(q.discountTotal) > 0 ? ['Discount', `- ${money(q.discountTotal)}`] : null,
+      ...(Number(q.discountTotal) > 0 ? [['Discount', `- ${money(q.discountTotal)}`]] : []),
       ['Courier charges', money(q.courierCharges)],
       [`GST (${q.gstPercent || 0}%)`, money(q.gstAmount)],
-    ].filter(Boolean);
-
-    let ty = doc.y;
-    for (const [label, value] of totalRows) {
-      doc
-        .fillColor(COLORS.muted)
-        .font('Helvetica')
-        .fontSize(9)
-        .text(label, totalsX, ty, { width: 110 });
+    ]) {
+      doc.fillColor(COLORS.muted).font('Helvetica').fontSize(8.5);
+      doc.text(label, totalsX, ty, { width: 105, lineBreak: false });
       doc
         .fillColor(COLORS.ink)
         .font('Helvetica-Bold')
-        .fontSize(9)
-        .text(value, totalsX + 110, ty, { width: 110, align: 'right' });
-      ty += 16;
+        .fontSize(8.5)
+        .text(value, totalsX + 105, ty, { width: 110, align: 'right', lineBreak: false });
+      ty += 14;
     }
 
-    const grandH = 34;
-    const grandY = ty + 2;
-    doc.roundedRect(totalsX, grandY, totalsW, grandH, 6).fill(COLORS.navy);
-    const grandTextY = grandY + (grandH - 12) / 2;
+    const grandH = 30;
+    const grandY = ty + 3;
+    doc.roundedRect(totalsX, grandY, totalsW, grandH, 5).fill(COLORS.navy);
+    const midY = grandY + (grandH - 10) / 2;
     doc
       .fillColor(COLORS.cyan)
       .font('Helvetica-Bold')
-      .fontSize(10)
-      .text('GRAND TOTAL', totalsX + 12, grandTextY, { width: 100 });
+      .fontSize(9)
+      .text('GRAND TOTAL', totalsX + 10, midY, { lineBreak: false });
     doc
       .fillColor(COLORS.white)
       .font('Helvetica-Bold')
-      .fontSize(13)
-      .text(money(q.grandTotal), totalsX + 100, grandTextY - 1, { width: 108, align: 'right' });
+      .fontSize(12)
+      .text(money(q.grandTotal), totalsX + 100, midY - 1, { width: 105, align: 'right', lineBreak: false });
 
-    doc.y = grandY + grandH + 16;
+    doc.y = grandY + grandH + 10;
+    doc.x = PAGE.marginLeft;
 
-    // Terms & Bank — equal height cards, roomy bank spacing
-    ensureSpace(doc, 160);
+    // Terms + bank + thank-you — keep on one page when possible (no extra blank page)
+    const termsSectionH = 150;
+    ensureSpace(doc, termsSectionH);
     sectionTitle(doc, 'TERMS, CONDITIONS & BANK DETAILS');
 
-    const gap = 14;
-    const halfW = (toBoxW - gap) / 2;
+    const gap = 12;
+    const halfW = (contentW - gap) / 2;
     const boxTop = doc.y;
-    const headerH = 24;
-    const boxH = 132;
+    const barH = 20;
+    const boxH = 92;
     const bankX = PAGE.marginLeft + halfW + gap;
 
-    // Shared card shells (same height)
-    doc.roundedRect(PAGE.marginLeft, boxTop, halfW, boxH, 8).fill(COLORS.soft);
-    doc.roundedRect(PAGE.marginLeft, boxTop, halfW, headerH, 8).fill(COLORS.navy);
-    doc.rect(PAGE.marginLeft, boxTop + headerH - 8, halfW, 8).fill(COLORS.navy);
+    for (const [x, label] of [
+      [PAGE.marginLeft, 'TERMS AND CONDITIONS'],
+      [bankX, 'BANK DETAILS'],
+    ]) {
+      doc.roundedRect(x, boxTop, halfW, boxH, 6).fill(COLORS.soft);
+      doc.roundedRect(x, boxTop, halfW, barH, 6).fill(COLORS.navy);
+      doc.rect(x, boxTop + barH - 6, halfW, 6).fill(COLORS.navy);
+      doc
+        .fillColor(COLORS.white)
+        .font('Helvetica-Bold')
+        .fontSize(8)
+        .text(label, x + 10, boxTop + 6, { lineBreak: false });
+    }
 
-    doc.roundedRect(bankX, boxTop, halfW, boxH, 8).fill(COLORS.soft);
-    doc.roundedRect(bankX, boxTop, halfW, headerH, 8).fill(COLORS.navy);
-    doc.rect(bankX, boxTop + headerH - 8, halfW, 8).fill(COLORS.navy);
-
-    doc
-      .fillColor(COLORS.white)
-      .font('Helvetica-Bold')
-      .fontSize(9)
-      .text('TERMS AND CONDITIONS', PAGE.marginLeft + 12, boxTop + 7, { width: halfW - 24 });
-    doc
-      .fillColor(COLORS.white)
-      .font('Helvetica-Bold')
-      .fontSize(9)
-      .text('BANK DETAILS', bankX + 12, boxTop + 7, { width: halfW - 24 });
-
-    // Terms content — spaced to fill equal card height
-    const termsBodyTop = boxTop + headerH + 14;
-    doc
-      .fillColor(COLORS.muted)
-      .font('Helvetica')
-      .fontSize(8)
-      .text('PAYMENT', PAGE.marginLeft + 14, termsBodyTop);
+    const bodyY = boxTop + barH + 10;
+    doc.fillColor(COLORS.muted).font('Helvetica').fontSize(7);
+    doc.text('PAYMENT', PAGE.marginLeft + 10, bodyY, { lineBreak: false });
     doc
       .fillColor(COLORS.navy)
       .font('Helvetica-Bold')
-      .fontSize(12)
-      .text('100% ADVANCE', PAGE.marginLeft + 14, termsBodyTop + 14);
-
-    doc
-      .fillColor(COLORS.muted)
-      .font('Helvetica')
-      .fontSize(8)
-      .text('DELIVERY', PAGE.marginLeft + 14, termsBodyTop + 48);
+      .fontSize(10)
+      .text('100% ADVANCE', PAGE.marginLeft + 10, bodyY + 11, { lineBreak: false });
+    doc.fillColor(COLORS.muted).font('Helvetica').fontSize(7);
+    doc.text('DELIVERY', PAGE.marginLeft + 10, bodyY + 34, { lineBreak: false });
     doc
       .fillColor(COLORS.navy)
       .font('Helvetica-Bold')
-      .fontSize(12)
-      .text('EX-STOCK', PAGE.marginLeft + 14, termsBodyTop + 62);
+      .fontSize(10)
+      .text('EX-STOCK', PAGE.marginLeft + 10, bodyY + 45, { lineBreak: false });
 
-    // Bank content — clearer line spacing
     const bankLines = [
       ['Bank name', 'BANK OF BARODA'],
       ['Account name', 'MARINEKART INDIA'],
       ['Account no.', '26080400000547'],
       ['IFSC & branch', 'BARB0PONDAX & PONDA BRANCH'],
     ];
-    let by = boxTop + headerH + 10;
+    let by = bodyY + 2;
     for (const [label, value] of bankLines) {
       doc
-        .fillColor(COLORS.muted)
-        .font('Helvetica')
-        .fontSize(7)
-        .text(label.toUpperCase(), bankX + 12, by, { width: halfW - 24 });
-      doc
         .fillColor(COLORS.ink)
-        .font('Helvetica-Bold')
-        .fontSize(9)
-        .text(value, bankX + 12, by + 10, { width: halfW - 24 });
-      by += 24;
+        .font('Helvetica')
+        .fontSize(7.5)
+        .text(`${label} - ${value}`, bankX + 10, by, { width: halfW - 20, lineBreak: false });
+      by += 14;
     }
 
-    doc.y = boxTop + boxH + 20;
+    doc.y = boxTop + boxH + 18;
+    doc.x = PAGE.marginLeft;
 
-    // Closing
-    ensureSpace(doc, 70);
-    doc
-      .fillColor(COLORS.ink)
-      .font('Helvetica')
-      .fontSize(10)
-      .text(
-        'We hope the above quotation meets your requirements. Kindly confirm to proceed with the order. For any clarification, feel free to contact us.',
-        PAGE.marginLeft,
-        doc.y,
-        { width: toBoxW, lineGap: 2 }
-      );
-    doc.moveDown(1.2);
+    const thanksY = doc.y;
     doc
       .fillColor(COLORS.navy)
       .font('Helvetica-Bold')
-      .fontSize(11)
-      .text('Thanking you,', PAGE.marginLeft, doc.y);
-    doc.moveDown(0.35);
+      .fontSize(10)
+      .text('Thanking you,', PAGE.marginLeft, thanksY, { lineBreak: false });
     doc
       .fillColor(COLORS.ink)
       .font('Helvetica')
-      .fontSize(10)
-      .text('For Marine Kart India Team', PAGE.marginLeft, doc.y);
+      .fontSize(9)
+      .text('For Marine Kart India Team', PAGE.marginLeft, thanksY + 14, { lineBreak: false });
+    doc.x = PAGE.marginLeft;
+    doc.y = thanksY + 28;
 
+    paintAllPages(doc);
     doc.end();
   });
 }

@@ -76,6 +76,13 @@ function clearQuotationCache(orderId) {
   }
 }
 
+function amountMissing(item) {
+  const raw = String(item?.amount ?? '').trim();
+  if (raw === '') return true;
+  const n = Number(raw);
+  return !Number.isFinite(n) || n <= 0;
+}
+
 function clampPageSize(raw) {
   const n = Math.floor(Number(raw) || 0);
   if (!Number.isFinite(n) || n < 1) return 3;
@@ -364,6 +371,13 @@ export default function AdminQuotation() {
   };
 
   const sendQuote = async () => {
+    const missingIdx = items.findIndex(amountMissing);
+    if (missingIdx >= 0) {
+      const targetPage = Math.floor(missingIdx / safePageSize) + 1;
+      setPage(targetPage);
+      toast.error('Amount is required for every item');
+      return;
+    }
     setBusy('send');
     const toastId = toast.loading('Creating and sending quotation...');
     try {
@@ -563,7 +577,9 @@ export default function AdminQuotation() {
                     <th className="px-3 py-2.5 font-semibold">#</th>
                     <th className="px-3 py-2.5 font-semibold">Product</th>
                     <th className="px-3 py-2.5 font-semibold">Qty</th>
-                    <th className="px-3 py-2.5 font-semibold">Amount</th>
+                    <th className="px-3 py-2.5 font-semibold">
+                      Amount <span className="text-rose-500">*</span>
+                    </th>
                     <th className="px-3 py-2.5 font-semibold normal-case tracking-normal">
                       <div className="space-y-1.5">
                         <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">
@@ -655,14 +671,20 @@ export default function AdminQuotation() {
                                 type="text"
                                 inputMode="decimal"
                                 disabled={readOnly}
-                                className={`${fieldClass} pl-6`}
+                                required
+                                aria-required="true"
+                                className={`${fieldClass} pl-6 ${
+                                  !readOnly && amountMissing(item)
+                                    ? 'border-rose-300 focus:border-rose-500 focus:ring-rose-200'
+                                    : ''
+                                }`}
                                 value={item.amount}
                                 onChange={(e) =>
                                   updateItem(globalIdx, {
                                     amount: sanitizeDecimal(e.target.value),
                                   })
                                 }
-                                placeholder="0"
+                                placeholder="Required"
                               />
                             </div>
                           </td>

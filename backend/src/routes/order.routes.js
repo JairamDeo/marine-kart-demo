@@ -12,6 +12,7 @@ router.get('/my/:id/quotation/pdf', protect, orderController.downloadMyQuotation
 
 router.get('/', protect, authorize('admin'), orderController.adminListOrders);
 router.get('/:id/quotation', protect, authorize('admin'), orderController.getQuotation);
+router.get('/:id/quotation/pdf', protect, authorize('admin'), orderController.downloadAdminQuotationPdf);
 router.put('/:id/quotation/draft', protect, authorize('admin'), orderController.saveQuotationDraft);
 router.post('/:id/quotation/create', protect, authorize('admin'), orderController.createQuotation);
 router.post('/:id/quotation/send', protect, authorize('admin'), orderController.sendQuotation);

@@ -270,14 +270,7 @@ exports.getMyOrder = asyncHandler(async (req, res) => {
   res.json({ success: true, data: { order: plain } });
 });
 
-exports.downloadMyQuotationPdf = asyncHandler(async (req, res) => {
-  const order = await Order.findOne({ _id: req.params.id, user: req.user._id }).populate(
-    'user',
-    'firstName lastName email phone role companyName'
-  );
-  if (!order) {
-    return res.status(404).json({ success: false, message: 'Order not found.' });
-  }
+async function sendQuotationPdfResponse(res, order, customer) {
   if (order.quotation?.status !== 'sent') {
     return res.status(400).json({
       success: false,
@@ -285,7 +278,6 @@ exports.downloadMyQuotationPdf = asyncHandler(async (req, res) => {
     });
   }
 
-  const customer = order.user || req.user;
   const name = customerDisplayName(customer, order.billingAddress);
   const when = formatWhen(order.quotation.sentAt || order.quotation.savedAt || new Date());
 
@@ -309,6 +301,28 @@ exports.downloadMyQuotationPdf = asyncHandler(async (req, res) => {
       message: 'Could not generate quotation PDF.',
     });
   }
+}
+
+exports.downloadMyQuotationPdf = asyncHandler(async (req, res) => {
+  const order = await Order.findOne({ _id: req.params.id, user: req.user._id }).populate(
+    'user',
+    'firstName lastName email phone role companyName'
+  );
+  if (!order) {
+    return res.status(404).json({ success: false, message: 'Order not found.' });
+  }
+  return sendQuotationPdfResponse(res, order, order.user || req.user);
+});
+
+exports.downloadAdminQuotationPdf = asyncHandler(async (req, res) => {
+  const order = await Order.findById(req.params.id).populate(
+    'user',
+    'firstName lastName email phone role companyName'
+  );
+  if (!order) {
+    return res.status(404).json({ success: false, message: 'Order not found.' });
+  }
+  return sendQuotationPdfResponse(res, order, order.user || req.user);
 });
 
 exports.cancelOrder = asyncHandler(async (req, res) => {
