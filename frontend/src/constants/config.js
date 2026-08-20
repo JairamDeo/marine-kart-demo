@@ -11,8 +11,8 @@ export const API_BASE_URL =
 
 export const SITE = {
   name: 'MarineKart',
-  phone: '0123456789',
-  email: 'info@marinekart.com',
+  phone: '+91-992-302-6865',
+  email: 'info@marinekartindia.com',
   address: 'Your address goes here.',
 };
 

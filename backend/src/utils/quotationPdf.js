@@ -58,6 +58,20 @@ function safeText(v, fallback = '—') {
   return s || fallback;
 }
 
+function formatQuotationDate(date) {
+  if (!date) return '—';
+  try {
+    return new Intl.DateTimeFormat('en-IN', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      timeZone: 'Asia/Kolkata',
+    }).format(new Date(date));
+  } catch {
+    return new Date(date).toLocaleDateString('en-IN');
+  }
+}
+
 /** Draw fixed header — logo left (vertically centred), office + showroom on the right. */
 function drawHeader(doc) {
   const pageW = doc.page.width;
@@ -245,6 +259,7 @@ function buildQuotationPdf({ order, customer, customerName, sentAtLabel: _sentAt
     const phone = customer?.phone || addr.phone || '';
     const address = formatAddress(addr);
     const orderNumber = order.orderNumber || '';
+    const quotationDate = q.sentAt || q.savedAt || new Date();
 
     const doc = new PDFDocument({
       size: 'A4',
@@ -279,6 +294,9 @@ function buildQuotationPdf({ order, customer, customerName, sentAtLabel: _sentAt
     // To box
     const toTop = doc.y;
     const toH = 78;
+    const rightColW = 210;
+    const rightX = PAGE.marginLeft + contentW - rightColW - 12;
+    const leftW = rightX - PAGE.marginLeft - 16;
     doc.roundedRect(PAGE.marginLeft, toTop, contentW, toH, 6).fill(COLORS.soft);
 
     doc
@@ -292,7 +310,7 @@ function buildQuotationPdf({ order, customer, customerName, sentAtLabel: _sentAt
       .font('Helvetica-Bold')
       .fontSize(11)
       .text(safeText(customerName || addr.fullName, 'Customer'), PAGE.marginLeft + 12, toTop + 24, {
-        width: contentW - 24,
+        width: leftW,
         lineBreak: false,
       });
 
@@ -300,7 +318,7 @@ function buildQuotationPdf({ order, customer, customerName, sentAtLabel: _sentAt
       .fillColor(COLORS.ink)
       .font('Helvetica')
       .fontSize(8.5)
-      .text(safeText(address), PAGE.marginLeft + 12, toTop + 38, { width: contentW - 24, lineBreak: false });
+      .text(safeText(address), PAGE.marginLeft + 12, toTop + 38, { width: leftW, lineBreak: false });
 
     doc
       .fillColor(COLORS.ink)
@@ -309,10 +327,28 @@ function buildQuotationPdf({ order, customer, customerName, sentAtLabel: _sentAt
       .text(`Mobile: ${safeText(phone)}`, PAGE.marginLeft + 12, toTop + 50, { lineBreak: false });
 
     doc
+      .fillColor(COLORS.muted)
+      .font('Helvetica-Bold')
+      .fontSize(8)
+      .text('Quotation No.', rightX, toTop + 10, { width: rightColW, align: 'right', lineBreak: false });
+    doc
       .fillColor(COLORS.navy)
       .font('Helvetica-Bold')
+      .fontSize(9)
+      .text(safeText(orderNumber), rightX, toTop + 22, { width: rightColW, align: 'right', lineBreak: false });
+
+    doc
+      .fillColor(COLORS.muted)
+      .font('Helvetica-Bold')
+      .fontSize(8)
+      .text('Quotation Date', rightX, toTop + 40, { width: rightColW, align: 'right', lineBreak: false });
+    doc
+      .fillColor(COLORS.ink)
+      .font('Helvetica')
       .fontSize(8.5)
-      .text(`Quotation: ${safeText(orderNumber)}`, PAGE.marginLeft + 12, toTop + 62, {
+      .text(formatQuotationDate(quotationDate), rightX, toTop + 52, {
+        width: rightColW,
+        align: 'right',
         lineBreak: false,
       });
 

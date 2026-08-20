@@ -522,10 +522,10 @@ const seed = async () => {
       content:
         'We are a team of designers and developers that create high quality marine e-commerce solutions. MarineKart supplies premium marine hardware, steering systems, and electrical accessories.',
       meta: {
-        phone: '0123456789',
-        email: 'info@marinekart.com',
+        phone: '+91-992-302-6865',
+        email: 'info@marinekartindia.com',
         address: 'Your address goes here..',
-        hotline: '0123456789',
+        hotline: '+91-992-302-6865',
       },
     },
     {
@@ -533,10 +533,10 @@ const seed = async () => {
       title: 'Contact Us',
       content: 'Reach out to our support team anytime.',
       meta: {
-        phone: '0123456789',
-        email: 'demo@example.com',
+        phone: '+91-992-302-6865',
+        email: 'info@marinekartindia.com',
         address: 'Your address goes here..',
-        hotline: '0123456789',
+        hotline: '+91-992-302-6865',
       },
     },
     {
