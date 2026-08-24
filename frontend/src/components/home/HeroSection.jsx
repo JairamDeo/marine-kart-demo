@@ -4,8 +4,8 @@ import { contentService } from '../../services/content.service';
 import leftBanner1 from '../../assets/HomeLeftBanner1.jpg.jpeg';
 import leftBanner2 from '../../assets/HomeLeftBanner2.jpeg';
 import leftBanner3 from '../../assets/HomeLeftBanner3.jpg.jpeg';
-import rightBanner1 from '../../assets/HomeRightBanner1.jpg.jpeg';
-import rightBanner2 from '../../assets/HomeRightBanner2.jpg.jpeg';
+import rightBanner1 from '../../assets/NewHomeRightBanner1.jpeg';
+import rightBanner2 from '../../assets/NewHomeRightBanner2.jpeg';
 
 /** Left carousel slides (HomeLeftBanner 1 → 3) */
 const LEFT_BANNERS = [
@@ -29,15 +29,21 @@ const LEFT_BANNERS = [
   },
 ];
 
-/** Right stack: top = RightBanner1, bottom = RightBanner2 */
+/** Right stack: product images on right; text overlaid left (matches original banner layout) */
 const RIGHT_BANNERS = {
   top: {
-    image: rightBanner1,
+    image: rightBanner2,
+    eyebrow: 'ELECTRICAL\nACCESSORIES',
+    title: 'Instrumentation',
+    cta: 'Shop Now',
     link: '/category/electrical-accessories',
     alt: 'Electrical Accessories — Instrumentation',
   },
   bottom: {
-    image: rightBanner2,
+    image: rightBanner1,
+    eyebrow: 'OUTBOARD STEERING\nAND CONTROL SYSTEM',
+    title: 'Engine Control Lever',
+    cta: 'Shop Now',
     link: '/category/engine-control-cables-levers',
     alt: 'Outboard Steering — Engine Control Lever',
   },
@@ -109,7 +115,7 @@ export default function HeroSection() {
             <span className="mb-2 inline-flex w-fit rounded-full bg-cyan/20 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-navy">
               Featured
             </span>
-            <h1 className="text-2xl font-extrabold uppercase leading-tight tracking-wide text-navy sm:text-3xl md:text-4xl lg:text-[2.35rem]">
+            <h1 className="text-2xl font-semibold uppercase leading-tight tracking-wide text-navy sm:text-3xl md:text-4xl lg:text-[2.35rem]">
               {current.title}
             </h1>
             <p className="mt-2 max-w-sm text-sm leading-relaxed text-gray-600 sm:text-base">
@@ -142,8 +148,8 @@ export default function HeroSection() {
   );
 }
 
-/** Right banners already include title + Shop Now in the artwork */
-function PromoBannerCard({ image, link, alt }) {
+/** Product image on the right; category + title + Shop Now typed on the left */
+function PromoBannerCard({ image, link, alt, eyebrow, title, cta }) {
   return (
     <Link
       to={link || '/shop'}
@@ -152,10 +158,21 @@ function PromoBannerCard({ image, link, alt }) {
       <img
         src={image}
         alt={alt || ''}
-        className="absolute inset-0 h-full w-full object-cover object-center transition duration-500 group-hover:scale-[1.02]"
+        className="absolute inset-0 h-full w-full object-contain object-right transition duration-500 group-hover:scale-[1.02]"
         loading="lazy"
         decoding="async"
       />
+      <div className="absolute inset-y-0 left-0 z-10 flex w-[62%] flex-col pl-5 pr-1 pt-5 pb-5 text-left sm:w-[60%] sm:pl-6 sm:pt-6 sm:pb-6 lg:pl-5 lg:pt-5 lg:pb-5">
+        <p className="whitespace-pre-line text-[16px] font-semibold uppercase leading-[1.35] tracking-[0.04em] text-[#4a90c2] sm:text-[17px] lg:text-base xl:text-[17px]">
+          {eyebrow}
+        </p>
+        <h3 className="mt-3 whitespace-nowrap text-[24px] font-bold leading-none tracking-[0.04em] text-[#1a1a1a] sm:mt-4 sm:text-[26px] lg:text-[1.5rem] xl:text-[1.65rem]">
+          {title}
+        </h3>
+        <span className="mt-auto w-fit pt-4 text-base font-medium text-[#4a90c2] underline underline-offset-[6px] transition group-hover:text-navy sm:text-lg">
+          {cta}
+        </span>
+      </div>
     </Link>
   );
 }

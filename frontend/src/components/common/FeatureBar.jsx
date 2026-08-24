@@ -39,8 +39,8 @@ export default function FeatureBar({ variant = 'light' }) {
             <span
               className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition ${
                 dark
-                  ? 'bg-white/10 text-cyan'
-                  : 'bg-cyan/15 text-navy group-hover:bg-cyan group-hover:text-white'
+                  ? 'bg-cyan text-navy'
+                  : 'bg-navy text-cyan'
               }`}
             >
               <Icon size={20} />

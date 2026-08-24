@@ -15,7 +15,7 @@ export default function CategoryCard({ category }) {
           decoding="async"
         />
       </div>
-      <h3 className="text-xs font-bold uppercase tracking-wide text-gray-800 transition group-hover:text-navy">
+      <h3 className="text-sm font-bold uppercase leading-snug tracking-wide text-gray-800 transition group-hover:text-navy sm:text-[15px]">
         {category.name}
       </h3>
     </Link>
