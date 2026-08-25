@@ -110,7 +110,6 @@ export default function HeroSection() {
             loading="lazy"
             decoding="async"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-white via-white/90 to-transparent sm:via-white/75 pointer-events-none" />
           <div className="relative z-10 flex h-full min-h-[320px] max-w-lg flex-col justify-center p-4 sm:min-h-[380px] sm:p-6 lg:min-h-[460px] lg:p-8">
             <span className="mb-2 inline-flex w-fit rounded-full bg-cyan/20 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-navy">
               Featured
@@ -166,7 +165,7 @@ function PromoBannerCard({ image, link, alt, eyebrow, title, cta }) {
         <p className="whitespace-pre-line text-[16px] font-semibold uppercase leading-[1.35] tracking-[0.04em] text-[#4a90c2] sm:text-[17px] lg:text-base xl:text-[17px]">
           {eyebrow}
         </p>
-        <h3 className="mt-3 whitespace-nowrap text-[24px] font-bold leading-none tracking-[0.04em] text-[#1a1a1a] sm:mt-4 sm:text-[26px] lg:text-[1.5rem] xl:text-[1.65rem]">
+        <h3 className="mt-3 whitespace-nowrap text-[22px] font-bold leading-none tracking-[0.04em] text-[#1a1a1a] sm:mt-4">
           {title}
         </h3>
         <span className="mt-auto w-fit pt-4 text-base font-medium text-[#4a90c2] underline underline-offset-[6px] transition group-hover:text-navy sm:text-lg">

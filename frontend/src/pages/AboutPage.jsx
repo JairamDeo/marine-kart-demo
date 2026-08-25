@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { CalendarDays, MapPin, RotateCw } from 'lucide-react';
+import { CalendarDays, MapPin } from 'lucide-react';
 import aboutBanner from '../assets/about-banner.png';
 import logoMark from '../assets/logo2.png';
 import eventCochin from '../assets/event-cochin-boat-show.png';
@@ -100,56 +100,72 @@ function EditionRow({ ed, compact = false }) {
 
 function EventFlipCard({ event }) {
   const latest = event.editions[0];
-  const moreCount = Math.max(0, event.editions.length - 1);
 
   return (
-    <div className="event-flip group/card cursor-pointer [perspective:1200px]">
-      <div className="relative h-[380px] w-full transition-transform duration-700 ease-in-out [transform-style:preserve-3d] group-hover/card:[transform:rotateY(180deg)] sm:h-[400px]">
-        {/* Front */}
-        <article className="absolute inset-0 flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-[0_18px_40px_-28px_rgba(26,75,140,0.35)] [backface-visibility:hidden]">
-          <div className="relative h-[46%] min-h-[140px] overflow-hidden bg-[#0b2c5f]">
-            <img
-              src={event.image}
-              alt={event.title}
-              className="h-full w-full object-cover"
-              loading="lazy"
-              decoding="async"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#0b2c5f]/80 via-[#0b2c5f]/20 to-transparent" />
-            <div className="absolute bottom-0 left-0 right-0 p-3.5 sm:p-4">
-              <h3 className="text-base font-bold leading-snug text-white sm:text-lg">{event.title}</h3>
-            </div>
+    <>
+      {/* Mobile / tablet: stacked card, no flip */}
+      <article className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-[0_18px_40px_-28px_rgba(26,75,140,0.35)] lg:hidden">
+        <div className="relative aspect-[16/10] overflow-hidden bg-[#0b2c5f]">
+          <img
+            src={event.image}
+            alt={event.title}
+            className="h-full w-full object-cover"
+            loading="lazy"
+            decoding="async"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#0b2c5f]/80 via-[#0b2c5f]/20 to-transparent" />
+          <div className="absolute bottom-0 left-0 right-0 p-3.5">
+            <h3 className="text-base font-bold leading-snug text-white">{event.title}</h3>
           </div>
+        </div>
+        <ul className="flex flex-col gap-1.5 p-3.5">
+          {event.editions.map((ed) => (
+            <EditionRow key={`${event.title}-m-${ed.year}-${ed.dates}`} ed={ed} compact />
+          ))}
+        </ul>
+      </article>
 
-          <div className="flex flex-1 flex-col p-3.5 sm:p-4">
-            <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-cyan">
-              Latest edition
-            </p>
-            <ul>
-              <EditionRow ed={latest} />
+      {/* Desktop: hover flip, no button */}
+      <div className="event-flip group/card hidden cursor-pointer [perspective:1200px] lg:block">
+        <div className="relative h-[380px] w-full transition-transform duration-700 ease-in-out [transform-style:preserve-3d] group-hover/card:[transform:rotateY(180deg)]">
+          <article className="absolute inset-0 flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-[0_18px_40px_-28px_rgba(26,75,140,0.35)] [backface-visibility:hidden]">
+            <div className="relative h-[52%] min-h-[150px] overflow-hidden bg-[#0b2c5f]">
+              <img
+                src={event.image}
+                alt={event.title}
+                className="h-full w-full object-cover"
+                loading="lazy"
+                decoding="async"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#0b2c5f]/80 via-[#0b2c5f]/20 to-transparent" />
+              <div className="absolute bottom-0 left-0 right-0 p-3.5 sm:p-4">
+                <h3 className="text-base font-bold leading-snug text-white sm:text-lg">{event.title}</h3>
+              </div>
+            </div>
+
+            <div className="flex flex-1 flex-col justify-center p-3.5 sm:p-4">
+              <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-cyan">
+                Latest edition
+              </p>
+              <ul>
+                <EditionRow ed={latest} />
+              </ul>
+            </div>
+          </article>
+
+          <article className="absolute inset-0 flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-[0_18px_40px_-28px_rgba(26,75,140,0.35)] [backface-visibility:hidden] [transform:rotateY(180deg)]">
+            <div className="shrink-0 border-b border-gray-100 bg-gradient-to-r from-[#0b2c5f] to-[#1a4b8c] px-3.5 py-2.5 text-white sm:px-4">
+              <h3 className="text-sm font-bold leading-snug">{event.title}</h3>
+            </div>
+            <ul className="flex flex-1 flex-col justify-start gap-1.5 overflow-hidden p-3 sm:p-3.5">
+              {event.editions.map((ed) => (
+                <EditionRow key={`${event.title}-d-${ed.year}-${ed.dates}`} ed={ed} compact />
+              ))}
             </ul>
-
-            <div className="mt-auto inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-navy px-3 py-2 text-xs font-semibold text-white">
-              <RotateCw size={14} />
-              {moreCount > 0 ? `View all ${event.editions.length} editions` : 'View edition details'}
-            </div>
-          </div>
-        </article>
-
-        {/* Back — compact list, no scrollbar */}
-        <article className="absolute inset-0 flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-[0_18px_40px_-28px_rgba(26,75,140,0.35)] [backface-visibility:hidden] [transform:rotateY(180deg)]">
-          <div className="shrink-0 border-b border-gray-100 bg-gradient-to-r from-[#0b2c5f] to-[#1a4b8c] px-3.5 py-2.5 text-white sm:px-4">
-            <h3 className="text-sm font-bold leading-snug">{event.title}</h3>
-          </div>
-
-          <ul className="flex flex-1 flex-col justify-start gap-1.5 overflow-hidden p-3 sm:p-3.5">
-            {event.editions.map((ed) => (
-              <EditionRow key={`${event.title}-${ed.year}-${ed.dates}`} ed={ed} compact />
-            ))}
-          </ul>
-        </article>
+          </article>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 
