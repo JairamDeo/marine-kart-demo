@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import ProductCard from '../product/ProductCard';
 import { productService } from '../../services/product.service';
 import { refreshAos } from '../../hooks/useAos';
@@ -47,6 +48,11 @@ function ProductCarousel({ products }) {
   const [paused, setPaused] = useState(false);
   const [stepPx, setStepPx] = useState(0);
   const itemRef = useRef(null);
+  const indexRef = useRef(0);
+
+  useEffect(() => {
+    indexRef.current = index;
+  }, [index]);
 
   useEffect(() => {
     setIndex(0);
@@ -84,6 +90,30 @@ function ProductCarousel({ products }) {
     return () => window.clearTimeout(id);
   }, [index, baseCount]);
 
+  const goNext = () => {
+    if (!baseCount) return;
+    setAnimate(true);
+    setIndex((i) => i + 1);
+  };
+
+  const goPrev = () => {
+    if (!baseCount) return;
+    const i = indexRef.current;
+    if (i <= 0) {
+      setAnimate(false);
+      setIndex(baseCount);
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          setAnimate(true);
+          setIndex(baseCount - 1);
+        });
+      });
+      return;
+    }
+    setAnimate(true);
+    setIndex(i - 1);
+  };
+
   return (
     <div
       className="group relative overflow-hidden"
@@ -92,6 +122,24 @@ function ProductCarousel({ products }) {
     >
       <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-10 bg-gradient-to-r from-[#f9f9f9] to-transparent sm:w-16" />
       <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-gradient-to-l from-[#f9f9f9] to-transparent sm:w-16" />
+
+      <button
+        type="button"
+        onClick={goPrev}
+        aria-label="Previous products"
+        className="absolute left-1 top-1/2 z-20 flex h-9 w-9 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-white text-navy shadow-md ring-1 ring-gray-200 transition hover:bg-navy hover:text-white sm:left-2 sm:h-10 sm:w-10 lg:left-3"
+      >
+        <ChevronLeft size={22} strokeWidth={2.25} />
+      </button>
+      <button
+        type="button"
+        onClick={goNext}
+        aria-label="Next products"
+        className="absolute right-1 top-1/2 z-20 flex h-9 w-9 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-white text-navy shadow-md ring-1 ring-gray-200 transition hover:bg-navy hover:text-white sm:right-2 sm:h-10 sm:w-10 lg:right-3"
+      >
+        <ChevronRight size={22} strokeWidth={2.25} />
+      </button>
+
       <div
         className="flex w-max flex-nowrap py-1"
         style={{
