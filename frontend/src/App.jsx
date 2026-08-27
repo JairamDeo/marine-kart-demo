@@ -21,6 +21,7 @@ import CheckoutPage from './pages/CheckoutPage';
 import AccountArea from './pages/AccountArea';
 import WishlistPage from './pages/WishlistPage';
 import CmsPage from './pages/CmsPage';
+import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import AboutPage from './pages/AboutPage';
 import ContactPage from './pages/ContactPage';
 import NotFoundPage from './pages/NotFoundPage';
@@ -81,10 +82,7 @@ export default function App() {
               <Route path="wishlist" element={<WishlistPage />} />
               <Route path="about-us" element={<AboutPage />} />
               <Route path="faq" element={<CmsPage slug="faq" fallbackTitle="FAQ" />} />
-              <Route
-                path="privacy-policy"
-                element={<CmsPage slug="privacy-policy" fallbackTitle="Privacy Policy" />}
-              />
+              <Route path="privacy-policy" element={<PrivacyPolicyPage />} />
               <Route
                 path="delivery-information"
                 element={
