@@ -5,6 +5,8 @@ import logoMark from '../assets/logo2.png';
 import eventCochin from '../assets/event-cochin-boat-show.png';
 import eventInmex from '../assets/event-inmex-smm.png';
 import eventGoa from '../assets/event-goa-boat-show.png';
+import LoadingImage from '../components/common/LoadingImage';
+import EventGallerySection from '../components/about/EventGallerySection';
 
 const EVENTS = [
   {
@@ -106,12 +108,11 @@ function EventFlipCard({ event }) {
       {/* Mobile / tablet: stacked card, no flip */}
       <article className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-[0_18px_40px_-28px_rgba(26,75,140,0.35)] lg:hidden">
         <div className="relative aspect-[16/10] overflow-hidden bg-[#0b2c5f]">
-          <img
+          <LoadingImage
             src={event.image}
             alt={event.title}
-            className="h-full w-full object-cover"
-            loading="lazy"
-            decoding="async"
+            className="h-full w-full"
+            imgClassName="object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-[#0b2c5f]/80 via-[#0b2c5f]/20 to-transparent" />
           <div className="absolute bottom-0 left-0 right-0 p-3.5">
@@ -130,12 +131,11 @@ function EventFlipCard({ event }) {
         <div className="relative h-[380px] w-full transition-transform duration-700 ease-in-out [transform-style:preserve-3d] group-hover/card:[transform:rotateY(180deg)]">
           <article className="absolute inset-0 flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-[0_18px_40px_-28px_rgba(26,75,140,0.35)] [backface-visibility:hidden]">
             <div className="relative h-[52%] min-h-[150px] overflow-hidden bg-[#0b2c5f]">
-              <img
+              <LoadingImage
                 src={event.image}
                 alt={event.title}
-                className="h-full w-full object-cover"
-                loading="lazy"
-                decoding="async"
+                className="h-full w-full"
+                imgClassName="object-cover"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-[#0b2c5f]/80 via-[#0b2c5f]/20 to-transparent" />
               <div className="absolute bottom-0 left-0 right-0 p-3.5 sm:p-4">
@@ -173,10 +173,11 @@ export default function AboutPage() {
   return (
     <div className="bg-white">
       <div className="relative w-full overflow-hidden bg-[#0b2c5f]">
-        <img
+        <LoadingImage
           src={aboutBanner}
           alt="Marine yachts at marina"
-          className="block h-[180px] w-full object-cover object-center sm:h-[240px] lg:h-[320px]"
+          className="h-[180px] w-full sm:h-[240px] lg:h-[320px]"
+          imgClassName="object-cover object-center"
         />
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[#0b2c5f]/40 via-transparent to-[#0b2c5f]/25" />
       </div>
@@ -184,10 +185,11 @@ export default function AboutPage() {
       <div className="container-mk py-12 sm:py-16">
         <div className="grid items-start gap-10 lg:grid-cols-[280px_1fr] lg:gap-14">
           <aside className="flex flex-col items-center text-center lg:sticky lg:top-28">
-            <img
+            <LoadingImage
               src={logoMark}
               alt="MarineKart"
-              className="h-40 w-auto mix-blend-screen object-contain sm:h-48"
+              className="h-40 w-auto sm:h-48"
+              imgClassName="mix-blend-screen object-contain"
             />
             <a
               href="https://www.marinekartindia.com"
@@ -246,6 +248,8 @@ export default function AboutPage() {
               <EventFlipCard key={event.title} event={event} />
             ))}
           </div>
+
+          <EventGallerySection />
         </section>
       </div>
     </div>
