@@ -6,6 +6,23 @@ const Product = require('../models/Product');
 
 const ALLOWED_GST = [0, 5, 12, 18, 28];
 
+const BANK_DETAILS = [
+  ['Bank name', 'BANK OF BARODA'],
+  ['Account name', 'MARINEKART INDIA'],
+  ['Account no.', '26080400000547'],
+  ['IFSC & branch', 'BARB0PONDAX & PONDA BRANCH'],
+];
+
+function normalizeTermsAndConditions(raw = []) {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((row) => ({
+      label: String(row?.label || '').trim(),
+      value: String(row?.value || '').trim(),
+    }))
+    .filter((row) => row.label || row.value);
+}
+
 function round2(n) {
   return Math.round((Number(n) || 0) * 100) / 100;
 }
@@ -63,8 +80,11 @@ function normalizeQuotationPayload(body, orderItems = []) {
   });
 
   const courierCharges = Math.max(0, Number(body.courierCharges) || 0);
+  const otherCharges = Math.max(0, Number(body.otherCharges) || 0);
   let gstPercent = Number(body.gstPercent);
   if (!ALLOWED_GST.includes(gstPercent)) gstPercent = 0;
+
+  const termsAndConditions = normalizeTermsAndConditions(body.termsAndConditions);
 
   const itemsGross = round2(items.reduce((s, i) => s + round2(i.amount * i.quantity), 0));
   const discountTotal = round2(
@@ -74,14 +94,16 @@ function normalizeQuotationPayload(body, orderItems = []) {
     )
   );
   const itemsSubtotal = round2(itemsGross - discountTotal);
-  const taxableAmount = round2(itemsSubtotal + courierCharges);
+  const taxableAmount = round2(itemsSubtotal + courierCharges + otherCharges);
   const gstAmount = round2((taxableAmount * gstPercent) / 100);
   const grandTotal = round2(taxableAmount + gstAmount);
 
   return {
     items,
     courierCharges,
+    otherCharges,
     gstPercent,
+    termsAndConditions,
     // Persist shared type for UI; per-item values live on items
     discountType,
     discountValue: 0,
@@ -228,11 +250,35 @@ async function attachProductImagesToQuotationItems(items = []) {
   });
 }
 
+function buildQuotationDocument(normalized, { status = 'draft', existing = null, sentBy = null } = {}) {
+  return {
+    status,
+    items: normalized.items,
+    courierCharges: normalized.courierCharges,
+    otherCharges: normalized.otherCharges,
+    gstPercent: normalized.gstPercent,
+    discountType: normalized.discountType,
+    discountValue: normalized.discountValue,
+    termsAndConditions: normalized.termsAndConditions,
+    itemsSubtotal: normalized.itemsSubtotal,
+    discountTotal: normalized.discountTotal,
+    taxableAmount: normalized.taxableAmount,
+    gstAmount: normalized.gstAmount,
+    grandTotal: normalized.grandTotal,
+    savedAt: new Date(),
+    sentAt: status === 'sent' ? new Date() : existing?.sentAt || null,
+    sentBy: status === 'sent' ? sentBy : existing?.sentBy || null,
+  };
+}
+
 module.exports = {
   ALLOWED_GST,
+  BANK_DETAILS,
   round2,
   lineDiscount,
   normalizeQuotationPayload,
+  normalizeTermsAndConditions,
+  buildQuotationDocument,
   validateQuotationForSend,
   seedQuotationItemsFromOrder,
   enrichOrderItemsWithCategories,

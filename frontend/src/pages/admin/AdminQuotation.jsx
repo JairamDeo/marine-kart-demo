@@ -7,8 +7,10 @@ import {
   Mail,
   MapPin,
   Phone,
+  Plus,
   Save,
   Send,
+  Trash2,
   Truck,
   UserRound,
 } from 'lucide-react';
@@ -133,7 +135,14 @@ function lineDiscount(amount, quantity, discountType, discountValue) {
   return 0;
 }
 
-function computeTotals(items, courierCharges, gstPercent, discountType) {
+function mapServerTerms(rows = []) {
+  return (rows || []).map((row) => ({
+    label: row.label || '',
+    value: row.value || '',
+  }));
+}
+
+function computeTotals(items, courierCharges, otherCharges, gstPercent, discountType) {
   const itemsGross = items.reduce(
     (s, i) => s + (Number(i.amount) || 0) * (Number(i.quantity) || 0),
     0
@@ -151,7 +160,8 @@ function computeTotals(items, courierCharges, gstPercent, discountType) {
   );
   const itemsSubtotal = Math.round((itemsGross - discountTotal) * 100) / 100;
   const courier = Math.max(0, Number(courierCharges) || 0);
-  const taxable = Math.round((itemsSubtotal + courier) * 100) / 100;
+  const other = Math.max(0, Number(otherCharges) || 0);
+  const taxable = Math.round((itemsSubtotal + courier + other) * 100) / 100;
   const gst = Math.round(((taxable * (Number(gstPercent) || 0)) / 100) * 100) / 100;
   const grandTotal = Math.round((taxable + gst) * 100) / 100;
   return {
@@ -162,6 +172,7 @@ function computeTotals(items, courierCharges, gstPercent, discountType) {
     gstAmount: gst,
     grandTotal,
     courier,
+    other,
   };
 }
 
@@ -197,8 +208,10 @@ export default function AdminQuotation() {
   const [busy, setBusy] = useState('');
   const [items, setItems] = useState([]);
   const [courierCharges, setCourierCharges] = useState('0');
+  const [otherCharges, setOtherCharges] = useState('0');
   const [gstPercent, setGstPercent] = useState(0);
   const [discountType, setDiscountType] = useState('percent');
+  const [termsAndConditions, setTermsAndConditions] = useState([]);
   const [pageSize, setPageSize] = useState(() => readPageSizePref());
   const [customPageSize, setCustomPageSize] = useState('');
   const [page, setPage] = useState(1);
@@ -224,7 +237,10 @@ export default function AdminQuotation() {
         const serverItems = mapServerItems(q.items?.length ? q.items : o.items || []);
         const serverCourier =
           q.courierCharges === 0 || q.courierCharges == null ? '0' : String(q.courierCharges);
+        const serverOther =
+          q.otherCharges === 0 || q.otherCharges == null ? '0' : String(q.otherCharges);
         const serverGst = q.gstPercent || 0;
+        const serverTerms = mapServerTerms(q.termsAndConditions);
         const fromItem = (q.items || []).find(
           (i) => i.discountType === 'amount' || i.discountType === 'percent'
         );
@@ -237,8 +253,10 @@ export default function AdminQuotation() {
 
         let nextItems = serverItems;
         let nextCourier = serverCourier;
+        let nextOther = serverOther;
         let nextGst = serverGst;
         let nextDiscountType = serverDiscountType;
+        let nextTerms = serverTerms;
 
         if (!alreadySent) {
           const cached = readQuotationCache(id);
@@ -249,11 +267,18 @@ export default function AdminQuotation() {
               cached.courierCharges === 0 || cached.courierCharges == null
                 ? '0'
                 : String(cached.courierCharges);
+            nextOther =
+              cached.otherCharges === 0 || cached.otherCharges == null
+                ? '0'
+                : String(cached.otherCharges);
             nextGst = Number(cached.gstPercent) || 0;
             nextDiscountType =
               cached.discountType === 'amount' || cached.discountType === 'percent'
                 ? cached.discountType
                 : serverDiscountType;
+            nextTerms = Array.isArray(cached.termsAndConditions)
+              ? cached.termsAndConditions
+              : serverTerms;
             setLocalDraftRestored(true);
             toast.success('Restored unsaved quotation edits from this browser', {
               duration: 3500,
@@ -267,8 +292,10 @@ export default function AdminQuotation() {
 
         setItems(nextItems);
         setCourierCharges(nextCourier);
+        setOtherCharges(nextOther);
         setGstPercent(nextGst);
         setDiscountType(nextDiscountType);
+        setTermsAndConditions(nextTerms);
         setPage(1);
         setGotoDraft('1');
         cacheReady.current = true;
@@ -291,16 +318,18 @@ export default function AdminQuotation() {
       writeQuotationCache(id, {
         items,
         courierCharges,
+        otherCharges,
         gstPercent,
         discountType,
+        termsAndConditions,
       });
     }, 350);
     return () => clearTimeout(t);
-  }, [id, loading, readOnly, items, courierCharges, gstPercent, discountType]);
+  }, [id, loading, readOnly, items, courierCharges, otherCharges, gstPercent, discountType, termsAndConditions]);
 
   const totals = useMemo(
-    () => computeTotals(items, courierCharges, gstPercent, discountType),
-    [items, courierCharges, gstPercent, discountType]
+    () => computeTotals(items, courierCharges, otherCharges, gstPercent, discountType),
+    [items, courierCharges, otherCharges, gstPercent, discountType]
   );
 
   const safePageSize = clampPageSize(pageSize);
@@ -346,9 +375,30 @@ export default function AdminQuotation() {
       discountValue: Number(i.discountValue) || 0,
     })),
     courierCharges: Number(courierCharges) || 0,
+    otherCharges: Number(otherCharges) || 0,
     gstPercent: Number(gstPercent) || 0,
     discountType,
+    termsAndConditions: termsAndConditions
+      .map((t) => ({
+        label: String(t.label || '').trim(),
+        value: String(t.value || '').trim(),
+      }))
+      .filter((t) => t.label || t.value),
   });
+
+  const updateTerm = (idx, patch) => {
+    setTermsAndConditions((prev) =>
+      prev.map((row, i) => (i === idx ? { ...row, ...patch } : row))
+    );
+  };
+
+  const addTerm = () => {
+    setTermsAndConditions((prev) => [...prev, { label: '', value: '' }]);
+  };
+
+  const removeTerm = (idx) => {
+    setTermsAndConditions((prev) => prev.filter((_, i) => i !== idx));
+  };
 
   const updateItem = (idx, patch) => {
     setItems((prev) => prev.map((row, i) => (i === idx ? { ...row, ...patch } : row)));
@@ -643,6 +693,8 @@ export default function AdminQuotation() {
                                 src={thumb}
                                 alt=""
                                 className="h-8 w-8 shrink-0 rounded-md border border-gray-100 object-cover bg-gray-50"
+                                loading="lazy"
+                                decoding="async"
                               />
                               <p className="text-sm font-semibold leading-snug text-gray-900">
                                 {formatProductTitle(item)}
@@ -794,7 +846,7 @@ export default function AdminQuotation() {
               </div>
 
               <label className="mb-1 block text-xs font-medium text-gray-600">Courier (₹)</label>
-              <div className="relative mb-4">
+              <div className="relative mb-3">
                 <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">
                   ₹
                 </span>
@@ -805,6 +857,22 @@ export default function AdminQuotation() {
                   className={`${fieldClass} py-2.5 pl-7`}
                   value={courierCharges}
                   onChange={(e) => setCourierCharges(sanitizeDecimal(e.target.value))}
+                  placeholder="0"
+                />
+              </div>
+
+              <label className="mb-1 block text-xs font-medium text-gray-600">Other charges (₹)</label>
+              <div className="relative mb-4">
+                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">
+                  ₹
+                </span>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  disabled={readOnly}
+                  className={`${fieldClass} py-2.5 pl-7`}
+                  value={otherCharges}
+                  onChange={(e) => setOtherCharges(sanitizeDecimal(e.target.value))}
                   placeholder="0"
                 />
               </div>
@@ -847,10 +915,18 @@ export default function AdminQuotation() {
                     <span className="font-medium">{money(totals.discountTotal)}</span>
                   </div>
                 )}
-                <div className="flex justify-between text-white/80">
-                  <span>Courier</span>
-                  <span className="font-medium text-white">{money(totals.courier)}</span>
-                </div>
+                {totals.courier > 0 && (
+                  <div className="flex justify-between text-white/80">
+                    <span>Courier</span>
+                    <span className="font-medium text-white">{money(totals.courier)}</span>
+                  </div>
+                )}
+                {totals.other > 0 && (
+                  <div className="flex justify-between text-white/80">
+                    <span>Other charges</span>
+                    <span className="font-medium text-white">{money(totals.other)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-white/80">
                   <span>GST ({gstPercent}%)</span>
                   <span className="font-medium text-white">{money(totals.gstAmount)}</span>
@@ -888,6 +964,81 @@ export default function AdminQuotation() {
             )}
           </div>
         </div>
+      </div>
+
+      <div className="mt-4">
+        <section className="overflow-hidden rounded-2xl border border-gray-100/80 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.04)]">
+          <div className="flex items-center justify-between border-b border-gray-100 bg-gradient-to-r from-[#0b2c5f] to-[#1a4b8c] px-4 py-2.5">
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-white">
+              Terms & conditions
+            </p>
+            {!readOnly && (
+              <button
+                type="button"
+                onClick={addTerm}
+                className="inline-flex cursor-pointer items-center gap-1 rounded-lg bg-white/15 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-white transition hover:bg-white/25"
+              >
+                <Plus size={12} />
+                Add term
+              </button>
+            )}
+          </div>
+          <div className="space-y-2.5 p-4">
+            {termsAndConditions.length === 0 ? (
+              <p className="rounded-xl border border-dashed border-gray-200 bg-[#fafbfd] px-3 py-6 text-center text-xs text-gray-400">
+                {readOnly
+                  ? 'No terms added for this quotation.'
+                  : 'Optional — add payment, delivery, or other terms for the PDF.'}
+              </p>
+            ) : (
+              termsAndConditions.map((term, idx) => (
+                <div
+                  key={`term-${idx}`}
+                  className="grid gap-2 rounded-xl border border-gray-100 bg-[#fafcfd] p-3 sm:grid-cols-[1fr_1.4fr_auto]"
+                >
+                  <div>
+                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-gray-400">
+                      Label
+                    </label>
+                    <input
+                      type="text"
+                      disabled={readOnly}
+                      className={fieldClass}
+                      value={term.label}
+                      onChange={(e) => updateTerm(idx, { label: e.target.value })}
+                      placeholder="e.g. Payment"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-gray-400">
+                      Value
+                    </label>
+                    <input
+                      type="text"
+                      disabled={readOnly}
+                      className={fieldClass}
+                      value={term.value}
+                      onChange={(e) => updateTerm(idx, { value: e.target.value })}
+                      placeholder="e.g. 100% advance"
+                    />
+                  </div>
+                  {!readOnly && (
+                    <div className="flex items-end">
+                      <button
+                        type="button"
+                        onClick={() => removeTerm(idx)}
+                        className="inline-flex h-[38px] w-full cursor-pointer items-center justify-center rounded-lg border border-rose-100 bg-rose-50 text-rose-600 transition hover:bg-rose-100 sm:w-10"
+                        aria-label="Remove term"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </section>
       </div>
     </div>
   );

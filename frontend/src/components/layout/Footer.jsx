@@ -118,6 +118,11 @@ export default function Footer() {
                   Contact Us
                 </Link>
               </li>
+              <li>
+                <Link to="/product-not-listed" className="hover:text-cyan">
+                  Product Not Listed
+                </Link>
+              </li>
             </ul>
           </div>
 

@@ -666,6 +666,76 @@ function enquiryThankYouEmail({ name }) {
   };
 }
 
+function otherProductThankYouEmail({ name, productName }) {
+  const safeName = escapeHtml(name || 'there');
+  const safeProduct = escapeHtml(productName || 'your product');
+  return {
+    subject: 'Product enquiry received — MarineKart',
+    html: wrapEmail({
+      title: 'Enquiry received',
+      eyebrow: 'Product not listed',
+      preheader: `We received your enquiry for ${productName || 'a product'}.`,
+      bodyHtml: `
+        <p style="margin:0 0 12px;">Hi ${safeName},</p>
+        <p style="margin:0 0 16px;">Thank you for submitting an enquiry for <strong>${safeProduct}</strong>. Our sourcing team will review your request and contact you shortly.</p>
+        <p style="margin:0;">${ctaButton(siteUrl('/shop'), 'Browse catalog')}</p>
+      `,
+    }),
+    text: `Hi ${name || 'there'},\n\nThank you for your product enquiry (${productName}). We will contact you shortly.\n\n— MarineKart`,
+  };
+}
+
+function adminOtherProductEmail({
+  customerName,
+  email,
+  phone,
+  productName,
+  categoryName,
+  subcategoryName,
+  description,
+  quantity,
+  address,
+  deliveryAddress,
+  imageCount,
+  when,
+}) {
+  const addr = deliveryAddress || {};
+  const addressLine = escapeHtml(
+    [addr.line1, addr.line2, addr.city, addr.state, addr.postalCode].filter(Boolean).join(', ') ||
+      address ||
+      '—'
+  );
+  const whenSafe = escapeHtml(when || new Date().toLocaleString('en-IN'));
+
+  return {
+    subject: `Other product enquiry — ${productName || 'MarineKart'}`,
+    html: wrapEmail({
+      title: 'Other product enquiry',
+      eyebrow: 'Product not listed',
+      preheader: `${customerName || 'Customer'} enquired about ${productName || 'a product'}`,
+      bodyHtml: `
+        <p style="margin:0 0 16px;">A logged-in customer submitted a product-not-listed enquiry.</p>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:18px;">
+          ${metaRow('Time', whenSafe)}
+          ${metaRow('Customer', escapeHtml(customerName || '—'))}
+          ${metaRow('Email', escapeHtml(email || '—'))}
+          ${metaRow('Mobile', escapeHtml(phone || '—'))}
+          ${metaRow('Product', escapeHtml(productName || '—'))}
+          ${metaRow('Category', escapeHtml(categoryName || '—'))}
+          ${metaRow('Subcategory', escapeHtml(subcategoryName || '—'))}
+          ${metaRow('Quantity', escapeHtml(String(quantity || 1)))}
+          ${metaRow('Reference images', escapeHtml(String(imageCount || 0)))}
+          ${metaRow('Address', addressLine)}
+        </table>
+        <p style="margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:${BRAND.muted};">Description</p>
+        <div style="padding:14px 16px;background:${BRAND.soft};border:1px solid ${BRAND.line};border-radius:12px;color:#334155;line-height:1.65;margin-bottom:20px;">${escapeHtml(description || '').replace(/\n/g, '<br />')}</div>
+        <p style="margin:0;">${ctaButton(siteUrl('/admin/other-products'), 'View in admin')}</p>
+      `,
+    }),
+    text: `Other product enquiry\n\nTime: ${when || ''}\nCustomer: ${customerName}\nEmail: ${email}\nPhone: ${phone}\nProduct: ${productName}\nCategory: ${categoryName}\nSubcategory: ${subcategoryName}\nQty: ${quantity}\nAddress: ${address}\n\n${description}`,
+  };
+}
+
 module.exports = {
   verificationOtpEmail,
   passwordResetOtpEmail,
@@ -681,4 +751,6 @@ module.exports = {
   customerQuotationSentEmail,
   adminNewEnquiryEmail,
   enquiryThankYouEmail,
+  adminOtherProductEmail,
+  otherProductThankYouEmail,
 };

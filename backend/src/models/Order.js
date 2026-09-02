@@ -50,6 +50,14 @@ const quotationItemSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const quotationTermSchema = new mongoose.Schema(
+  {
+    label: { type: String, default: '', trim: true },
+    value: { type: String, default: '', trim: true },
+  },
+  { _id: false }
+);
+
 const quotationSchema = new mongoose.Schema(
   {
     status: {
@@ -59,6 +67,7 @@ const quotationSchema = new mongoose.Schema(
     },
     items: [quotationItemSchema],
     courierCharges: { type: Number, default: 0, min: 0 },
+    otherCharges: { type: Number, default: 0, min: 0 },
     gstPercent: { type: Number, default: 0, enum: [0, 5, 12, 18, 28] },
     /** Enquiry-level discount (applies to all items together) */
     discountType: {
@@ -67,6 +76,7 @@ const quotationSchema = new mongoose.Schema(
       default: 'none',
     },
     discountValue: { type: Number, default: 0, min: 0 },
+    termsAndConditions: { type: [quotationTermSchema], default: [] },
     itemsSubtotal: { type: Number, default: 0 },
     discountTotal: { type: Number, default: 0 },
     taxableAmount: { type: Number, default: 0 },
@@ -117,7 +127,7 @@ const orderSchema = new mongoose.Schema(
     },
     quotation: {
       type: quotationSchema,
-      default: () => ({ status: 'none', items: [], courierCharges: 0, gstPercent: 0 }),
+      default: () => ({ status: 'none', items: [], courierCharges: 0, otherCharges: 0, gstPercent: 0 }),
     },
     notes: { type: String, default: '' },
     cancelledBy: {

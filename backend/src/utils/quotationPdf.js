@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const PDFDocument = require('pdfkit');
 const { formatProductTitle } = require('./productTitle');
+const { BANK_DETAILS } = require('./quotation');
 
 const ASSETS = path.join(__dirname, '../assets/quotation');
 const LOGO_PATH = path.join(ASSETS, 'logo-header.png');
@@ -442,12 +443,14 @@ function buildQuotationPdf({ order, customer, customerName, sentAtLabel: _sentAt
     const itemsGross = Number(q.itemsSubtotal || 0) + Number(q.discountTotal || 0);
 
     let ty = doc.y;
-    for (const [label, value] of [
+    const totalRows = [
       ['Items subtotal', money(itemsGross)],
       ...(Number(q.discountTotal) > 0 ? [['Discount', `- ${money(q.discountTotal)}`]] : []),
-      ['Courier charges', money(q.courierCharges)],
+      ...(Number(q.courierCharges) > 0 ? [['Courier charges', money(q.courierCharges)]] : []),
+      ...(Number(q.otherCharges) > 0 ? [['Other charges', money(q.otherCharges)]] : []),
       [`GST (${q.gstPercent || 0}%)`, money(q.gstAmount)],
-    ]) {
+    ];
+    for (const [label, value] of totalRows) {
       doc.fillColor(COLORS.muted).font('Helvetica').fontSize(8.5);
       doc.text(label, totalsX, ty, { width: 105, lineBreak: false });
       doc
@@ -476,65 +479,82 @@ function buildQuotationPdf({ order, customer, customerName, sentAtLabel: _sentAt
     doc.y = grandY + grandH + 10;
     doc.x = PAGE.marginLeft;
 
-    // Terms + bank + thank-you — keep on one page when possible (no extra blank page)
-    const termsSectionH = 150;
-    ensureSpace(doc, termsSectionH);
-    sectionTitle(doc, 'TERMS, CONDITIONS & BANK DETAILS');
-
-    const gap = 12;
-    const halfW = (contentW - gap) / 2;
-    const boxTop = doc.y;
+    // Bank details first (full width), then terms below
+    const terms = (q.termsAndConditions || []).filter((t) => t?.label || t?.value);
     const barH = 20;
-    const boxH = 92;
-    const bankX = PAGE.marginLeft + halfW + gap;
+    const bankBodyH = 38;
+    const bankBoxH = barH + bankBodyH;
+    const termRowH = 22;
+    const termsBoxH = terms.length ? barH + 10 + terms.length * termRowH + 4 : 0;
+    const termsSectionH = bankBoxH + (terms.length ? 12 + termsBoxH : 0) + 18;
+    ensureSpace(doc, termsSectionH);
 
-    for (const [x, label] of [
-      [PAGE.marginLeft, 'TERMS AND CONDITIONS'],
-      [bankX, 'BANK DETAILS'],
-    ]) {
-      doc.roundedRect(x, boxTop, halfW, boxH, 6).fill(COLORS.soft);
-      doc.roundedRect(x, boxTop, halfW, barH, 6).fill(COLORS.navy);
-      doc.rect(x, boxTop + barH - 6, halfW, 6).fill(COLORS.navy);
-      doc
-        .fillColor(COLORS.white)
-        .font('Helvetica-Bold')
-        .fontSize(8)
-        .text(label, x + 10, boxTop + 6, { lineBreak: false });
-    }
+    const boxTop = doc.y;
 
-    const bodyY = boxTop + barH + 10;
-    doc.fillColor(COLORS.muted).font('Helvetica').fontSize(7);
-    doc.text('PAYMENT', PAGE.marginLeft + 10, bodyY, { lineBreak: false });
+    // Bank details — full width, 2 fields per row
+    doc.roundedRect(PAGE.marginLeft, boxTop, contentW, bankBoxH, 6).fill(COLORS.soft);
+    doc.roundedRect(PAGE.marginLeft, boxTop, contentW, barH, 6).fill(COLORS.navy);
+    doc.rect(PAGE.marginLeft, boxTop + barH - 6, contentW, 6).fill(COLORS.navy);
     doc
-      .fillColor(COLORS.navy)
+      .fillColor(COLORS.white)
       .font('Helvetica-Bold')
-      .fontSize(10)
-      .text('100% ADVANCE', PAGE.marginLeft + 10, bodyY + 11, { lineBreak: false });
-    doc.fillColor(COLORS.muted).font('Helvetica').fontSize(7);
-    doc.text('DELIVERY', PAGE.marginLeft + 10, bodyY + 34, { lineBreak: false });
-    doc
-      .fillColor(COLORS.navy)
-      .font('Helvetica-Bold')
-      .fontSize(10)
-      .text('EX-STOCK', PAGE.marginLeft + 10, bodyY + 45, { lineBreak: false });
+      .fontSize(8)
+      .text('BANK DETAILS', PAGE.marginLeft + 10, boxTop + 6, { lineBreak: false });
 
-    const bankLines = [
-      ['Bank name', 'BANK OF BARODA'],
-      ['Account name', 'MARINEKART INDIA'],
-      ['Account no.', '26080400000547'],
-      ['IFSC & branch', 'BARB0PONDAX & PONDA BRANCH'],
+    const bankBodyY = boxTop + barH + 10;
+    const bankColW = (contentW - 20 - 10) / 2;
+    const bankPairs = [
+      [BANK_DETAILS[0], BANK_DETAILS[1]],
+      [BANK_DETAILS[2], BANK_DETAILS[3]],
     ];
-    let by = bodyY + 2;
-    for (const [label, value] of bankLines) {
+    let by = bankBodyY;
+    for (const [left, right] of bankPairs) {
       doc
         .fillColor(COLORS.ink)
         .font('Helvetica')
         .fontSize(7.5)
-        .text(`${label} - ${value}`, bankX + 10, by, { width: halfW - 20, lineBreak: false });
+        .text(`${left[0]} - ${left[1]}`, PAGE.marginLeft + 10, by, {
+          width: bankColW,
+          lineBreak: false,
+        });
+      doc.text(`${right[0]} - ${right[1]}`, PAGE.marginLeft + 10 + bankColW + 10, by, {
+        width: bankColW,
+        lineBreak: false,
+      });
       by += 14;
     }
 
-    doc.y = boxTop + boxH + 18;
+    let sectionBottom = boxTop + bankBoxH;
+
+    if (terms.length) {
+      const termsTop = sectionBottom + 12;
+      doc.roundedRect(PAGE.marginLeft, termsTop, contentW, termsBoxH, 6).fill(COLORS.soft);
+      doc.roundedRect(PAGE.marginLeft, termsTop, contentW, barH, 6).fill(COLORS.navy);
+      doc.rect(PAGE.marginLeft, termsTop + barH - 6, contentW, 6).fill(COLORS.navy);
+      doc
+        .fillColor(COLORS.white)
+        .font('Helvetica-Bold')
+        .fontSize(8)
+        .text('TERMS AND CONDITIONS', PAGE.marginLeft + 10, termsTop + 6, { lineBreak: false });
+
+      let tY = termsTop + barH + 10;
+      for (const term of terms) {
+        doc.fillColor(COLORS.muted).font('Helvetica').fontSize(7);
+        doc.text(String(term.label || '').toUpperCase(), PAGE.marginLeft + 10, tY, { lineBreak: false });
+        doc
+          .fillColor(COLORS.navy)
+          .font('Helvetica-Bold')
+          .fontSize(10)
+          .text(String(term.value || ''), PAGE.marginLeft + 10, tY + 11, {
+            width: contentW - 20,
+            lineBreak: false,
+          });
+        tY += termRowH;
+      }
+      sectionBottom = termsTop + termsBoxH;
+    }
+
+    doc.y = sectionBottom + 18;
     doc.x = PAGE.marginLeft;
 
     const thanksY = doc.y;

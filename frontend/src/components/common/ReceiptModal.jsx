@@ -1,6 +1,10 @@
 import { useEffect } from 'react';
 import OrderReceipt from './OrderReceipt';
 import OrderItemsTable from './OrderItemsTable';
+import {
+  QuotationTermsList,
+  QuotationTotalsBreakdown,
+} from './QuotationDetails';
 import { formatProductTitle } from '../../utils/productTitle';
 import { productImageUrl } from '../../utils/productImage';
 import { FileText } from 'lucide-react';
@@ -63,6 +67,8 @@ function QuotationItemsPanel({ quotation }) {
                           src={thumb}
                           alt=""
                           className="h-8 w-8 shrink-0 rounded-md border border-gray-100 bg-gray-50 object-cover"
+                          loading="lazy"
+                          decoding="async"
                         />
                         <p className="min-w-0 text-sm font-semibold leading-snug text-gray-900">
                           {formatProductTitle(item)}
@@ -80,15 +86,18 @@ function QuotationItemsPanel({ quotation }) {
         </table>
       </div>
       {quotation?.grandTotal != null && (
-        <div className="flex items-center justify-between border-t border-gray-100 bg-[#fafbfd] px-4 py-3">
-          <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-            Grand total
-          </span>
-          <span className="text-base font-bold text-navy">{money(quotation.grandTotal)}</span>
+        <div className="border-t border-gray-100 bg-[#fafbfd] px-4 py-3">
+          <QuotationTotalsBreakdown quotation={quotation} compact />
         </div>
       )}
     </div>
   );
+}
+
+function QuotationExtrasPanel({ quotation }) {
+  const hasTerms = (quotation?.termsAndConditions || []).some((t) => t?.label || t?.value);
+  if (!hasTerms) return null;
+  return <QuotationTermsList terms={quotation?.termsAndConditions} />;
 }
 
 /**
@@ -137,7 +146,10 @@ export default function ReceiptModal({ open, onClose, order, footer, forCustomer
           </div>
           <div className="space-y-3 lg:col-span-7">
             {quoteSent ? (
-              <QuotationItemsPanel quotation={order.quotation} />
+              <>
+                <QuotationItemsPanel quotation={order.quotation} />
+                <QuotationExtrasPanel quotation={order.quotation} />
+              </>
             ) : (
               <OrderItemsTable items={order.items || []} />
             )}

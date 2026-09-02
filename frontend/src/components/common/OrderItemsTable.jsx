@@ -92,6 +92,8 @@ export default function OrderItemsTable({ items = [] }) {
                           src={thumb}
                           alt=""
                           className="h-9 w-9 shrink-0 rounded-md border border-gray-100 bg-gray-50 object-cover"
+                          loading="lazy"
+                          decoding="async"
                         />
                         <p className="min-w-0 font-semibold leading-snug text-gray-900">
                           {formatProductTitle(item)}

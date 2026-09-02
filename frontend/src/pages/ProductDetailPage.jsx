@@ -391,7 +391,13 @@ export default function ProductDetailPage() {
                   activeImg === i ? 'border-2 border-cyan' : 'border border-gray-200/80'
                 }`}
               >
-                <img src={src} alt="" className="h-full w-full object-contain p-1" />
+                <img
+                  src={src}
+                  alt=""
+                  className="h-full w-full object-contain p-1"
+                  loading="lazy"
+                  decoding="async"
+                />
               </button>
             ))}
           </div>

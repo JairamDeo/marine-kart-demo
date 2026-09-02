@@ -32,6 +32,10 @@ export const adminService = {
   createQuotation: (id, payload) => apiClient.post(API.ADMIN_ORDER_QUOTATION_CREATE(id), payload),
   sendQuotation: (id, payload) => apiClient.post(API.ADMIN_ORDER_QUOTATION_SEND(id), payload),
 
+  otherProducts: (params) => apiClient.get(API.ADMIN_OTHER_PRODUCTS, { params }),
+  getOtherProduct: (id) => apiClient.get(API.ADMIN_OTHER_PRODUCT(id)),
+  updateOtherProduct: (id, payload) => apiClient.patch(API.ADMIN_OTHER_PRODUCT(id), payload),
+
   uploadImage: (file, section = 'products') => {
     const form = new FormData();
     form.append('image', file);

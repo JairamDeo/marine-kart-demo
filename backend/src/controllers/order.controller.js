@@ -14,6 +14,7 @@ const {
 } = require('../utils/orderStatus');
 const {
   normalizeQuotationPayload,
+  buildQuotationDocument,
   validateQuotationForSend,
   seedQuotationItemsFromOrder,
   enrichOrderItemsWithCategories,
@@ -160,7 +161,7 @@ exports.placeOrder = asyncHandler(async (req, res) => {
         paymentMethod,
         paymentStatus: paymentMethod === 'cod' ? 'pending' : 'pending',
         orderStatus: 'enquiry_received',
-        quotation: { status: 'none', items: [], courierCharges: 0, gstPercent: 0 },
+        quotation: { status: 'none', items: [], courierCharges: 0, otherCharges: 0, gstPercent: 0 },
         notes,
         statusHistory: [
           historyEntry({
@@ -661,9 +662,11 @@ exports.getQuotation = asyncHandler(async (req, res) => {
       status: quotation.status === 'sent' ? 'sent' : quotation.status || 'none',
       items: quotation.items?.length ? quotation.items : seedQuotationItemsFromOrder(order),
       courierCharges: quotation.courierCharges || 0,
+      otherCharges: quotation.otherCharges || 0,
       gstPercent: quotation.gstPercent || 0,
       discountType: quotation.discountType || 'none',
       discountValue: quotation.discountValue || 0,
+      termsAndConditions: quotation.termsAndConditions || [],
     };
   } else {
     // Fill missing category names from enriched order items
@@ -729,22 +732,10 @@ exports.createQuotation = asyncHandler(async (req, res) => {
     return res.status(400).json({ success: false, message: check.message });
   }
 
-  order.quotation = {
+  order.quotation = buildQuotationDocument(normalized, {
     status: 'draft',
-    items: normalized.items,
-    courierCharges: normalized.courierCharges,
-    gstPercent: normalized.gstPercent,
-    discountType: normalized.discountType,
-    discountValue: normalized.discountValue,
-    itemsSubtotal: normalized.itemsSubtotal,
-    discountTotal: normalized.discountTotal,
-    taxableAmount: normalized.taxableAmount,
-    gstAmount: normalized.gstAmount,
-    grandTotal: normalized.grandTotal,
-    savedAt: new Date(),
-    sentAt: order.quotation?.sentAt || null,
-    sentBy: order.quotation?.sentBy || null,
-  };
+    existing: order.quotation,
+  });
   applyUpdateAudit(order, req.user, 'update', 'Quotation created (not sent)');
   await order.save();
 
@@ -777,22 +768,10 @@ exports.saveQuotationDraft = asyncHandler(async (req, res) => {
   }
 
   const normalized = normalizeQuotationPayload(req.body, order.items);
-  order.quotation = {
+  order.quotation = buildQuotationDocument(normalized, {
     status: 'draft',
-    items: normalized.items,
-    courierCharges: normalized.courierCharges,
-    gstPercent: normalized.gstPercent,
-    discountType: normalized.discountType,
-    discountValue: normalized.discountValue,
-    itemsSubtotal: normalized.itemsSubtotal,
-    discountTotal: normalized.discountTotal,
-    taxableAmount: normalized.taxableAmount,
-    gstAmount: normalized.gstAmount,
-    grandTotal: normalized.grandTotal,
-    savedAt: new Date(),
-    sentAt: order.quotation?.sentAt || null,
-    sentBy: order.quotation?.sentBy || null,
-  };
+    existing: order.quotation,
+  });
   applyUpdateAudit(order, req.user, 'update', 'Quotation draft saved');
   await order.save();
 
@@ -832,25 +811,14 @@ exports.sendQuotation = asyncHandler(async (req, res) => {
   const actor = stampFromUser(req.user);
   const fromStatus = order.orderStatus;
 
-  order.quotation = {
+  order.quotation = buildQuotationDocument(normalized, {
     status: 'sent',
-    items: normalized.items,
-    courierCharges: normalized.courierCharges,
-    gstPercent: normalized.gstPercent,
-    discountType: normalized.discountType,
-    discountValue: normalized.discountValue,
-    itemsSubtotal: normalized.itemsSubtotal,
-    discountTotal: normalized.discountTotal,
-    taxableAmount: normalized.taxableAmount,
-    gstAmount: normalized.gstAmount,
-    grandTotal: normalized.grandTotal,
-    savedAt: new Date(),
-    sentAt: new Date(),
+    existing: order.quotation,
     sentBy: req.user._id,
-  };
+  });
   order.subtotal = normalized.itemsSubtotal;
   order.discount = normalized.discountTotal;
-  order.shippingCost = normalized.courierCharges;
+  order.shippingCost = normalized.courierCharges + normalized.otherCharges;
   order.total = normalized.grandTotal;
   order.orderStatus = 'quotation_sent';
   order.statusHistory.push(

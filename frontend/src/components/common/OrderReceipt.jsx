@@ -1,5 +1,9 @@
 import { X, UserRound } from 'lucide-react';
 import OrderTracker from './OrderTracker';
+import {
+  QuotationTermsList,
+  QuotationTotalsBreakdown,
+} from './QuotationDetails';
 import { formatOrderStatus } from '../../utils/orderStatusShared';
 import { formatProductTitle } from '../../utils/productTitle';
 
@@ -200,43 +204,13 @@ export default function OrderReceipt({
               </ul>
             )}
 
-            <div className="flex justify-between text-gray-600">
-              <span>Items subtotal</span>
-              <span className="font-medium text-gray-900">
-                ₹
-                {(
-                  Number(order.quotation.itemsSubtotal || 0) +
-                  Number(order.quotation.discountTotal || 0)
-                ).toLocaleString('en-IN')}
-              </span>
-            </div>
-            {Number(order.quotation.discountTotal) > 0 && (
-              <div className="mt-1 flex justify-between text-gray-600">
-                <span>Discount</span>
-                <span className="font-medium text-gray-900">
-                  ₹{Number(order.quotation.discountTotal || 0).toLocaleString('en-IN')}
-                </span>
-              </div>
-            )}
-            <div className="mt-1 flex justify-between text-gray-600">
-              <span>Courier</span>
-              <span className="font-medium text-gray-900">
-                ₹{Number(order.quotation.courierCharges || 0).toLocaleString('en-IN')}
-              </span>
-            </div>
-            <div className="mt-1 flex justify-between text-gray-600">
-              <span>GST ({order.quotation.gstPercent || 0}%)</span>
-              <span className="font-medium text-gray-900">
-                ₹{Number(order.quotation.gstAmount || 0).toLocaleString('en-IN')}
-              </span>
-            </div>
-            <div className="mt-2 flex items-center justify-between border-t border-white/70 pt-2">
-              <span className="font-bold text-gray-900">Grand total</span>
-              <span className="text-base font-bold text-[#1a4b8c]">
-                ₹{Number(order.quotation.grandTotal || 0).toLocaleString('en-IN')}
-              </span>
-            </div>
+            <QuotationTotalsBreakdown quotation={order.quotation} compact />
           </div>
+        )}
+
+        {order.quotation?.status === 'sent' &&
+          (order.quotation.termsAndConditions || []).some((t) => t?.label || t?.value) && (
+          <QuotationTermsList terms={order.quotation.termsAndConditions} />
         )}
 
         <OrderTracker order={order} forCustomer={forCustomer} />

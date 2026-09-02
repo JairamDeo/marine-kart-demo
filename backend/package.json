@@ -10,6 +10,7 @@
     "seed:catalog": "node src/seeders/seedTestCatalog.js",
     "seed:excel": "node src/seeders/seedFromExcel.js",
     "seed:images": "node src/seeders/uploadLocalProductImages.js",
+    "seed:marinekart-images": "node src/seeders/uploadMarinekartCatalogImages.js",
     "seed:category-images": "node src/seeders/assignCategoryImages.js",
     "seed:placeholder": "node src/seeders/createPlaceholderWebp.js",
     "seed:related": "node src/seeders/linkRelatedProducts.js",

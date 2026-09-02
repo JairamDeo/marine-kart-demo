@@ -59,6 +59,8 @@ export const API = {
   BANNERS: '/content/banners',
   PAGE: (slug) => `/content/pages/${slug}`,
   CONTACT: '/content/contact',
+  OTHER_PRODUCTS: '/other-products',
+  OTHER_PRODUCT_UPLOADS: '/other-products/uploads',
   BLOGS: '/content/blogs',
   BLOG_BY_SLUG: (slug) => `/content/blogs/${slug}`,
 
@@ -94,4 +96,6 @@ export const API = {
   ADMIN_ORDER_QUOTATION_PDF: (id) => `/orders/${id}/quotation/pdf`,
   ADMIN_UPLOAD: '/admin/uploads',
   ADMIN_UPLOAD_MANY: '/admin/uploads/many',
+  ADMIN_OTHER_PRODUCTS: '/other-products',
+  ADMIN_OTHER_PRODUCT: (id) => `/other-products/${id}`,
 };

@@ -49,6 +49,7 @@ app.use('/api/cart', cartRoutes);
 app.use('/api/wishlist', wishlistRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/content', contentRoutes);
+app.use('/api/other-products', require('./routes/otherProduct.routes'));
 app.use('/api/admin', adminRoutes);
 app.use('/api/notifications', require('./routes/notification.routes'));
 

@@ -97,6 +97,7 @@ export default function ProductImageLightbox({
             src={src}
             alt={`${alt} ${safeIndex + 1}`}
             className="max-h-[55vh] w-full max-w-full object-contain sm:max-h-[60vh]"
+            loading="lazy"
             decoding="async"
           />
 

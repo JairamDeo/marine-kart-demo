@@ -136,6 +136,9 @@ export default function Navbar({ categories = [] }) {
           <NavLink to="/contact-us" className={linkClass}>
             Contact Us
           </NavLink>
+          <NavLink to="/product-not-listed" className={linkClass}>
+            Product Not Listed
+          </NavLink>
         </nav>
 
         <div className="ml-auto hidden items-center gap-2 py-2.5 text-sm text-white min-[400px]:flex lg:py-2">
@@ -154,6 +157,7 @@ export default function Navbar({ categories = [] }) {
           { to: '/shop', label: 'Shop' },
           { to: '/about-us', label: 'About Us' },
           { to: '/contact-us', label: 'Contact Us' },
+          { to: '/product-not-listed', label: 'Product Not Listed' },
         ].map((item) => (
           <Link
             key={item.to}

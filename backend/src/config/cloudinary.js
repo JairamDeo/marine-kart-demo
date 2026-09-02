@@ -28,6 +28,7 @@ const FOLDERS = {
   accounts: 'marinekart/accounts',
   banners: 'marinekart/banners',
   other: 'marinekart/other',
+  enquiries: 'marinekart/enquiries',
 };
 
 function resolveFolder(section = 'other') {

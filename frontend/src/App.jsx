@@ -24,6 +24,7 @@ import CmsPage from './pages/CmsPage';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import AboutPage from './pages/AboutPage';
 import ContactPage from './pages/ContactPage';
+import ProductNotListedPage from './pages/ProductNotListedPage';
 import NotFoundPage from './pages/NotFoundPage';
 import AdminLayout from './pages/admin/AdminLayout';
 import AdminCustomers from './pages/admin/AdminCustomers';
@@ -33,6 +34,7 @@ import AdminCategories from './pages/admin/AdminCategories';
 import AdminSubcategories from './pages/admin/AdminSubcategories';
 import AdminOrders from './pages/admin/AdminOrders';
 import AdminQuotation from './pages/admin/AdminQuotation';
+import AdminOtherProducts from './pages/admin/AdminOtherProducts';
 
 function GlobalModals() {
   const { loginModal, closeLoginModal } = useAuth();
@@ -90,6 +92,7 @@ export default function App() {
                 }
               />
               <Route path="contact-us" element={<ContactPage />} />
+              <Route path="product-not-listed" element={<ProductNotListedPage />} />
 
               <Route path="*" element={<NotFoundPage />} />
             </Route>
@@ -108,6 +111,7 @@ export default function App() {
                 <Route path="approvals" element={<Navigate to="/admin/customers" replace />} />
                 <Route path="orders" element={<AdminOrders />} />
                 <Route path="orders/:id/quotation" element={<AdminQuotation />} />
+                <Route path="other-products" element={<AdminOtherProducts />} />
               </Route>
             </Route>
 
