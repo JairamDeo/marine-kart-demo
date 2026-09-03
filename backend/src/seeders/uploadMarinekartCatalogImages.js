@@ -1,14 +1,15 @@
 /**
- * Upload product images from MARINEKART-images/ to Cloudinary and update matching DB products.
+ * Upload product images from MARINEKART-images/ to Cloudinary and APPEND to matching DB products.
  *
  * Folder layout:
  *   MARINEKART-images/{catalog}/{subcategory}/{partNumber}.jpg
  *
  * Matches products by productId (same value as name / part number in catalog).
  * Products WITHOUT a local image are left unchanged.
+ * Existing gallery images are kept; new catalog images are added (not replaced).
  *
  * Usage:
- *   npm run seed:marinekart-images           # upload + update
+ *   npm run seed:marinekart-images           # upload + append
  *   npm run seed:marinekart-images -- --dry-run
  */
 require('dotenv').config();
@@ -218,6 +219,7 @@ async function main() {
 
   let updated = 0;
   let skipped = 0;
+  const PLACEHOLDER_RE = /product-placeholder|specification-placeholder/i;
 
   for (const product of products) {
     const hit = galleryByProduct.get(String(product._id));
@@ -225,8 +227,30 @@ async function main() {
       skipped += 1;
       continue;
     }
-    product.images = hit.urls;
-    product.imagePublicIds = hit.publicIds;
+
+    const existingUrls = Array.isArray(product.images) ? product.images.filter(Boolean) : [];
+    const existingIds = Array.isArray(product.imagePublicIds)
+      ? product.imagePublicIds.filter(Boolean)
+      : [];
+
+    const seen = new Set(
+      [...existingUrls, ...existingIds].filter((x) => x && !PLACEHOLDER_RE.test(String(x)))
+    );
+    const urls = existingUrls.filter((u) => u && !PLACEHOLDER_RE.test(String(u)));
+    const publicIds = existingIds.slice(0, urls.length);
+
+    for (let i = 0; i < hit.urls.length; i++) {
+      const url = hit.urls[i];
+      const publicId = hit.publicIds[i] || '';
+      if (!url || seen.has(url) || (publicId && seen.has(publicId))) continue;
+      seen.add(url);
+      if (publicId) seen.add(publicId);
+      urls.push(url);
+      publicIds.push(publicId);
+    }
+
+    product.images = urls.length ? urls : hit.urls;
+    product.imagePublicIds = urls.length ? publicIds : hit.publicIds;
     await product.save();
     updated += 1;
   }
@@ -234,7 +258,7 @@ async function main() {
   console.log(
     `\nDone.\n` +
       `  Files uploaded: ${uploadedFiles}\n` +
-      `  Products updated: ${updated}\n` +
+      `  Products updated (appended): ${updated}\n` +
       `  Products unchanged (no match in folder): ${skipped}`
   );
 
