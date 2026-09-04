@@ -357,8 +357,8 @@ function buildQuotationPdf({ order, customer, customerName, sentAtLabel: _sentAt
 
     sectionTitle(doc, 'QUOTATION DETAILS');
 
-    const col = { no: 26, qty: 34, rate: 68, disc: 52, amount: 76 };
-    const fixedCols = col.no + col.qty + col.rate + col.disc + col.amount;
+    const col = { no: 26, qty: 34, rate: 62, disc: 46, gst: 40, amount: 70 };
+    const fixedCols = col.no + col.qty + col.rate + col.disc + col.gst + col.amount;
     col.item = contentW - fixedCols;
     const tableX = PAGE.marginLeft;
     const tableW = contentW;
@@ -375,6 +375,7 @@ function buildQuotationPdf({ order, customer, customerName, sentAtLabel: _sentAt
         ['Qty', col.qty, 'center'],
         ['Unit amount', col.rate, 'right'],
         ['Discount', col.disc, 'right'],
+        ['GST %', col.gst, 'right'],
         ['Line total', col.amount, 'right'],
       ]) {
         doc.text(label, x + 4, y + 6, { width: w - 8, align, lineBreak: false });
@@ -393,6 +394,7 @@ function buildQuotationPdf({ order, customer, customerName, sentAtLabel: _sentAt
         item.lineTotal != null ? Number(item.lineTotal) : Math.round(amount * qty * 100) / 100;
       const gross = Math.round(amount * qty * 100) / 100;
       const disc = Math.max(0, Math.round((gross - lineTotal) * 100) / 100);
+      const gstPct = Number(item.gstPercent) || 0;
       const title = formatProductTitle(item);
       doc.font('Helvetica-Bold').fontSize(7.5);
       const titleH = doc.heightOfString(title, { width: col.item - 8 });
@@ -422,6 +424,8 @@ function buildQuotationPdf({ order, customer, customerName, sentAtLabel: _sentAt
       x += col.rate;
       doc.text(disc > 0 ? money(disc) : '—', x + 4, y + 7, { width: col.disc - 8, align: 'right', lineBreak: false });
       x += col.disc;
+      doc.text(gstPct > 0 ? `${gstPct}%` : '—', x + 4, y + 7, { width: col.gst - 8, align: 'right', lineBreak: false });
+      x += col.gst;
       doc
         .font('Helvetica-Bold')
         .fillColor(COLORS.navy)
@@ -448,7 +452,12 @@ function buildQuotationPdf({ order, customer, customerName, sentAtLabel: _sentAt
       ...(Number(q.discountTotal) > 0 ? [['Discount', `- ${money(q.discountTotal)}`]] : []),
       ...(Number(q.courierCharges) > 0 ? [['Courier charges', money(q.courierCharges)]] : []),
       ...(Number(q.otherCharges) > 0 ? [['Other charges', money(q.otherCharges)]] : []),
-      [`GST (${q.gstPercent || 0}%)`, money(q.gstAmount)],
+      ...(q.gstMode === 'split' && Number(q.gstAmount) > 0
+        ? [
+            ['CGST', money(q.cgstAmount)],
+            ['IGST', money(q.igstAmount)],
+          ]
+        : [['GST', money(q.gstAmount)]]),
     ];
     for (const [label, value] of totalRows) {
       doc.fillColor(COLORS.muted).font('Helvetica').fontSize(8.5);
@@ -537,16 +546,20 @@ function buildQuotationPdf({ order, customer, customerName, sentAtLabel: _sentAt
         .fontSize(8)
         .text('TERMS AND CONDITIONS', PAGE.marginLeft + 10, termsTop + 6, { lineBreak: false });
 
-      let tY = termsTop + barH + 10;
+      let tY = termsTop + barH + 8;
       for (const term of terms) {
-        doc.fillColor(COLORS.muted).font('Helvetica').fontSize(7);
-        doc.text(String(term.label || '').toUpperCase(), PAGE.marginLeft + 10, tY, { lineBreak: false });
+        const label = String(term.label || '').toUpperCase();
+        const value = String(term.value || '');
+        const labelX = PAGE.marginLeft + 10;
+        doc.fillColor(COLORS.muted).font('Helvetica-Bold').fontSize(7.5);
+        const labelW = Math.min(doc.widthOfString(label) + 6, contentW * 0.45);
+        doc.text(label, labelX, tY + 2, { width: labelW, lineBreak: false });
         doc
           .fillColor(COLORS.navy)
           .font('Helvetica-Bold')
-          .fontSize(10)
-          .text(String(term.value || ''), PAGE.marginLeft + 10, tY + 11, {
-            width: contentW - 20,
+          .fontSize(9)
+          .text(value, labelX + labelW, tY, {
+            width: contentW - 20 - labelW,
             lineBreak: false,
           });
         tY += termRowH;

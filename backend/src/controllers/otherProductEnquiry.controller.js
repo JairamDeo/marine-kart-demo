@@ -5,6 +5,9 @@ const { adminOtherProductEmail, otherProductThankYouEmail } = require('../utils/
 const { uploadBuffer, uploadMany } = require('../utils/cloudinaryUpload');
 const { configured } = require('../config/cloudinary');
 
+const MAX_PRODUCTS = 10;
+const MAX_IMAGES_PER_PRODUCT = 3;
+
 function normalizeDeliveryAddress(raw) {
   if (!raw || typeof raw !== 'object') return null;
   const addr = {
@@ -35,47 +38,98 @@ function formatAddressText(addr) {
     .join('\n');
 }
 
+function normalizeProducts(raw) {
+  const list = Array.isArray(raw) ? raw : [];
+  return list
+    .slice(0, MAX_PRODUCTS)
+    .map((row) => {
+      const productName = String(row?.productName || row?.name || '').trim();
+      const brand = String(row?.brand || '').trim();
+      const modelSku = String(row?.modelSku || row?.sku || '').trim();
+      const specification = String(row?.specification || row?.description || '').trim();
+      const quantity = Math.max(1, Math.floor(Number(row?.quantity) || 1));
+      const images = Array.isArray(row?.images)
+        ? row.images.map((u) => String(u || '').trim()).filter(Boolean).slice(0, MAX_IMAGES_PER_PRODUCT)
+        : [];
+      const imagePublicIds = Array.isArray(row?.imagePublicIds)
+        ? row.imagePublicIds
+            .map((u) => String(u || '').trim())
+            .filter(Boolean)
+            .slice(0, MAX_IMAGES_PER_PRODUCT)
+        : [];
+      return { productName, brand, modelSku, specification, quantity, images, imagePublicIds };
+    })
+    .filter((p) => p.productName && p.specification);
+}
+
 exports.createEnquiry = asyncHandler(async (req, res) => {
-  const productName = String(req.body.productName || '').trim();
-  const description = String(req.body.description || '').trim();
-  const quantity = Math.max(1, Math.floor(Number(req.body.quantity) || 1));
-  const categoryName = String(req.body.categoryName || '').trim();
-  const subcategoryName = String(req.body.subcategoryName || '').trim();
+  let products = normalizeProducts(req.body.products);
+
+  // Legacy single-product payload
+  if (!products.length) {
+    const productName = String(req.body.productName || '').trim();
+    const specification = String(
+      req.body.specification || req.body.description || ''
+    ).trim();
+    if (productName && specification) {
+      products = [
+        {
+          productName,
+          brand: String(req.body.brand || '').trim(),
+          modelSku: String(req.body.modelSku || '').trim(),
+          specification,
+          quantity: Math.max(1, Math.floor(Number(req.body.quantity) || 1)),
+          images: Array.isArray(req.body.images)
+            ? req.body.images.map((u) => String(u || '').trim()).filter(Boolean).slice(0, 5)
+            : [],
+          imagePublicIds: Array.isArray(req.body.imagePublicIds)
+            ? req.body.imagePublicIds
+                .map((u) => String(u || '').trim())
+                .filter(Boolean)
+                .slice(0, 5)
+            : [],
+        },
+      ];
+    }
+  }
+
   const deliveryAddress =
     normalizeDeliveryAddress(req.body.deliveryAddress || req.body.billingAddress) ||
     normalizeDeliveryAddress(req.body.address);
   const address =
     formatAddressText(deliveryAddress) || String(req.body.address || '').trim();
-  const images = Array.isArray(req.body.images)
-    ? req.body.images.map((u) => String(u || '').trim()).filter(Boolean).slice(0, 5)
-    : [];
-  const imagePublicIds = Array.isArray(req.body.imagePublicIds)
-    ? req.body.imagePublicIds.map((u) => String(u || '').trim()).filter(Boolean).slice(0, 5)
-    : [];
 
-  if (!productName) {
-    return res.status(400).json({ success: false, message: 'Product name is required.' });
-  }
-  if (!description) {
-    return res.status(400).json({ success: false, message: 'Description is required.' });
+  if (!products.length) {
+    return res.status(400).json({
+      success: false,
+      message: 'Add at least one product with name and specification.',
+    });
   }
   if (!address) {
     return res.status(400).json({ success: false, message: 'Delivery address is required.' });
   }
 
+  const allImages = products.flatMap((p) => p.images);
+  const allPublicIds = products.flatMap((p) => p.imagePublicIds);
+  const summaryName =
+    products.length === 1
+      ? products[0].productName
+      : `${products[0].productName} (+${products.length - 1} more)`;
+  const totalQty = products.reduce((s, p) => s + p.quantity, 0);
+  const summarySpec = products
+    .map((p, i) => `${i + 1}. ${p.productName} — ${p.specification}`)
+    .join('\n');
+
   const enquiry = await OtherProductEnquiry.create({
     user: req.user._id,
-    productName,
-    category: req.body.category || null,
-    categoryName,
-    subcategory: req.body.subcategory || null,
-    subcategoryName,
-    description,
-    quantity,
+    products,
+    productName: summaryName,
+    description: summarySpec,
+    quantity: totalQty,
     address,
     deliveryAddress: deliveryAddress || undefined,
-    images,
-    imagePublicIds,
+    images: allImages,
+    imagePublicIds: allPublicIds,
     status: 'new',
   });
 
@@ -97,21 +151,18 @@ exports.createEnquiry = asyncHandler(async (req, res) => {
         customerName,
         email: enquiry.user?.email || '',
         phone: deliveryAddress?.phone || enquiry.user?.phone || '',
-        productName,
-        categoryName,
-        subcategoryName,
-        description,
-        quantity,
+        productName: summaryName,
+        products,
         address,
         deliveryAddress,
-        imageCount: images.length,
+        imageCount: allImages.length,
         when,
       };
       await sendMailToAdmins(adminOtherProductEmail(mailPayload));
       if (enquiry.user?.email) {
         await sendMail({
           to: enquiry.user.email,
-          ...otherProductThankYouEmail({ name: customerName, productName }),
+          ...otherProductThankYouEmail({ name: customerName, productName: summaryName }),
         });
       }
     } catch (err) {
@@ -205,4 +256,4 @@ exports.adminUpdateEnquiry = asyncHandler(async (req, res) => {
   res.json({ success: true, data: { enquiry } });
 });
 
-exports.uploadManyMw = uploadMany('images', 5);
+exports.uploadManyMw = uploadMany('images', 15);

@@ -16,7 +16,8 @@ import {
 } from 'lucide-react';
 import { adminService } from '../../services/admin.service';
 import { friendlyError } from '../../utils/toastMsg';
-import { GST_PERCENT_OPTIONS, formatOrderStatus } from '../../utils/orderStatusShared';
+import { formatOrderStatus } from '../../utils/orderStatusShared';
+import { quotationGstRows } from '../../components/common/QuotationDetails';
 import { formatProductTitle } from '../../utils/productTitle';
 import { productImageUrl } from '../../utils/productImage';
 
@@ -103,6 +104,7 @@ function mapServerItems(rows) {
     amount: row.amount === 0 || row.amount == null ? '' : String(row.amount),
     discountValue:
       row.discountValue === 0 || row.discountValue == null ? '' : String(row.discountValue),
+    gstPercent: row.gstPercent === 0 || row.gstPercent == null ? '' : String(row.gstPercent),
   }));
 }
 
@@ -142,7 +144,17 @@ function mapServerTerms(rows = []) {
   }));
 }
 
-function computeTotals(items, courierCharges, otherCharges, gstPercent, discountType) {
+function lineGstAmount(taxableLine, gstPercent) {
+  const pct = Math.min(100, Math.max(0, Number(gstPercent) || 0));
+  if (!pct) return 0;
+  return Math.round((((Number(taxableLine) || 0) * pct) / 100) * 100) / 100;
+}
+
+function isGoaState(state) {
+  return /^goa$/i.test(String(state || '').trim());
+}
+
+function computeTotals(items, courierCharges, otherCharges, discountType, addressState) {
   const itemsGross = items.reduce(
     (s, i) => s + (Number(i.amount) || 0) * (Number(i.quantity) || 0),
     0
@@ -161,15 +173,34 @@ function computeTotals(items, courierCharges, otherCharges, gstPercent, discount
   const itemsSubtotal = Math.round((itemsGross - discountTotal) * 100) / 100;
   const courier = Math.max(0, Number(courierCharges) || 0);
   const other = Math.max(0, Number(otherCharges) || 0);
+  const gstAmount = Math.round(
+    items.reduce((s, i) => {
+      const itemPrice = (Number(i.amount) || 0) * (Number(i.quantity) || 0);
+      const disc = lineDiscount(
+        i.amount,
+        i.quantity,
+        Number(i.discountValue) > 0 ? discountType : 'none',
+        i.discountValue
+      );
+      return s + lineGstAmount(itemPrice - disc, i.gstPercent);
+    }, 0) * 100
+  ) / 100;
   const taxable = Math.round((itemsSubtotal + courier + other) * 100) / 100;
-  const gst = Math.round(((taxable * (Number(gstPercent) || 0)) / 100) * 100) / 100;
-  const grandTotal = Math.round((taxable + gst) * 100) / 100;
+  const grandTotal = Math.round((taxable + gstAmount) * 100) / 100;
+  const gstMode = isGoaState(addressState) || gstAmount <= 0 ? 'full' : 'split';
+  const cgstAmount =
+    gstMode === 'split' ? Math.round((gstAmount / 2) * 100) / 100 : 0;
+  const igstAmount =
+    gstMode === 'split' ? Math.round((gstAmount - cgstAmount) * 100) / 100 : 0;
   return {
     itemsGross: Math.round(itemsGross * 100) / 100,
     itemsSubtotal,
     discountTotal: Math.round(discountTotal * 100) / 100,
     taxableAmount: taxable,
-    gstAmount: gst,
+    gstAmount,
+    gstMode,
+    cgstAmount,
+    igstAmount,
     grandTotal,
     courier,
     other,
@@ -209,7 +240,6 @@ export default function AdminQuotation() {
   const [items, setItems] = useState([]);
   const [courierCharges, setCourierCharges] = useState('0');
   const [otherCharges, setOtherCharges] = useState('0');
-  const [gstPercent, setGstPercent] = useState(0);
   const [discountType, setDiscountType] = useState('percent');
   const [termsAndConditions, setTermsAndConditions] = useState([]);
   const [pageSize, setPageSize] = useState(() => readPageSizePref());
@@ -239,7 +269,6 @@ export default function AdminQuotation() {
           q.courierCharges === 0 || q.courierCharges == null ? '0' : String(q.courierCharges);
         const serverOther =
           q.otherCharges === 0 || q.otherCharges == null ? '0' : String(q.otherCharges);
-        const serverGst = q.gstPercent || 0;
         const serverTerms = mapServerTerms(q.termsAndConditions);
         const fromItem = (q.items || []).find(
           (i) => i.discountType === 'amount' || i.discountType === 'percent'
@@ -254,7 +283,6 @@ export default function AdminQuotation() {
         let nextItems = serverItems;
         let nextCourier = serverCourier;
         let nextOther = serverOther;
-        let nextGst = serverGst;
         let nextDiscountType = serverDiscountType;
         let nextTerms = serverTerms;
 
@@ -271,7 +299,6 @@ export default function AdminQuotation() {
               cached.otherCharges === 0 || cached.otherCharges == null
                 ? '0'
                 : String(cached.otherCharges);
-            nextGst = Number(cached.gstPercent) || 0;
             nextDiscountType =
               cached.discountType === 'amount' || cached.discountType === 'percent'
                 ? cached.discountType
@@ -293,7 +320,6 @@ export default function AdminQuotation() {
         setItems(nextItems);
         setCourierCharges(nextCourier);
         setOtherCharges(nextOther);
-        setGstPercent(nextGst);
         setDiscountType(nextDiscountType);
         setTermsAndConditions(nextTerms);
         setPage(1);
@@ -319,17 +345,19 @@ export default function AdminQuotation() {
         items,
         courierCharges,
         otherCharges,
-        gstPercent,
         discountType,
         termsAndConditions,
       });
     }, 350);
     return () => clearTimeout(t);
-  }, [id, loading, readOnly, items, courierCharges, otherCharges, gstPercent, discountType, termsAndConditions]);
+  }, [id, loading, readOnly, items, courierCharges, otherCharges, discountType, termsAndConditions]);
+
+  const enquiryState =
+    order?.shippingAddress?.state || order?.billingAddress?.state || '';
 
   const totals = useMemo(
-    () => computeTotals(items, courierCharges, otherCharges, gstPercent, discountType),
-    [items, courierCharges, otherCharges, gstPercent, discountType]
+    () => computeTotals(items, courierCharges, otherCharges, discountType, enquiryState),
+    [items, courierCharges, otherCharges, discountType, enquiryState]
   );
 
   const safePageSize = clampPageSize(pageSize);
@@ -373,10 +401,10 @@ export default function AdminQuotation() {
       quantity: Math.max(1, Number(i.quantity) || 1),
       amount: Number(i.amount) || 0,
       discountValue: Number(i.discountValue) || 0,
+      gstPercent: Number(i.gstPercent) || 0,
     })),
     courierCharges: Number(courierCharges) || 0,
     otherCharges: Number(otherCharges) || 0,
-    gstPercent: Number(gstPercent) || 0,
     discountType,
     termsAndConditions: termsAndConditions
       .map((t) => ({
@@ -658,7 +686,9 @@ export default function AdminQuotation() {
                       </div>
                     </th>
                     <th className="px-3 py-2.5 text-right font-semibold whitespace-nowrap">Item price</th>
-                    <th className="px-3 py-2.5 text-right font-semibold whitespace-nowrap">Disc. Price</th>
+                    <th className="px-3 py-2.5 font-semibold whitespace-nowrap">
+                      GST <span className="font-normal text-gray-400">%</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
@@ -674,13 +704,6 @@ export default function AdminQuotation() {
                         Math.round(
                           (Number(item.amount) || 0) * (Number(item.quantity) || 0) * 100
                         ) / 100;
-                      const disc = lineDiscount(
-                        item.amount,
-                        item.quantity,
-                        Number(item.discountValue) > 0 ? discountType : 'none',
-                        item.discountValue
-                      );
-                      const afterDiscount = Math.round((itemPrice - disc) * 100) / 100;
                       const thumb = productImageUrl({
                         images: item.image ? [item.image] : [],
                       });
@@ -767,8 +790,25 @@ export default function AdminQuotation() {
                           <td className="px-3 py-2 text-right text-sm font-semibold text-gray-700">
                             {money(itemPrice)}
                           </td>
-                          <td className="px-3 py-2 text-right text-sm font-bold text-navy">
-                            {money(afterDiscount)}
+                          <td className="px-3 py-2">
+                            <div className="relative w-[72px]">
+                              <input
+                                type="text"
+                                inputMode="decimal"
+                                disabled={readOnly}
+                                className="w-full rounded-lg border border-gray-200 bg-white px-1 py-1.5 pr-6 text-center text-sm text-gray-900 outline-none transition placeholder:text-gray-300 focus:border-[#1a4b8c] focus:ring-2 focus:ring-[#1a4b8c]/15 disabled:bg-gray-50 disabled:text-gray-500"
+                                value={item.gstPercent ?? ''}
+                                onChange={(e) =>
+                                  updateItem(globalIdx, {
+                                    gstPercent: sanitizeDecimal(e.target.value),
+                                  })
+                                }
+                                placeholder="0"
+                              />
+                              <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-gray-400">
+                                %
+                              </span>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -877,27 +917,6 @@ export default function AdminQuotation() {
                 />
               </div>
 
-              <p className="mb-2 text-xs font-medium text-gray-600">GST rate</p>
-              <div className="grid grid-cols-5 gap-1.5">
-                {GST_PERCENT_OPTIONS.map((p) => {
-                  const active = Number(gstPercent) === p;
-                  return (
-                    <button
-                      key={p}
-                      type="button"
-                      disabled={readOnly}
-                      onClick={() => setGstPercent(p)}
-                      className={`cursor-pointer rounded-xl py-2.5 text-xs font-bold transition disabled:cursor-not-allowed ${
-                        active
-                          ? 'bg-[#1a4b8c] text-white shadow-md shadow-[#1a4b8c]/25'
-                          : 'bg-[#f3f8fb] text-navy hover:bg-[#e8f4f8]'
-                      }`}
-                    >
-                      {p}%
-                    </button>
-                  );
-                })}
-              </div>
             </section>
 
             <section className="overflow-hidden rounded-2xl border border-[#1a4b8c]/10 bg-gradient-to-br from-[#1a4b8c] to-[#143a6e] p-3.5 text-white shadow-lg sm:p-4">
@@ -927,10 +946,20 @@ export default function AdminQuotation() {
                     <span className="font-medium text-white">{money(totals.other)}</span>
                   </div>
                 )}
-                <div className="flex justify-between text-white/80">
-                  <span>GST ({gstPercent}%)</span>
-                  <span className="font-medium text-white">{money(totals.gstAmount)}</span>
-                </div>
+                {quotationGstRows(
+                  {
+                    gstAmount: totals.gstAmount,
+                    gstMode: totals.gstMode,
+                    cgstAmount: totals.cgstAmount,
+                    igstAmount: totals.igstAmount,
+                  },
+                  { state: enquiryState }
+                ).map((row) => (
+                  <div key={row.label} className="flex justify-between text-white/80">
+                    <span>{row.label}</span>
+                    <span className="font-medium text-white">{money(row.value)}</span>
+                  </div>
+                ))}
                 <div className="flex items-end justify-between border-t border-white/20 pt-3">
                   <span className="text-xs font-semibold uppercase tracking-wide text-cyan">
                     Grand total

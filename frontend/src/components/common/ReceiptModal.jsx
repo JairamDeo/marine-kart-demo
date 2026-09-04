@@ -14,7 +14,7 @@ function money(n) {
 }
 
 /** Customer-facing quotation line items (read-only). */
-function QuotationItemsPanel({ quotation }) {
+function QuotationItemsPanel({ quotation, address }) {
   const items = quotation?.items || [];
   return (
     <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
@@ -37,13 +37,14 @@ function QuotationItemsPanel({ quotation }) {
               <th className="px-3 py-2.5 font-semibold">Product</th>
               <th className="px-3 py-2.5 font-semibold text-center">Qty</th>
               <th className="px-3 py-2.5 font-semibold text-right">Amount</th>
-              <th className="px-3 py-2.5 font-semibold text-right whitespace-nowrap">Disc. Price</th>
+              <th className="px-3 py-2.5 font-semibold text-right whitespace-nowrap">Line total</th>
+              <th className="px-3 py-2.5 font-semibold text-right whitespace-nowrap">GST %</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
             {items.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-3 py-8 text-center text-sm text-gray-400">
+                <td colSpan={6} className="px-3 py-8 text-center text-sm text-gray-400">
                   No quotation lines
                 </td>
               </tr>
@@ -78,6 +79,9 @@ function QuotationItemsPanel({ quotation }) {
                     <td className="px-3 py-2.5 text-center font-semibold text-gray-800">{qty}</td>
                     <td className="px-3 py-2.5 text-right text-gray-700">{money(amount)}</td>
                     <td className="px-3 py-2.5 text-right font-bold text-navy">{money(lineTotal)}</td>
+                    <td className="px-3 py-2.5 text-right font-semibold text-gray-700">
+                      {Number(item.gstPercent) > 0 ? `${Number(item.gstPercent)}%` : '—'}
+                    </td>
                   </tr>
                 );
               })
@@ -87,7 +91,7 @@ function QuotationItemsPanel({ quotation }) {
       </div>
       {quotation?.grandTotal != null && (
         <div className="border-t border-gray-100 bg-[#fafbfd] px-4 py-3">
-          <QuotationTotalsBreakdown quotation={quotation} compact />
+          <QuotationTotalsBreakdown quotation={quotation} address={address} compact />
         </div>
       )}
     </div>
@@ -119,6 +123,7 @@ export default function ReceiptModal({ open, onClose, order, footer, forCustomer
   if (!open || !order) return null;
 
   const quoteSent = order.quotation?.status === 'sent';
+  const enquiryAddress = order.shippingAddress || order.billingAddress || {};
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6">
@@ -147,7 +152,7 @@ export default function ReceiptModal({ open, onClose, order, footer, forCustomer
           <div className="space-y-3 lg:col-span-7">
             {quoteSent ? (
               <>
-                <QuotationItemsPanel quotation={order.quotation} />
+                <QuotationItemsPanel quotation={order.quotation} address={enquiryAddress} />
                 <QuotationExtrasPanel quotation={order.quotation} />
               </>
             ) : (

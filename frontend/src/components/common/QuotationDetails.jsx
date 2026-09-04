@@ -2,13 +2,44 @@ function money(n) {
   return `₹${Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
 }
 
-export function QuotationTotalsBreakdown({ quotation, compact = false }) {
+function isGoaState(state) {
+  return /^goa$/i.test(String(state || '').trim());
+}
+
+/** Build GST display rows from saved quotation (+ optional address for legacy quotes). */
+export function quotationGstRows(quotation, address) {
+  if (!quotation) return [];
+  const gstAmount = Number(quotation.gstAmount) || 0;
+  const mode =
+    quotation.gstMode ||
+    (isGoaState(address?.state) || gstAmount <= 0 ? 'full' : 'split');
+
+  if (mode === 'split' && gstAmount > 0) {
+    const cgst =
+      quotation.cgstAmount != null
+        ? Number(quotation.cgstAmount)
+        : Math.round((gstAmount / 2) * 100) / 100;
+    const igst =
+      quotation.igstAmount != null
+        ? Number(quotation.igstAmount)
+        : Math.round((gstAmount - cgst) * 100) / 100;
+    return [
+      { label: 'CGST', value: cgst },
+      { label: 'IGST', value: igst },
+    ];
+  }
+
+  return [{ label: 'GST', value: gstAmount }];
+}
+
+export function QuotationTotalsBreakdown({ quotation, address, compact = false }) {
   if (!quotation) return null;
   const itemsGross =
     Number(quotation.itemsSubtotal || 0) + Number(quotation.discountTotal || 0);
   const rowClass = compact
     ? 'flex justify-between text-[12px] text-gray-600'
     : 'flex justify-between text-gray-600';
+  const gstRows = quotationGstRows(quotation, address);
 
   return (
     <div className={compact ? 'space-y-1' : 'space-y-1.5 text-sm'}>
@@ -34,10 +65,12 @@ export function QuotationTotalsBreakdown({ quotation, compact = false }) {
           <span className="font-medium text-gray-900">{money(quotation.otherCharges)}</span>
         </div>
       )}
-      <div className={rowClass}>
-        <span>GST ({quotation.gstPercent || 0}%)</span>
-        <span className="font-medium text-gray-900">{money(quotation.gstAmount)}</span>
-      </div>
+      {gstRows.map((row) => (
+        <div key={row.label} className={rowClass}>
+          <span>{row.label}</span>
+          <span className="font-medium text-gray-900">{money(row.value)}</span>
+        </div>
+      ))}
       <div
         className={`flex items-center justify-between border-t border-gray-100 pt-2 ${
           compact ? 'text-sm' : ''

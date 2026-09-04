@@ -8,3 +8,6 @@ backend/logs/*.log
 backend/uploads/*
 !backend/uploads/.gitkeep
 !backend/logs/.gitkeep
+
+# Local catalog image dumps (upload to Cloudinary via seeders; do not push)
+MARINEKART-images/

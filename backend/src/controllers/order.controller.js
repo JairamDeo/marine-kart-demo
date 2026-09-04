@@ -726,7 +726,7 @@ exports.createQuotation = asyncHandler(async (req, res) => {
     });
   }
 
-  const normalized = normalizeQuotationPayload(req.body, order.items);
+  const normalized = normalizeQuotationPayload(req.body, order.items, order);
   const check = validateQuotationForSend(normalized);
   if (!check.ok) {
     return res.status(400).json({ success: false, message: check.message });
@@ -767,7 +767,7 @@ exports.saveQuotationDraft = asyncHandler(async (req, res) => {
     });
   }
 
-  const normalized = normalizeQuotationPayload(req.body, order.items);
+  const normalized = normalizeQuotationPayload(req.body, order.items, order);
   order.quotation = buildQuotationDocument(normalized, {
     status: 'draft',
     existing: order.quotation,
@@ -802,7 +802,7 @@ exports.sendQuotation = asyncHandler(async (req, res) => {
     });
   }
 
-  const normalized = normalizeQuotationPayload(req.body, order.items);
+  const normalized = normalizeQuotationPayload(req.body, order.items, order);
   const check = validateQuotationForSend(normalized);
   if (!check.ok) {
     return res.status(400).json({ success: false, message: check.message });

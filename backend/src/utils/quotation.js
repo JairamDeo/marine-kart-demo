@@ -4,8 +4,6 @@
 
 const Product = require('../models/Product');
 
-const ALLOWED_GST = [0, 5, 12, 18, 28];
-
 const BANK_DETAILS = [
   ['Bank name', 'BANK OF BARODA'],
   ['Account name', 'MARINEKART INDIA'],
@@ -42,7 +40,52 @@ function lineDiscount(amount, quantity, discountType, discountValue) {
   return 0;
 }
 
-function normalizeQuotationPayload(body, orderItems = []) {
+/** GST on taxable line (after discount), always percent. */
+function lineGstAmount(taxableLine, gstPercent) {
+  const pct = Math.min(100, Math.max(0, Number(gstPercent) || 0));
+  if (!pct) return 0;
+  return round2(((Number(taxableLine) || 0) * pct) / 100);
+}
+
+function isGoaState(state) {
+  return /^goa$/i.test(String(state || '').trim());
+}
+
+/**
+ * Goa → full GST line.
+ * Other states → CGST + IGST (50/50 of combined GST).
+ */
+function resolveGstSplit(gstAmount, state) {
+  const total = round2(gstAmount);
+  if (total <= 0 || isGoaState(state)) {
+    return {
+      gstMode: 'full',
+      gstAmount: total,
+      cgstAmount: 0,
+      igstAmount: 0,
+    };
+  }
+  const cgstAmount = round2(total / 2);
+  const igstAmount = round2(total - cgstAmount);
+  return {
+    gstMode: 'split',
+    gstAmount: total,
+    cgstAmount,
+    igstAmount,
+  };
+}
+
+function enquiryAddressState(orderOrAddress) {
+  if (!orderOrAddress) return '';
+  if (orderOrAddress.state != null || orderOrAddress.line1 != null) {
+    return String(orderOrAddress.state || '').trim();
+  }
+  const addr =
+    orderOrAddress.shippingAddress || orderOrAddress.billingAddress || {};
+  return String(addr.state || '').trim();
+}
+
+function normalizeQuotationPayload(body, orderItems = [], addressOrOrder = null) {
   const { formatProductTitle } = require('./productTitle');
 
   // Shared type for all lines — admin picks % or ₹ once
@@ -57,9 +100,13 @@ function normalizeQuotationPayload(body, orderItems = []) {
     const subcategoryName = String(row.subcategoryName || fallback.subcategoryName || '').trim();
     const discountValue = Math.max(0, Number(row.discountValue) || 0);
     const itemType = discountValue > 0 ? discountType : 'none';
+    const gstPercent = Math.min(100, Math.max(0, Number(row.gstPercent) || 0));
     const gross = round2(amount * quantity);
     const disc = lineDiscount(amount, quantity, itemType, discountValue);
-    const lineTotal = round2(gross - disc);
+    const taxableLine = round2(gross - disc);
+    const gstAmount = lineGstAmount(taxableLine, gstPercent);
+    // lineTotal = taxable after discount (GST shown separately in totals)
+    const lineTotal = taxableLine;
     return {
       product: row.product || fallback.product || null,
       name: formatProductTitle({
@@ -75,15 +122,14 @@ function normalizeQuotationPayload(body, orderItems = []) {
       amount,
       discountType: itemType,
       discountValue,
+      gstPercent,
+      gstAmount,
       lineTotal,
     };
   });
 
   const courierCharges = Math.max(0, Number(body.courierCharges) || 0);
   const otherCharges = Math.max(0, Number(body.otherCharges) || 0);
-  let gstPercent = Number(body.gstPercent);
-  if (!ALLOWED_GST.includes(gstPercent)) gstPercent = 0;
-
   const termsAndConditions = normalizeTermsAndConditions(body.termsAndConditions);
 
   const itemsGross = round2(items.reduce((s, i) => s + round2(i.amount * i.quantity), 0));
@@ -94,23 +140,27 @@ function normalizeQuotationPayload(body, orderItems = []) {
     )
   );
   const itemsSubtotal = round2(itemsGross - discountTotal);
+  const gstAmount = round2(items.reduce((s, i) => s + (Number(i.gstAmount) || 0), 0));
   const taxableAmount = round2(itemsSubtotal + courierCharges + otherCharges);
-  const gstAmount = round2((taxableAmount * gstPercent) / 100);
+  const gstSplit = resolveGstSplit(gstAmount, enquiryAddressState(addressOrOrder));
   const grandTotal = round2(taxableAmount + gstAmount);
 
   return {
     items,
     courierCharges,
     otherCharges,
-    gstPercent,
+    // Header gstPercent unused for calc; keep 0 for new quotes
+    gstPercent: 0,
     termsAndConditions,
-    // Persist shared type for UI; per-item values live on items
     discountType,
     discountValue: 0,
     itemsSubtotal,
     discountTotal,
     taxableAmount,
-    gstAmount,
+    gstAmount: gstSplit.gstAmount,
+    gstMode: gstSplit.gstMode,
+    cgstAmount: gstSplit.cgstAmount,
+    igstAmount: gstSplit.igstAmount,
     grandTotal,
     itemsGross,
   };
@@ -163,6 +213,8 @@ function seedQuotationItemsFromOrder(order) {
       amount: 0,
       discountType: 'none',
       discountValue: 0,
+      gstPercent: 0,
+      gstAmount: 0,
       lineTotal: 0,
     };
   });
@@ -189,7 +241,6 @@ async function enrichOrderItemsWithCategories(order) {
     const plain = item.toObject?.() || (typeof item === 'object' ? { ...item } : {});
     const p = byId.get(String(plain.product?._id || plain.product));
     const subcategoryName = p?.subcategory?.name || plain.subcategoryName || '';
-    // Prefer live product gallery image so admin/customer always see current main photo
     const image =
       (Array.isArray(p?.images) && p.images[0] ? p.images[0] : '') ||
       plain.image ||
@@ -264,6 +315,9 @@ function buildQuotationDocument(normalized, { status = 'draft', existing = null,
     discountTotal: normalized.discountTotal,
     taxableAmount: normalized.taxableAmount,
     gstAmount: normalized.gstAmount,
+    gstMode: normalized.gstMode || 'full',
+    cgstAmount: normalized.cgstAmount || 0,
+    igstAmount: normalized.igstAmount || 0,
     grandTotal: normalized.grandTotal,
     savedAt: new Date(),
     sentAt: status === 'sent' ? new Date() : existing?.sentAt || null,
@@ -272,10 +326,13 @@ function buildQuotationDocument(normalized, { status = 'draft', existing = null,
 }
 
 module.exports = {
-  ALLOWED_GST,
   BANK_DETAILS,
   round2,
   lineDiscount,
+  lineGstAmount,
+  isGoaState,
+  resolveGstSplit,
+  enquiryAddressState,
   normalizeQuotationPayload,
   normalizeTermsAndConditions,
   buildQuotationDocument,

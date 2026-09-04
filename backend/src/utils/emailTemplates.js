@@ -690,6 +690,7 @@ function adminOtherProductEmail({
   email,
   phone,
   productName,
+  products = [],
   categoryName,
   subcategoryName,
   description,
@@ -706,6 +707,33 @@ function adminOtherProductEmail({
       '—'
   );
   const whenSafe = escapeHtml(when || new Date().toLocaleString('en-IN'));
+  const lines = Array.isArray(products) && products.length
+    ? products
+    : [
+        {
+          productName,
+          brand: '',
+          modelSku: '',
+          quantity,
+          specification: description,
+        },
+      ];
+
+  const productsHtml = lines
+    .map(
+      (p, idx) => `
+        <tr>
+          <td style="padding:10px 8px;border-bottom:1px solid ${BRAND.line};color:#334155;vertical-align:top;">${idx + 1}</td>
+          <td style="padding:10px 8px;border-bottom:1px solid ${BRAND.line};color:#334155;">
+            <strong>${escapeHtml(p.productName || '—')}</strong>
+            ${p.brand ? `<br /><span style="font-size:12px;color:${BRAND.muted};">Brand: ${escapeHtml(p.brand)}</span>` : ''}
+            ${p.modelSku ? `<br /><span style="font-size:12px;color:${BRAND.muted};">Model/SKU: ${escapeHtml(p.modelSku)}</span>` : ''}
+            ${p.specification ? `<br /><span style="font-size:12px;color:#475569;">${escapeHtml(p.specification)}</span>` : ''}
+          </td>
+          <td style="padding:10px 8px;border-bottom:1px solid ${BRAND.line};text-align:center;color:#334155;">${escapeHtml(String(p.quantity || 1))}</td>
+        </tr>`
+    )
+    .join('');
 
   return {
     subject: `Other product enquiry — ${productName || 'MarineKart'}`,
@@ -720,19 +748,27 @@ function adminOtherProductEmail({
           ${metaRow('Customer', escapeHtml(customerName || '—'))}
           ${metaRow('Email', escapeHtml(email || '—'))}
           ${metaRow('Mobile', escapeHtml(phone || '—'))}
-          ${metaRow('Product', escapeHtml(productName || '—'))}
-          ${metaRow('Category', escapeHtml(categoryName || '—'))}
-          ${metaRow('Subcategory', escapeHtml(subcategoryName || '—'))}
-          ${metaRow('Quantity', escapeHtml(String(quantity || 1)))}
+          ${metaRow('Products', escapeHtml(String(lines.length)))}
           ${metaRow('Reference images', escapeHtml(String(imageCount || 0)))}
           ${metaRow('Address', addressLine)}
         </table>
-        <p style="margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:${BRAND.muted};">Description</p>
-        <div style="padding:14px 16px;background:${BRAND.soft};border:1px solid ${BRAND.line};border-radius:12px;color:#334155;line-height:1.65;margin-bottom:20px;">${escapeHtml(description || '').replace(/\n/g, '<br />')}</div>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:13px;background:${BRAND.soft};border-radius:12px;overflow:hidden;border:1px solid ${BRAND.line};margin-bottom:20px;">
+          <tr style="background:${BRAND.navy};">
+            <th align="left" style="padding:10px 8px;color:${BRAND.white};font-weight:600;width:36px;">#</th>
+            <th align="left" style="padding:10px 8px;color:${BRAND.white};font-weight:600;">Product</th>
+            <th style="padding:10px 8px;color:${BRAND.white};font-weight:600;">Qty</th>
+          </tr>
+          ${productsHtml}
+        </table>
         <p style="margin:0;">${ctaButton(siteUrl('/admin/other-products'), 'View in admin')}</p>
       `,
     }),
-    text: `Other product enquiry\n\nTime: ${when || ''}\nCustomer: ${customerName}\nEmail: ${email}\nPhone: ${phone}\nProduct: ${productName}\nCategory: ${categoryName}\nSubcategory: ${subcategoryName}\nQty: ${quantity}\nAddress: ${address}\n\n${description}`,
+    text: `Other product enquiry\n\nTime: ${when || ''}\nCustomer: ${customerName}\nEmail: ${email}\nPhone: ${phone}\nProducts: ${lines.length}\nAddress: ${address}\n\n${lines
+      .map(
+        (p, i) =>
+          `${i + 1}. ${p.productName} | Brand: ${p.brand || '-'} | SKU: ${p.modelSku || '-'} | Qty: ${p.quantity} | Spec: ${p.specification || '-'}`
+      )
+      .join('\n')}`,
   };
 }
 

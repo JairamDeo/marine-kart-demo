@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { Eye } from 'lucide-react';
 import DataTable from '../../components/portal/DataTable';
@@ -27,6 +27,36 @@ function customerName(row) {
 function enquiryAddress(row) {
   if (row.deliveryAddress?.line1) return formatAddressBlock(row.deliveryAddress);
   return row.address || '—';
+}
+
+function enquiryProducts(row) {
+  if (Array.isArray(row.products) && row.products.length) return row.products;
+  if (row.productName) {
+    return [
+      {
+        productName: row.productName,
+        brand: '',
+        modelSku: '',
+        quantity: row.quantity || 1,
+        specification: row.description || '',
+        images: row.images || [],
+      },
+    ];
+  }
+  return [];
+}
+
+function productSummary(row) {
+  const list = enquiryProducts(row);
+  if (!list.length) return '—';
+  if (list.length === 1) return list[0].productName;
+  return `${list[0].productName} (+${list.length - 1})`;
+}
+
+function totalQty(row) {
+  const list = enquiryProducts(row);
+  if (!list.length) return row.quantity || 1;
+  return list.reduce((s, p) => s + (Number(p.quantity) || 1), 0);
 }
 
 function statusPill(status) {
@@ -114,8 +144,8 @@ export default function AdminOtherProducts() {
     },
     {
       key: 'productName',
-      header: 'Product',
-      render: (row) => <span className="font-semibold text-navy">{row.productName}</span>,
+      header: 'Product(s)',
+      render: (row) => <span className="font-semibold text-navy">{productSummary(row)}</span>,
     },
     {
       key: 'customer',
@@ -123,14 +153,14 @@ export default function AdminOtherProducts() {
       render: (row) => customerName(row),
     },
     {
-      key: 'categoryName',
-      header: 'Category',
-      render: (row) => row.categoryName || '—',
+      key: 'items',
+      header: 'Items',
+      render: (row) => enquiryProducts(row).length || 1,
     },
     {
       key: 'quantity',
       header: 'Qty',
-      render: (row) => row.quantity || 1,
+      render: (row) => totalQty(row),
     },
     {
       key: 'status',
@@ -172,6 +202,8 @@ export default function AdminOtherProducts() {
     );
   }
 
+  const detailProducts = detail ? enquiryProducts(detail) : [];
+
   return (
     <div>
       <div className="mb-4">
@@ -184,7 +216,7 @@ export default function AdminOtherProducts() {
       <DataTable
         columns={columns}
         data={rows}
-        searchKeys={['productName', 'categoryName', 'subcategoryName', 'description']}
+        searchKeys={['productName', 'description']}
         searchPlaceholder="Search enquiries..."
         filters={filters}
         emptyState={
@@ -221,24 +253,6 @@ export default function AdminOtherProducts() {
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Product</p>
-                <p className="font-semibold text-navy">{detail.productName}</p>
-              </div>
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Quantity</p>
-                <p>{detail.quantity}</p>
-              </div>
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Category</p>
-                <p>{detail.categoryName || '—'}</p>
-              </div>
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400">
-                  Sub category
-                </p>
-                <p>{detail.subcategoryName || '—'}</p>
-              </div>
               <div className="sm:col-span-2">
                 <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Customer</p>
                 <p className="font-medium">{customerName(detail)}</p>
@@ -251,40 +265,60 @@ export default function AdminOtherProducts() {
                 <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Address</p>
                 <p className="whitespace-pre-wrap text-gray-700">{enquiryAddress(detail)}</p>
               </div>
-              <div className="sm:col-span-2">
-                <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400">
-                  Description
-                </p>
-                <p className="whitespace-pre-wrap text-gray-700">{detail.description}</p>
-              </div>
             </div>
 
-            {Array.isArray(detail.images) && detail.images.length > 0 && (
-              <div>
-                <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-gray-400">
-                  Reference images
-                </p>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  {detail.images.map((src) => (
-                    <a
-                      key={src}
-                      href={src}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block overflow-hidden rounded-lg border border-gray-100"
-                    >
-                      <img
-                        src={src}
-                        alt=""
-                        className="aspect-square w-full object-cover"
-                        loading="lazy"
-                        decoding="async"
-                      />
-                    </a>
-                  ))}
+            <div className="space-y-3">
+              <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400">
+                Products ({detailProducts.length})
+              </p>
+              {detailProducts.map((p, idx) => (
+                <div
+                  key={p._id || `${p.productName}-${idx}`}
+                  className="rounded-xl border border-gray-100 bg-[#fafbfd] p-3"
+                >
+                  <p className="text-xs font-bold text-navy">
+                    {idx + 1}. {p.productName}
+                  </p>
+                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                    <p className="text-xs text-gray-600">
+                      <span className="font-semibold text-gray-400">Brand:</span> {p.brand || '—'}
+                    </p>
+                    <p className="text-xs text-gray-600">
+                      <span className="font-semibold text-gray-400">Model / SKU:</span>{' '}
+                      {p.modelSku || '—'}
+                    </p>
+                    <p className="text-xs text-gray-600">
+                      <span className="font-semibold text-gray-400">Qty:</span> {p.quantity || 1}
+                    </p>
+                    <p className="text-xs text-gray-600 sm:col-span-2">
+                      <span className="font-semibold text-gray-400">Specification:</span>{' '}
+                      {p.specification || '—'}
+                    </p>
+                  </div>
+                  {Array.isArray(p.images) && p.images.length > 0 && (
+                    <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-4">
+                      {p.images.map((src) => (
+                        <a
+                          key={src}
+                          href={src}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block overflow-hidden rounded-lg border border-gray-100"
+                        >
+                          <img
+                            src={src}
+                            alt=""
+                            className="aspect-square w-full object-cover"
+                            loading="lazy"
+                            decoding="async"
+                          />
+                        </a>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              </div>
-            )}
+              ))}
+            </div>
           </div>
         )}
       </Modal>

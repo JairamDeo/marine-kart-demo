@@ -45,6 +45,10 @@ const quotationItemSchema = new mongoose.Schema(
       default: 'none',
     },
     discountValue: { type: Number, default: 0, min: 0 },
+    /** Item-wise GST percent (always %) */
+    gstPercent: { type: Number, default: 0, min: 0, max: 100 },
+    /** GST amount for this line after discount */
+    gstAmount: { type: Number, default: 0, min: 0 },
     lineTotal: { type: Number, default: 0, min: 0 },
   },
   { _id: false }
@@ -68,7 +72,11 @@ const quotationSchema = new mongoose.Schema(
     items: [quotationItemSchema],
     courierCharges: { type: Number, default: 0, min: 0 },
     otherCharges: { type: Number, default: 0, min: 0 },
-    gstPercent: { type: Number, default: 0, enum: [0, 5, 12, 18, 28] },
+    /**
+     * Legacy header GST % (item-wise gstPercent is source of truth now).
+     * Kept for older quotations.
+     */
+    gstPercent: { type: Number, default: 0, min: 0, max: 100 },
     /** Enquiry-level discount (applies to all items together) */
     discountType: {
       type: String,
@@ -81,6 +89,14 @@ const quotationSchema = new mongoose.Schema(
     discountTotal: { type: Number, default: 0 },
     taxableAmount: { type: Number, default: 0 },
     gstAmount: { type: Number, default: 0 },
+    /** When customer state is not Goa: split gstAmount 50/50 into CGST + IGST */
+    gstMode: {
+      type: String,
+      enum: ['full', 'split'],
+      default: 'full',
+    },
+    cgstAmount: { type: Number, default: 0 },
+    igstAmount: { type: Number, default: 0 },
     grandTotal: { type: Number, default: 0 },
     savedAt: { type: Date, default: null },
     sentAt: { type: Date, default: null },

@@ -204,7 +204,11 @@ export default function OrderReceipt({
               </ul>
             )}
 
-            <QuotationTotalsBreakdown quotation={order.quotation} compact />
+            <QuotationTotalsBreakdown
+              quotation={order.quotation}
+              address={addr}
+              compact
+            />
           </div>
         )}
 
