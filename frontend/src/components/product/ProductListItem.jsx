@@ -24,9 +24,10 @@ export default function ProductListItem({ product }) {
       return;
     }
     try {
-      await addToCart(product, 1);
+      const pending = addToCart(product, 1);
       toast.success('Added to cart');
       openCart();
+      await pending;
     } catch (err) {
       toast.error(friendlyError(err, 'Could not add to cart'));
     }

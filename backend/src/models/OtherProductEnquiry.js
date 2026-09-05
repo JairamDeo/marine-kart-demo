@@ -38,6 +38,8 @@ const otherProductEnquirySchema = new mongoose.Schema(
       postalCode: String,
       country: String,
     },
+    /** Linked order — Other Product enquiries use the same quotation/order workflow */
+    order: { type: mongoose.Schema.Types.ObjectId, ref: 'Order', default: null },
     images: [{ type: String }],
     imagePublicIds: [{ type: String }],
     status: {

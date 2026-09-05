@@ -18,6 +18,7 @@ import { productImageUrl } from '../../utils/productImage';
 import { formatProductTitle } from '../../utils/productTitle';
 import { clampOrderQty } from '../../utils/maxOrderQty';
 import { friendlyError } from '../../utils/toastMsg';
+import { validateDeliveryAddress } from '../../utils/address';
 
 const emptyAddress = {
   fullName: '',
@@ -261,8 +262,9 @@ export default function CartDrawer() {
       return;
     }
 
-    if (!billing.fullName?.trim() || !billing.phone?.trim() || !billing.line1?.trim()) {
-      toast.error('Please fill in your delivery address.');
+    const addressError = validateDeliveryAddress(billing);
+    if (addressError) {
+      toast.error(addressError);
       return;
     }
 
@@ -521,7 +523,7 @@ export default function CartDrawer() {
                         <div className="grid grid-cols-1 gap-2.5 min-[380px]:grid-cols-2">
                           <div className="col-span-2">
                             <label className="mb-1 block text-[11px] font-medium text-gray-500">
-                              Full name
+                              Full name <span className="text-rose-500">*</span>
                             </label>
                             <input
                               required
@@ -532,7 +534,7 @@ export default function CartDrawer() {
                           </div>
                           <div className="col-span-2">
                             <label className="mb-1 block text-[11px] font-medium text-gray-500">
-                              Phone
+                              Phone <span className="text-rose-500">*</span>
                             </label>
                             <input
                               required
@@ -543,7 +545,7 @@ export default function CartDrawer() {
                           </div>
                           <div className="col-span-2">
                             <label className="mb-1 block text-[11px] font-medium text-gray-500">
-                              Address
+                              Address <span className="text-rose-500">*</span>
                             </label>
                             <input
                               required
@@ -563,7 +565,7 @@ export default function CartDrawer() {
                           </div>
                           <div className="col-span-2">
                             <label className="mb-1 block text-[11px] font-medium text-gray-500">
-                              PIN code
+                              PIN code <span className="text-rose-500">*</span>
                             </label>
                             <div className="relative">
                               <input
@@ -584,7 +586,7 @@ export default function CartDrawer() {
                           </div>
                           <div>
                             <label className="mb-1 block text-[11px] font-medium text-gray-500">
-                              City
+                              City <span className="text-rose-500">*</span>
                             </label>
                             <input
                               required
@@ -595,7 +597,7 @@ export default function CartDrawer() {
                           </div>
                           <div>
                             <label className="mb-1 block text-[11px] font-medium text-gray-500">
-                              State
+                              State <span className="text-rose-500">*</span>
                             </label>
                             <input
                               required
@@ -606,7 +608,7 @@ export default function CartDrawer() {
                           </div>
                           <div className="col-span-2">
                             <label className="mb-1 block text-[11px] font-medium text-gray-500">
-                              Country
+                              Country <span className="text-rose-500">*</span>
                             </label>
                             <input
                               required

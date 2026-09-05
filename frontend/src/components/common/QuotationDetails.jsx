@@ -10,22 +10,26 @@ function isGoaState(state) {
 export function quotationGstRows(quotation, address) {
   if (!quotation) return [];
   const gstAmount = Number(quotation.gstAmount) || 0;
+  if (gstAmount <= 0) return [];
+
   const mode =
     quotation.gstMode ||
-    (isGoaState(address?.state) || gstAmount <= 0 ? 'full' : 'split');
+    (isGoaState(address?.state) ? 'full' : 'split');
 
-  if (mode === 'split' && gstAmount > 0) {
+  if (mode === 'split') {
     const cgst =
       quotation.cgstAmount != null
         ? Number(quotation.cgstAmount)
         : Math.round((gstAmount / 2) * 100) / 100;
-    const igst =
-      quotation.igstAmount != null
-        ? Number(quotation.igstAmount)
-        : Math.round((gstAmount - cgst) * 100) / 100;
+    const sgst =
+      quotation.sgstAmount != null
+        ? Number(quotation.sgstAmount)
+        : quotation.igstAmount != null
+          ? Number(quotation.igstAmount)
+          : Math.round((gstAmount - cgst) * 100) / 100;
     return [
       { label: 'CGST', value: cgst },
-      { label: 'IGST', value: igst },
+      { label: 'SGST', value: sgst },
     ];
   }
 

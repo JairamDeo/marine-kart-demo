@@ -88,9 +88,10 @@ export default function ProductDetailPage() {
     }
     setBusy(true);
     try {
-      await addToCart(product, clampQty(qty));
+      const pending = addToCart(product, clampQty(qty));
       toast.success('Added to cart');
       openCart();
+      await pending;
     } catch (err) {
       toast.error(friendlyError(err, 'Could not add to cart'));
     } finally {

@@ -93,3 +93,18 @@ export function formatAddressBlock(addr) {
   ].filter(Boolean);
   return lines.join('\n');
 }
+
+/**
+ * Shared delivery-address checks for cart checkout + product-not-listed enquiry.
+ * Returns an error message, or null when valid.
+ */
+export function validateDeliveryAddress(addr) {
+  if (!addr?.fullName?.trim()) return 'Full name is required.';
+  if (!addr?.phone?.trim()) return 'Phone is required.';
+  if (!addr?.line1?.trim()) return 'Address is required.';
+  if (!addr?.postalCode?.trim()) return 'PIN code is required.';
+  if (!addr?.city?.trim()) return 'City is required.';
+  if (!addr?.state?.trim()) return 'State is required.';
+  if (!addr?.country?.trim()) return 'Country is required.';
+  return null;
+}

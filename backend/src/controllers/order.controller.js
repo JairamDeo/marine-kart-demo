@@ -110,6 +110,15 @@ async function buildCartPricing(user) {
       product: product._id,
       name: displayName,
       sku: product.sku,
+      categoryName: product.category?.name || '',
+      subcategoryName: product.subcategory?.name || '',
+      productId: product.productId || '',
+      image: Array.isArray(product.images) && product.images[0] ? product.images[0] : '',
+      description: String(product.shortDescription || product.description || '')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 200),
       quantity: item.quantity,
       unitPrice: unit,
       totalPrice,
@@ -128,6 +137,21 @@ function parsePagination(query, { defaultLimit = 10, maxLimit = 50 } = {}) {
 
 exports.placeOrder = asyncHandler(async (req, res) => {
   const { billingAddress, shippingAddress, paymentMethod = 'cod', notes } = req.body;
+
+  const addr = billingAddress || {};
+  if (
+    !String(addr.fullName || '').trim() ||
+    !String(addr.phone || '').trim() ||
+    !String(addr.line1 || '').trim() ||
+    !String(addr.city || '').trim() ||
+    !String(addr.state || '').trim() ||
+    !String(addr.postalCode || '').trim()
+  ) {
+    return res.status(400).json({
+      success: false,
+      message: 'Delivery address is incomplete. Full name, phone, address, city, state and PIN are required.',
+    });
+  }
 
   let pricing;
   try {
@@ -151,6 +175,7 @@ exports.placeOrder = asyncHandler(async (req, res) => {
       {
         orderNumber: generateOrderNumber(),
         user: req.user._id,
+        source: 'catalog',
         items,
         billingAddress,
         shippingAddress: shippingAddress || billingAddress,
@@ -283,6 +308,9 @@ async function sendQuotationPdfResponse(res, order, customer) {
   const when = formatWhen(order.quotation.sentAt || order.quotation.savedAt || new Date());
 
   try {
+    if (Array.isArray(order.quotation?.items)) {
+      order.quotation.items = await attachProductImagesToQuotationItems(order.quotation.items);
+    }
     const pdfBuffer = await buildQuotationPdf({
       order,
       customer,
@@ -374,6 +402,24 @@ exports.cancelOrder = asyncHandler(async (req, res) => {
 exports.adminListOrders = asyncHandler(async (req, res) => {
   const { page, limit, skip } = parsePagination(req.query);
   const filter = {};
+  const source = String(req.query.source || '').trim().toLowerCase();
+  if (source === 'other_product') {
+    // One-time backfill: older enquiries → Order so quotation workflow works
+    try {
+      const {
+        migrateOrphanOtherProductEnquiries,
+      } = require('./otherProductEnquiry.controller');
+      await migrateOrphanOtherProductEnquiries();
+    } catch (err) {
+      console.error('[orders] other-product migrate:', err.message);
+    }
+    filter.source = 'other_product';
+  } else if (source === 'catalog') {
+    filter.$or = [{ source: 'catalog' }, { source: { $exists: false } }, { source: null }];
+  } else if (source !== 'all') {
+    // Default admin Orders list excludes other-product (shown under Other Product tab)
+    filter.$or = [{ source: 'catalog' }, { source: { $exists: false } }, { source: null }];
+  }
   if (req.query.status) filter.orderStatus = req.query.status;
   if (req.query.paymentStatus) filter.paymentStatus = req.query.paymentStatus;
   if (req.query.search) {
@@ -398,14 +444,21 @@ exports.adminListOrders = asyncHandler(async (req, res) => {
         });
       }
       const matchedUsers = await User.find({ $or: userOr }).select('_id').lean();
-      filter.$or = [
+      const searchOr = [
         { orderNumber: regex },
         { 'shippingAddress.fullName': regex },
         { 'shippingAddress.phone': regex },
         { 'billingAddress.fullName': regex },
         { 'billingAddress.phone': regex },
+        { 'items.name': regex },
         { user: { $in: matchedUsers.map((u) => u._id) } },
       ];
+      if (filter.$or) {
+        filter.$and = [{ $or: filter.$or }, { $or: searchOr }];
+        delete filter.$or;
+      } else {
+        filter.$or = searchOr;
+      }
     }
   }
   if (req.query.from || req.query.to) {
@@ -683,6 +736,7 @@ exports.getQuotation = asyncHandler(async (req, res) => {
         categoryName: plain.categoryName || match?.categoryName || '',
         subcategoryName,
         image: plain.image || match?.image || '',
+        description: plain.description || match?.description || '',
         name: formatProductTitle({
           ...plain,
           subcategoryName,
@@ -850,6 +904,9 @@ exports.sendQuotation = asyncHandler(async (req, res) => {
 
       let attachments = [];
       try {
+        if (Array.isArray(order.quotation?.items)) {
+          order.quotation.items = await attachProductImagesToQuotationItems(order.quotation.items);
+        }
         const pdfBuffer = await buildQuotationPdf({
           order,
           customer,

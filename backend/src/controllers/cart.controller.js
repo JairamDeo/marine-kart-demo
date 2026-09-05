@@ -2,23 +2,19 @@ const Cart = require('../models/Cart');
 const Product = require('../models/Product');
 const { asyncHandler } = require('../utils/helpers');
 
+const CART_POPULATE = {
+  path: 'items.product',
+  populate: [
+    { path: 'category', select: 'name slug' },
+    { path: 'subcategory', select: 'name slug' },
+  ],
+};
+
 const getOrCreateCart = async (userId) => {
-  let cart = await Cart.findOne({ user: userId }).populate({
-    path: 'items.product',
-    populate: [
-      { path: 'category', select: 'name slug' },
-      { path: 'subcategory', select: 'name slug' },
-    ],
-  });
+  let cart = await Cart.findOne({ user: userId }).populate(CART_POPULATE);
   if (!cart) {
     cart = await Cart.create({ user: userId, items: [] });
-    cart = await Cart.findById(cart._id).populate({
-      path: 'items.product',
-      populate: [
-        { path: 'category', select: 'name slug' },
-        { path: 'subcategory', select: 'name slug' },
-      ],
-    });
+    // New cart has no items — skip populate round-trip
   }
   return cart;
 };
@@ -27,7 +23,10 @@ const formatCart = (cart, user) => {
   const items = (cart.items || [])
     .filter((item) => item.product)
     .map((item) => {
-      const pub = item.product.toPublicJSON(user);
+      const pub =
+        typeof item.product.toPublicJSON === 'function'
+          ? item.product.toPublicJSON(user)
+          : item.product;
       return {
         product: pub,
         quantity: item.quantity,
@@ -74,8 +73,8 @@ exports.addToCart = asyncHandler(async (req, res) => {
   }
 
   await cart.save();
-  const refreshed = await getOrCreateCart(req.user._id);
-  res.json({ success: true, data: { cart: formatCart(refreshed, req.user) } });
+  await cart.populate(CART_POPULATE);
+  res.json({ success: true, data: { cart: formatCart(cart, req.user) } });
 });
 
 exports.updateCartItem = asyncHandler(async (req, res) => {
@@ -101,8 +100,8 @@ exports.updateCartItem = asyncHandler(async (req, res) => {
   }
 
   await cart.save();
-  const refreshed = await getOrCreateCart(req.user._id);
-  res.json({ success: true, data: { cart: formatCart(refreshed, req.user) } });
+  await cart.populate(CART_POPULATE);
+  res.json({ success: true, data: { cart: formatCart(cart, req.user) } });
 });
 
 /** Merge guest cart lines into the authenticated user's cart. */
@@ -139,11 +138,11 @@ exports.mergeCart = asyncHandler(async (req, res) => {
   }
 
   await cart.save();
-  const refreshed = await getOrCreateCart(req.user._id);
+  await cart.populate(CART_POPULATE);
   res.json({
     success: true,
     data: {
-      cart: formatCart(refreshed, req.user),
+      cart: formatCart(cart, req.user),
       warnings: [...new Set(warnings)],
     },
   });
@@ -153,8 +152,8 @@ exports.removeFromCart = asyncHandler(async (req, res) => {
   const cart = await getOrCreateCart(req.user._id);
   cart.items = cart.items.filter((i) => productIdOf(i) !== String(req.params.productId));
   await cart.save();
-  const refreshed = await getOrCreateCart(req.user._id);
-  res.json({ success: true, data: { cart: formatCart(refreshed, req.user) } });
+  await cart.populate(CART_POPULATE);
+  res.json({ success: true, data: { cart: formatCart(cart, req.user) } });
 });
 
 exports.clearCart = asyncHandler(async (req, res) => {

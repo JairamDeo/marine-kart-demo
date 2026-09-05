@@ -26,9 +26,11 @@ export default function ProductCard({ product }) {
       return;
     }
     try {
-      await addToCart(product, 1);
+      // Fire request; optimistic cart update opens drawer immediately
+      const pending = addToCart(product, 1);
       toast.success('Added to cart');
       openCart();
+      await pending;
     } catch (err) {
       toast.error(friendlyError(err, 'Could not add to cart'));
     }

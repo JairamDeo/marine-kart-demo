@@ -67,13 +67,14 @@ export default function WishlistDrawer() {
     const productId = product.id || product._id;
     setBusyId(productId);
     try {
-      await addToCart(product, 1);
-      await wishlistService.toggle(productId);
-      setProducts((prev) => prev.filter((p) => String(p.id || p._id) !== String(productId)));
-      await refreshWishlist();
+      const pending = addToCart(product, 1);
       toast.success('Moved to cart');
       closeWishlist();
       openCart();
+      await pending;
+      await wishlistService.toggle(productId);
+      setProducts((prev) => prev.filter((p) => String(p.id || p._id) !== String(productId)));
+      await refreshWishlist();
     } catch (err) {
       toast.error(friendlyError(err, 'Could not move to cart'));
     } finally {

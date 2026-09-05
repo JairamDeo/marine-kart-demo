@@ -99,6 +99,9 @@ function mapServerItems(rows) {
     sku: row.sku || '',
     categoryName: row.categoryName || '',
     subcategoryName: row.subcategoryName || '',
+    brand: row.brand || '',
+    specification: row.specification || '',
+    description: row.description || row.specification || '',
     image: row.image || '',
     quantity: String(row.quantity || 1),
     amount: row.amount === 0 || row.amount == null ? '' : String(row.amount),
@@ -190,7 +193,7 @@ function computeTotals(items, courierCharges, otherCharges, discountType, addres
   const gstMode = isGoaState(addressState) || gstAmount <= 0 ? 'full' : 'split';
   const cgstAmount =
     gstMode === 'split' ? Math.round((gstAmount / 2) * 100) / 100 : 0;
-  const igstAmount =
+  const sgstAmount =
     gstMode === 'split' ? Math.round((gstAmount - cgstAmount) * 100) / 100 : 0;
   return {
     itemsGross: Math.round(itemsGross * 100) / 100,
@@ -200,7 +203,7 @@ function computeTotals(items, courierCharges, otherCharges, discountType, addres
     gstAmount,
     gstMode,
     cgstAmount,
-    igstAmount,
+    sgstAmount,
     grandTotal,
     courier,
     other,
@@ -230,6 +233,10 @@ function mergeOrderKeepUser(prev, next) {
 
 const fieldClass =
   'w-full rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-sm text-gray-900 outline-none transition placeholder:text-gray-300 focus:border-[#1a4b8c] focus:ring-2 focus:ring-[#1a4b8c]/15 disabled:bg-gray-50 disabled:text-gray-500';
+
+function ordersListPath(order) {
+  return order?.source === 'other_product' ? '/admin/other-products' : '/admin/orders';
+}
 
 export default function AdminQuotation() {
   const { id } = useParams();
@@ -397,6 +404,9 @@ export default function AdminQuotation() {
       sku: i.sku,
       categoryName: i.categoryName || '',
       subcategoryName: i.subcategoryName || '',
+      brand: i.brand || '',
+      specification: i.specification || '',
+      description: i.description || i.specification || '',
       image: i.image || '',
       quantity: Math.max(1, Number(i.quantity) || 1),
       amount: Number(i.amount) || 0,
@@ -462,7 +472,7 @@ export default function AdminQuotation() {
       await adminService.sendQuotation(id, payload());
       clearQuotationCache(id);
       toast.success('Quotation sent — status is Quotation Sent', { id: toastId });
-      navigate('/admin/orders');
+      navigate(ordersListPath(order));
     } catch (err) {
       toast.error(friendlyError(err, 'Could not send quotation'), { id: toastId });
     } finally {
@@ -496,11 +506,11 @@ export default function AdminQuotation() {
       {/* Hero header */}
       <div className="mb-4 overflow-hidden rounded-2xl bg-gradient-to-br from-[#1a4b8c] via-[#1e5a9e] to-[#0f172a] px-4 py-3 text-white shadow-lg sm:px-5">
         <Link
-          to="/admin/orders"
+          to={ordersListPath(order)}
           className="mb-1.5 inline-flex items-center gap-1 text-[11px] font-semibold text-white/70 transition hover:text-white"
         >
           <ArrowLeft size={12} />
-          Back to orders
+          {order.source === 'other_product' ? 'Back to Other Product' : 'Back to orders'}
         </Link>
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
@@ -719,9 +729,21 @@ export default function AdminQuotation() {
                                 loading="lazy"
                                 decoding="async"
                               />
-                              <p className="text-sm font-semibold leading-snug text-gray-900">
-                                {formatProductTitle(item)}
-                              </p>
+                              <div className="min-w-0">
+                                <p className="text-sm font-semibold leading-snug text-gray-900">
+                                  {formatProductTitle(item)}
+                                </p>
+                                {(item.description || item.specification) && (
+                                  <p className="mt-0.5 text-[11px] font-semibold leading-snug text-gray-500">
+                                    {item.description || item.specification}
+                                  </p>
+                                )}
+                                {item.brand && (
+                                  <p className="mt-0.5 text-[10px] leading-snug text-gray-400">
+                                    Brand: {item.brand}
+                                  </p>
+                                )}
+                              </div>
                             </div>
                           </td>
                           <td className="w-14 px-2 py-2">
@@ -951,7 +973,7 @@ export default function AdminQuotation() {
                     gstAmount: totals.gstAmount,
                     gstMode: totals.gstMode,
                     cgstAmount: totals.cgstAmount,
-                    igstAmount: totals.igstAmount,
+                    sgstAmount: totals.sgstAmount,
                   },
                   { state: enquiryState }
                 ).map((row) => (

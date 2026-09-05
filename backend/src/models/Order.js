@@ -2,14 +2,19 @@ const mongoose = require('mongoose');
 const { auditFields } = require('../utils/audit');
 
 const orderItemSchema = new mongoose.Schema({
-  product: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
+  /** Optional for catalog orders; null for other-product / free-text lines */
+  product: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', default: null },
   name: String,
   sku: String,
   categoryName: { type: String, default: '' },
   subcategoryName: { type: String, default: '' },
   productId: { type: String, default: '' },
+  brand: { type: String, default: '' },
+  specification: { type: String, default: '' },
   /** Main product image URL snapshot for admin/customer order views */
   image: { type: String, default: '' },
+  /** Short product description snapshot (shown under name on quotation PDF) */
+  description: { type: String, default: '' },
   quantity: { type: Number, required: true, min: 1 },
   unitPrice: { type: Number, required: true, default: 0 },
   totalPrice: { type: Number, required: true, default: 0 },
@@ -39,6 +44,10 @@ const quotationItemSchema = new mongoose.Schema(
     quantity: { type: Number, default: 1, min: 1 },
     amount: { type: Number, default: 0, min: 0 },
     image: { type: String, default: '' },
+    brand: { type: String, default: '' },
+    specification: { type: String, default: '' },
+    /** Short line description under item name (PDF / quotation view) */
+    description: { type: String, default: '' },
     discountType: {
       type: String,
       enum: ['none', 'percent', 'amount'],
@@ -89,13 +98,15 @@ const quotationSchema = new mongoose.Schema(
     discountTotal: { type: Number, default: 0 },
     taxableAmount: { type: Number, default: 0 },
     gstAmount: { type: Number, default: 0 },
-    /** When customer state is not Goa: split gstAmount 50/50 into CGST + IGST */
+    /** When customer state is not Goa: split gstAmount 50/50 into CGST + SGST */
     gstMode: {
       type: String,
       enum: ['full', 'split'],
       default: 'full',
     },
     cgstAmount: { type: Number, default: 0 },
+    sgstAmount: { type: Number, default: 0 },
+    /** Legacy alias from earlier CGST+IGST split — prefer sgstAmount */
     igstAmount: { type: Number, default: 0 },
     grandTotal: { type: Number, default: 0 },
     savedAt: { type: Date, default: null },
@@ -109,6 +120,13 @@ const orderSchema = new mongoose.Schema(
   {
     orderNumber: { type: String, unique: true, required: true },
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    /** catalog = cart enquiry; other_product = Product Not Listed form */
+    source: {
+      type: String,
+      enum: ['catalog', 'other_product'],
+      default: 'catalog',
+      index: true,
+    },
     items: [orderItemSchema],
     billingAddress: addressSnapshotSchema,
     shippingAddress: addressSnapshotSchema,

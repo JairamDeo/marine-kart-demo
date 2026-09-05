@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import DeliveryAddressSection from '../components/common/DeliveryAddressSection';
 import { otherProductService } from '../services/otherProduct.service';
 import { authService } from '../services/auth.service';
-import { addressesEqual, emptyAddress, formatAddressBlock } from '../utils/address';
+import { addressesEqual, emptyAddress, formatAddressBlock, validateDeliveryAddress } from '../utils/address';
 import { friendlyError } from '../utils/toastMsg';
 
 const MAX_PRODUCTS = 10;
@@ -114,8 +114,9 @@ export default function ProductNotListedPage() {
       return;
     }
 
-    if (!billing.fullName?.trim() || !billing.phone?.trim() || !billing.line1?.trim()) {
-      toast.error('Please fill in your delivery address.');
+    const addressError = validateDeliveryAddress(billing);
+    if (addressError) {
+      toast.error(addressError);
       return;
     }
 
@@ -195,15 +196,11 @@ export default function ProductNotListedPage() {
 
       <div className="container-mk relative py-12 sm:py-16">
         <div className="mx-auto max-w-3xl text-center">
-          <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-cyan">
-            Product not listed
-          </p>
-          <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-navy sm:text-4xl">
-            Product Not Listed
+          <h1 className="text-3xl font-extrabold tracking-tight text-navy sm:text-4xl">
+            Request a Product
           </h1>
           <p className="mx-auto mt-3 max-w-2xl text-sm leading-relaxed text-gray-600 sm:text-base">
-            Can&apos;t find a marine product on our website? Add one or more products with
-            quantities and specs — our team will source them and get back to you.
+            Tell us what you need, even if it&apos;s not listed on our website.
           </p>
         </div>
 

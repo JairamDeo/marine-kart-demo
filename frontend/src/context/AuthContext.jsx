@@ -324,9 +324,58 @@ export function AuthProvider({ children }) {
       return result.cart;
     }
 
-    const { data } = await cartService.addItem({ productId, quantity: qty });
-    setCart(data.data.cart);
-    return data.data.cart;
+    // Optimistic UI — cart badge / drawer update immediately
+    const snapshot = {
+      id: product.id || product._id,
+      _id: product._id || product.id,
+      productId: product.productId || '',
+      name: product.name,
+      slug: product.slug,
+      images: product.images || [],
+      category: product.category || null,
+      subcategory: product.subcategory || null,
+      priceVisible: Boolean(product.priceVisible),
+      price: product.price ?? null,
+      salePrice: product.salePrice ?? null,
+      displayPrice: product.displayPrice ?? null,
+      shortDescription: product.shortDescription,
+      maxOrderQty: product.maxOrderQty || 0,
+      stockStatus: product.stockStatus,
+    };
+
+    setCart((prev) => {
+      const base = prev || { id: null, items: [], itemCount: 0, subtotal: null, priceVisible: false };
+      const items = [...(base.items || [])];
+      const idx = items.findIndex(
+        (i) => String(i.product?.id || i.product?._id) === String(productId)
+      );
+      if (idx >= 0) {
+        const nextQty = (Number(items[idx].quantity) || 0) + qty;
+        items[idx] = { ...items[idx], quantity: nextQty };
+      } else {
+        items.push({ product: snapshot, quantity: qty, lineTotal: null });
+      }
+      return {
+        ...base,
+        items,
+        itemCount: items.reduce((s, i) => s + (Number(i.quantity) || 0), 0),
+      };
+    });
+
+    try {
+      const { data } = await cartService.addItem({ productId, quantity: qty });
+      setCart(data.data.cart);
+      return data.data.cart;
+    } catch (err) {
+      // Roll back optimistic change
+      try {
+        const { data } = await cartService.get();
+        setCart(data.data.cart);
+      } catch {
+        /* ignore */
+      }
+      throw err;
+    }
   }, []);
 
   const updateCartQuantity = useCallback(async (productId, quantity) => {
@@ -336,9 +385,39 @@ export function AuthProvider({ children }) {
       if (!result.ok) throw new Error(result.message);
       return result.cart;
     }
-    const { data } = await cartService.updateItem({ productId, quantity });
-    setCart(data.data.cart);
-    return data.data.cart;
+
+    setCart((prev) => {
+      if (!prev?.items) return prev;
+      const items =
+        Number(quantity) <= 0
+          ? prev.items.filter(
+              (i) => String(i.product?.id || i.product?._id) !== String(productId)
+            )
+          : prev.items.map((i) =>
+              String(i.product?.id || i.product?._id) === String(productId)
+                ? { ...i, quantity: Math.max(1, Number(quantity) || 1) }
+                : i
+            );
+      return {
+        ...prev,
+        items,
+        itemCount: items.reduce((s, i) => s + (Number(i.quantity) || 0), 0),
+      };
+    });
+
+    try {
+      const { data } = await cartService.updateItem({ productId, quantity });
+      setCart(data.data.cart);
+      return data.data.cart;
+    } catch (err) {
+      try {
+        const { data } = await cartService.get();
+        setCart(data.data.cart);
+      } catch {
+        /* ignore */
+      }
+      throw err;
+    }
   }, []);
 
   const removeFromCart = useCallback(async (productId) => {
@@ -347,9 +426,32 @@ export function AuthProvider({ children }) {
       setCart(result.cart);
       return result.cart;
     }
-    const { data } = await cartService.removeItem(productId);
-    setCart(data.data.cart);
-    return data.data.cart;
+
+    setCart((prev) => {
+      if (!prev?.items) return prev;
+      const items = prev.items.filter(
+        (i) => String(i.product?.id || i.product?._id) !== String(productId)
+      );
+      return {
+        ...prev,
+        items,
+        itemCount: items.reduce((s, i) => s + (Number(i.quantity) || 0), 0),
+      };
+    });
+
+    try {
+      const { data } = await cartService.removeItem(productId);
+      setCart(data.data.cart);
+      return data.data.cart;
+    } catch (err) {
+      try {
+        const { data } = await cartService.get();
+        setCart(data.data.cart);
+      } catch {
+        /* ignore */
+      }
+      throw err;
+    }
   }, []);
 
   const value = useMemo(

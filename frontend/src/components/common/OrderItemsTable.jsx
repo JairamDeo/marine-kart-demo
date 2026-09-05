@@ -95,9 +95,22 @@ export default function OrderItemsTable({ items = [] }) {
                           loading="lazy"
                           decoding="async"
                         />
-                        <p className="min-w-0 font-semibold leading-snug text-gray-900">
-                          {formatProductTitle(item)}
-                        </p>
+                        <div className="min-w-0">
+                          <p className="font-semibold leading-snug text-gray-900">
+                            {formatProductTitle(item)}
+                          </p>
+                          {(item.brand || item.specification || item.sku) && (
+                            <p className="mt-0.5 text-[11px] leading-snug text-gray-500">
+                              {[
+                                item.brand,
+                                item.sku ? `SKU ${item.sku}` : '',
+                                item.specification,
+                              ]
+                                .filter(Boolean)
+                                .join(' · ')}
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </td>
                     <td className="px-4 py-3 text-right font-semibold text-gray-800">

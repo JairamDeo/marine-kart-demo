@@ -677,11 +677,11 @@ function otherProductThankYouEmail({ name, productName }) {
       preheader: `We received your enquiry for ${productName || 'a product'}.`,
       bodyHtml: `
         <p style="margin:0 0 12px;">Hi ${safeName},</p>
-        <p style="margin:0 0 16px;">Thank you for submitting an enquiry for <strong>${safeProduct}</strong>. Our sourcing team will review your request and contact you shortly.</p>
-        <p style="margin:0;">${ctaButton(siteUrl('/shop'), 'Browse catalog')}</p>
+        <p style="margin:0 0 16px;">Thank you for submitting an enquiry for <strong>${safeProduct}</strong>. Our sourcing team will review your request and send a quotation shortly.</p>
+        <p style="margin:0;">${ctaButton(siteUrl('/account/orders'), 'View my orders')}</p>
       `,
     }),
-    text: `Hi ${name || 'there'},\n\nThank you for your product enquiry (${productName}). We will contact you shortly.\n\n— MarineKart`,
+    text: `Hi ${name || 'there'},\n\nThank you for your product enquiry (${productName}). We will contact you shortly.\n\nView: ${siteUrl('/account/orders')}\n\n— MarineKart`,
   };
 }
 

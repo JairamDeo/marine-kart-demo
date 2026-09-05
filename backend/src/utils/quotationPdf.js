@@ -395,10 +395,31 @@ function buildQuotationPdf({ order, customer, customerName, sentAtLabel: _sentAt
       const gross = Math.round(amount * qty * 100) / 100;
       const disc = Math.max(0, Math.round((gross - lineTotal) * 100) / 100);
       const gstPct = Number(item.gstPercent) || 0;
-      const title = formatProductTitle(item);
+      const baseTitle = formatProductTitle(item);
+      const brandLine = [item.brand].filter(Boolean).join('');
+      let description = String(item.description || item.specification || '')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      // Avoid repeating the same text as the title
+      if (
+        description &&
+        description.toLowerCase() === baseTitle.toLowerCase()
+      ) {
+        description = '';
+      }
+      if (description.length > 140) {
+        description = `${description.slice(0, 137).trim()}…`;
+      }
+
       doc.font('Helvetica-Bold').fontSize(7.5);
-      const titleH = doc.heightOfString(title, { width: col.item - 8 });
-      const rowH = Math.max(24, titleH + 8);
+      const titleH = doc.heightOfString(baseTitle, { width: col.item - 8 });
+      doc.font('Helvetica-Bold').fontSize(6);
+      const descH = description
+        ? doc.heightOfString(description, { width: col.item - 8 })
+        : 0;
+      const brandH = brandLine ? 8 : 0;
+      const rowH = Math.max(24, titleH + descH + brandH + 10);
 
       ensureSpace(doc, rowH + 4);
       if (doc.y < PAGE.marginTop) drawTableHeader();
@@ -416,9 +437,33 @@ function buildQuotationPdf({ order, customer, customerName, sentAtLabel: _sentAt
       doc.fillColor(COLORS.ink).font('Helvetica').fontSize(7.5);
       doc.text(String(idx + 1), x + 4, y + 7, { width: col.no - 8, align: 'center', lineBreak: false });
       x += col.no;
-      doc.font('Helvetica-Bold').text(title, x + 4, y + 7, { width: col.item - 8, lineBreak: false });
+
+      let textY = y + 5;
+      doc
+        .font('Helvetica-Bold')
+        .fontSize(7.5)
+        .fillColor(COLORS.ink)
+        .text(baseTitle, x + 4, textY, { width: col.item - 8 });
+      textY = doc.y + 1;
+      if (description) {
+        doc
+          .font('Helvetica-Bold')
+          .fontSize(6)
+          .fillColor(COLORS.muted)
+          .text(description, x + 4, textY, { width: col.item - 8 });
+        textY = doc.y + 1;
+      }
+      if (brandLine) {
+        doc
+          .font('Helvetica')
+          .fontSize(6)
+          .fillColor(COLORS.muted)
+          .text(`Brand: ${brandLine}`, x + 4, textY, { width: col.item - 8 });
+      }
+
       x += col.item;
-      doc.font('Helvetica').text(String(qty), x + 4, y + 7, { width: col.qty - 8, align: 'center', lineBreak: false });
+      doc.fillColor(COLORS.ink).font('Helvetica').fontSize(7.5);
+      doc.text(String(qty), x + 4, y + 7, { width: col.qty - 8, align: 'center', lineBreak: false });
       x += col.qty;
       doc.text(money(amount), x + 4, y + 7, { width: col.rate - 8, align: 'right', lineBreak: false });
       x += col.rate;
@@ -455,9 +500,11 @@ function buildQuotationPdf({ order, customer, customerName, sentAtLabel: _sentAt
       ...(q.gstMode === 'split' && Number(q.gstAmount) > 0
         ? [
             ['CGST', money(q.cgstAmount)],
-            ['IGST', money(q.igstAmount)],
+            ['SGST', money(q.sgstAmount ?? q.igstAmount)],
           ]
-        : [['GST', money(q.gstAmount)]]),
+        : Number(q.gstAmount) > 0
+          ? [['GST', money(q.gstAmount)]]
+          : []),
     ];
     for (const [label, value] of totalRows) {
       doc.fillColor(COLORS.muted).font('Helvetica').fontSize(8.5);

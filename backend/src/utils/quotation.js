@@ -53,7 +53,7 @@ function isGoaState(state) {
 
 /**
  * Goa → full GST line.
- * Other states → CGST + IGST (50/50 of combined GST).
+ * Other states → CGST + SGST (50/50 of combined GST).
  */
 function resolveGstSplit(gstAmount, state) {
   const total = round2(gstAmount);
@@ -62,16 +62,16 @@ function resolveGstSplit(gstAmount, state) {
       gstMode: 'full',
       gstAmount: total,
       cgstAmount: 0,
-      igstAmount: 0,
+      sgstAmount: 0,
     };
   }
   const cgstAmount = round2(total / 2);
-  const igstAmount = round2(total - cgstAmount);
+  const sgstAmount = round2(total - cgstAmount);
   return {
     gstMode: 'split',
     gstAmount: total,
     cgstAmount,
-    igstAmount,
+    sgstAmount,
   };
 }
 
@@ -98,6 +98,13 @@ function normalizeQuotationPayload(body, orderItems = [], addressOrOrder = null)
     const quantity = Math.max(1, Math.floor(Number(row.quantity) || Number(fallback.quantity) || 1));
     const amount = Math.max(0, Number(row.amount) || 0);
     const subcategoryName = String(row.subcategoryName || fallback.subcategoryName || '').trim();
+    const brand = String(row.brand || fallback.brand || '').trim();
+    const specification = String(row.specification || fallback.specification || '').trim();
+    const description = String(row.description || fallback.description || specification || '')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 200);
     const discountValue = Math.max(0, Number(row.discountValue) || 0);
     const itemType = discountValue > 0 ? discountType : 'none';
     const gstPercent = Math.min(100, Math.max(0, Number(row.gstPercent) || 0));
@@ -107,16 +114,20 @@ function normalizeQuotationPayload(body, orderItems = [], addressOrOrder = null)
     const gstAmount = lineGstAmount(taxableLine, gstPercent);
     // lineTotal = taxable after discount (GST shown separately in totals)
     const lineTotal = taxableLine;
+    const rawName = row.name || fallback.name || '';
     return {
       product: row.product || fallback.product || null,
       name: formatProductTitle({
-        name: row.name || fallback.name || '',
+        name: rawName,
         productId: row.productId || fallback.productId || '',
         subcategoryName,
       }),
       sku: String(row.sku || fallback.sku || '').trim(),
       categoryName: String(row.categoryName || fallback.categoryName || '').trim(),
       subcategoryName,
+      brand,
+      specification,
+      description,
       image: String(row.image || fallback.image || '').trim(),
       quantity,
       amount,
@@ -160,7 +171,8 @@ function normalizeQuotationPayload(body, orderItems = [], addressOrOrder = null)
     gstAmount: gstSplit.gstAmount,
     gstMode: gstSplit.gstMode,
     cgstAmount: gstSplit.cgstAmount,
-    igstAmount: gstSplit.igstAmount,
+    sgstAmount: gstSplit.sgstAmount,
+    igstAmount: 0,
     grandTotal,
     itemsGross,
   };
@@ -197,17 +209,38 @@ function seedQuotationItemsFromOrder(order) {
       item.image ||
       (Array.isArray(product?.images) && product.images[0] ? product.images[0] : '') ||
       '';
+    const brand = item.brand || '';
+    const specification = item.specification || '';
+    const description = String(
+      item.description ||
+        product?.shortDescription ||
+        product?.description ||
+        specification ||
+        ''
+    )
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 200);
+    const baseName = item.name || product?.name || '';
+    const displayName =
+      order.source === 'other_product'
+        ? baseName
+        : formatProductTitle({
+            name: baseName,
+            productId: product?.productId || item.productId || '',
+            subcategoryName,
+            subcategory: product?.subcategory,
+          });
     return {
       product: product?._id || item.product || null,
-      name: formatProductTitle({
-        name: item.name || product?.name || '',
-        productId: product?.productId || '',
-        subcategoryName,
-        subcategory: product?.subcategory,
-      }),
+      name: displayName,
       sku: item.sku || product?.sku || '',
       categoryName,
       subcategoryName,
+      brand,
+      specification,
+      description,
       image,
       quantity: item.quantity || 1,
       amount: 0,
@@ -231,7 +264,7 @@ async function enrichOrderItemsWithCategories(order) {
   }
 
   const products = await Product.find({ _id: { $in: productIds } })
-    .select('name productId sku category subcategory images')
+    .select('name productId sku category subcategory images shortDescription description')
     .populate('category', 'name')
     .populate('subcategory', 'name')
     .lean();
@@ -245,6 +278,17 @@ async function enrichOrderItemsWithCategories(order) {
       (Array.isArray(p?.images) && p.images[0] ? p.images[0] : '') ||
       plain.image ||
       '';
+    const description = String(
+      plain.description ||
+        p?.shortDescription ||
+        p?.description ||
+        plain.specification ||
+        ''
+    )
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 200);
     return {
       product: plain.product?._id || plain.product || null,
       name: formatProductTitle({
@@ -257,6 +301,9 @@ async function enrichOrderItemsWithCategories(order) {
       categoryName: p?.category?.name || plain.categoryName || '',
       subcategoryName,
       productId: p?.productId || plain.productId || '',
+      brand: plain.brand || '',
+      specification: plain.specification || '',
+      description,
       image,
       quantity: plain.quantity,
       unitPrice: plain.unitPrice,
@@ -282,22 +329,45 @@ function orderWithEnrichedItems(order) {
   return base;
 }
 
-/** Attach product main images onto quotation line items. */
+/** Attach product main images + short description onto quotation line items. */
 async function attachProductImagesToQuotationItems(items = []) {
   const productIds = items.map((i) => i.product?._id || i.product).filter(Boolean);
-  if (!productIds.length) return items;
+  if (!productIds.length) {
+    return items.map((item) => {
+      const plain = item.toObject?.() || item;
+      const description = String(plain.description || plain.specification || '')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 200);
+      return { ...plain, description };
+    });
+  }
 
   const products = await Product.find({ _id: { $in: productIds } })
-    .select('images')
+    .select('images shortDescription description')
     .lean();
   const byId = new Map(products.map((p) => [String(p._id), p]));
 
   return items.map((item) => {
     const plain = item.toObject?.() || item;
-    if (plain.image) return plain;
     const p = byId.get(String(plain.product?._id || plain.product));
-    const image = Array.isArray(p?.images) && p.images[0] ? p.images[0] : '';
-    return { ...plain, image };
+    const image =
+      plain.image ||
+      (Array.isArray(p?.images) && p.images[0] ? p.images[0] : '') ||
+      '';
+    const description = String(
+      plain.description ||
+        p?.shortDescription ||
+        p?.description ||
+        plain.specification ||
+        ''
+    )
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 200);
+    return { ...plain, image, description };
   });
 }
 
@@ -317,7 +387,8 @@ function buildQuotationDocument(normalized, { status = 'draft', existing = null,
     gstAmount: normalized.gstAmount,
     gstMode: normalized.gstMode || 'full',
     cgstAmount: normalized.cgstAmount || 0,
-    igstAmount: normalized.igstAmount || 0,
+    sgstAmount: normalized.sgstAmount || 0,
+    igstAmount: 0,
     grandTotal: normalized.grandTotal,
     savedAt: new Date(),
     sentAt: status === 'sent' ? new Date() : existing?.sentAt || null,
