@@ -6,7 +6,7 @@ import { productService } from '../services/product.service';
 import { wishlistService } from '../services/wishlist.service';
 import { useAuth } from '../context/AuthContext';
 import { useCartUI } from '../context/CartUIContext';
-import { productImageUrl } from '../utils/productImage';
+import { productImageUrl, realProductImages, isPlaceholderImage } from '../utils/productImage';
 import { formatProductTitle } from '../utils/productTitle';
 import { friendlyError } from '../utils/toastMsg';
 import ProductCard from '../components/product/ProductCard';
@@ -61,16 +61,18 @@ export default function ProductDetailPage() {
 
   const gallery = useMemo(() => {
     if (!product) return [];
-    const imgs = Array.isArray(product.images) ? product.images.filter(Boolean) : [];
-    const specImg =
+    const imgs = realProductImages(product);
+    const rawSpec =
       product.specifications?.mode === 'image' && product.specifications?.image
         ? String(product.specifications.image).trim()
         : '';
-    // Optional spec image appears as an extra gallery thumbnail (does not replace main images)
+    // Only append a real specification photo — never the dummy placeholder
+    const specImg = rawSpec && !isPlaceholderImage(rawSpec) ? rawSpec : '';
     if (specImg && !imgs.includes(specImg)) {
       return imgs.length ? [...imgs, specImg] : [specImg];
     }
     if (imgs.length) return imgs;
+    // No real images in DB → single generic placeholder
     return [productImageUrl(product, 900)];
   }, [product]);
 

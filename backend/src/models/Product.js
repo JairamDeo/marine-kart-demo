@@ -106,7 +106,18 @@ function sanitizeSpecificationsInput(raw) {
  */
 productSchema.methods.toPublicJSON = function toPublicJSON(user) {
   const specs = normalizeSpecifications(this.specifications);
-  const images = Array.isArray(this.images) ? this.images.filter(Boolean) : [];
+  const PLACEHOLDER_RE = /product-placeholder|specification-placeholder|placehold\.co|dummy/i;
+  const images = (Array.isArray(this.images) ? this.images : [])
+    .map((u) => String(u || '').trim())
+    .filter((u) => u && !PLACEHOLDER_RE.test(u));
+
+  // Don't expose dummy specification image as if it were a real asset
+  if (specs?.image && PLACEHOLDER_RE.test(String(specs.image))) {
+    specs.image = '';
+    if (specs.mode === 'image' && !specs.markdown) {
+      specs.mode = 'none';
+    }
+  }
 
   const stockStatus = this.stockStatus === 'out_of_stock' ? 'out_of_stock' : 'in_stock';
 
