@@ -5,7 +5,7 @@ const { formatProductTitle } = require('./productTitle');
 const { BANK_DETAILS } = require('./quotation');
 
 const ASSETS = path.join(__dirname, '../assets/quotation');
-const LOGO_PATH = path.join(ASSETS, 'logo-header.png');
+const LOGO_PATH = path.join(ASSETS, 'logo2.png');
 const LOGO_FALLBACK = path.join(ASSETS, 'logo-dark.png');
 
 const COLORS = {
@@ -73,17 +73,17 @@ function formatQuotationDate(date) {
   }
 }
 
-/** Draw fixed header — logo left (vertically centred), office + showroom on the right. */
+/** Draw fixed header — white bar, cyan bottom border, logo2 + office details. */
 function drawHeader(doc) {
   const pageW = doc.page.width;
   const ml = PAGE.marginLeft;
   const mr = PAGE.marginRight;
 
   doc.save();
-  doc.rect(0, 0, pageW, HEADER_H).fill(COLORS.navy);
+  doc.rect(0, 0, pageW, HEADER_H).fill(COLORS.white);
   doc.rect(0, HEADER_H, pageW, 2).fill(COLORS.cyan);
 
-  const logoH = 34;
+  const logoH = 40;
   const logoY = (HEADER_H - logoH) / 2;
   const logoFile = fs.existsSync(LOGO_PATH)
     ? LOGO_PATH
@@ -93,20 +93,20 @@ function drawHeader(doc) {
 
   if (logoFile) {
     try {
-      doc.image(logoFile, ml, logoY, { fit: [120, logoH] });
+      doc.image(logoFile, ml, logoY, { fit: [130, logoH] });
     } catch {
       doc
-        .fillColor(COLORS.white)
+        .fillColor(COLORS.navy)
         .font('Helvetica-Bold')
         .fontSize(13)
-        .text('MarineKart', ml, logoY + 8, { lineBreak: false });
+        .text('MarineKart', ml, logoY + 10, { lineBreak: false });
     }
   } else {
     doc
-      .fillColor(COLORS.white)
+      .fillColor(COLORS.navy)
       .font('Helvetica-Bold')
       .fontSize(13)
-      .text('MarineKart', ml, logoY + 8, { lineBreak: false });
+      .text('MarineKart', ml, logoY + 10, { lineBreak: false });
   }
 
   const blockW = 195;
@@ -122,14 +122,14 @@ function drawHeader(doc) {
   doc.fillColor(COLORS.cyan).text(COMPANY.registered.title.toUpperCase(), regX, infoY, {
     lineBreak: false,
   });
-  doc.fillColor(COLORS.white).font('Helvetica').fontSize(7.5);
+  doc.fillColor(COLORS.navy).font('Helvetica').fontSize(7.5);
   COMPANY.registered.lines.forEach((line, i) => {
     doc.text(line, regX, infoY + 11 + i * 10, { lineBreak: false });
   });
 
   doc.fillColor(COLORS.cyan).font('Helvetica-Bold').fontSize(8);
   doc.text(COMPANY.showroom.title.toUpperCase(), showX, infoY, { lineBreak: false });
-  doc.fillColor(COLORS.white).font('Helvetica').fontSize(7.5);
+  doc.fillColor(COLORS.navy).font('Helvetica').fontSize(7.5);
   COMPANY.showroom.lines.forEach((line, i) => {
     doc.text(line, showX, infoY + 11 + i * 10, { lineBreak: false });
   });
@@ -141,7 +141,7 @@ function drawPhoneIcon(doc, x, y, size) {
   const cx = x + size / 2;
   const cy = y + size / 2;
   doc.save();
-  doc.strokeColor(COLORS.white).lineWidth(0.65);
+  doc.strokeColor(COLORS.navy).lineWidth(0.65);
   doc.circle(cx, cy, size / 2 - 0.5).stroke();
   doc
     .moveTo(cx - size * 0.18, cy - size * 0.12)
@@ -155,7 +155,7 @@ function drawGlobeIcon(doc, x, y, size) {
   const cy = y + size / 2;
   const r = size / 2 - 0.5;
   doc.save();
-  doc.strokeColor(COLORS.white).lineWidth(0.65);
+  doc.strokeColor(COLORS.navy).lineWidth(0.65);
   doc.circle(cx, cy, r).stroke();
   doc.moveTo(x + 1, cy).lineTo(x + size - 1, cy).stroke();
   doc
@@ -171,7 +171,7 @@ function drawGlobeIcon(doc, x, y, size) {
 
 function drawEmailIcon(doc, x, y, size) {
   doc.save();
-  doc.strokeColor(COLORS.white).lineWidth(0.65);
+  doc.strokeColor(COLORS.navy).lineWidth(0.65);
   doc.rect(x + 0.5, y + 1.5, size - 1, size - 3).stroke();
   doc
     .moveTo(x + 0.5, y + 1.5)
@@ -186,15 +186,16 @@ function drawFooter(doc) {
   const pageH = doc.page.height;
   const barTop = pageH - FOOTER_H;
 
+  // Cyan top border (same as header bottom), white footer bar
   doc.rect(0, barTop, pageW, 2).fill(COLORS.cyan);
-  doc.rect(0, barTop + 2, pageW, FOOTER_H - 2).fill(COLORS.navy);
+  doc.rect(0, barTop + 2, pageW, FOOTER_H - 2).fill(COLORS.white);
 
   const midY = barTop + FOOTER_H / 2;
   const iconSize = 10;
   const iconY = midY - iconSize / 2;
   const textY = midY - 4;
 
-  doc.fillColor(COLORS.white).font('Helvetica').fontSize(8);
+  doc.fillColor(COLORS.navy).font('Helvetica').fontSize(8);
 
   const phoneX = PAGE.marginLeft;
   drawPhoneIcon(doc, phoneX, iconY, iconSize);
@@ -500,10 +501,10 @@ function buildQuotationPdf({ order, customer, customerName, sentAtLabel: _sentAt
       ...(q.gstMode === 'split' && Number(q.gstAmount) > 0
         ? [
             ['CGST', money(q.cgstAmount)],
-            ['SGST', money(q.sgstAmount ?? q.igstAmount)],
+            ['SGST', money(q.sgstAmount)],
           ]
         : Number(q.gstAmount) > 0
-          ? [['GST', money(q.gstAmount)]]
+          ? [['IGST', money(Number(q.igstAmount) > 0 ? q.igstAmount : q.gstAmount)]]
           : []),
     ];
     for (const [label, value] of totalRows) {

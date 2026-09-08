@@ -12,28 +12,34 @@ export function quotationGstRows(quotation, address) {
   const gstAmount = Number(quotation.gstAmount) || 0;
   if (gstAmount <= 0) return [];
 
-  const mode =
+  let mode =
     quotation.gstMode ||
-    (isGoaState(address?.state) ? 'full' : 'split');
+    (isGoaState(address?.state) ? 'split' : 'igst');
+  // Legacy "full" GST: Goa → CGST+SGST, others → IGST
+  if (mode === 'full') {
+    mode = isGoaState(address?.state) ? 'split' : 'igst';
+  }
 
   if (mode === 'split') {
     const cgst =
-      quotation.cgstAmount != null
+      quotation.cgstAmount != null && Number(quotation.cgstAmount) > 0
         ? Number(quotation.cgstAmount)
         : Math.round((gstAmount / 2) * 100) / 100;
     const sgst =
-      quotation.sgstAmount != null
+      quotation.sgstAmount != null && Number(quotation.sgstAmount) > 0
         ? Number(quotation.sgstAmount)
-        : quotation.igstAmount != null
-          ? Number(quotation.igstAmount)
-          : Math.round((gstAmount - cgst) * 100) / 100;
+        : Math.round((gstAmount - cgst) * 100) / 100;
     return [
       { label: 'CGST', value: cgst },
       { label: 'SGST', value: sgst },
     ];
   }
 
-  return [{ label: 'GST', value: gstAmount }];
+  const igst =
+    quotation.igstAmount != null && Number(quotation.igstAmount) > 0
+      ? Number(quotation.igstAmount)
+      : gstAmount;
+  return [{ label: 'IGST', value: igst }];
 }
 
 export function QuotationTotalsBreakdown({ quotation, address, compact = false }) {

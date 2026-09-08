@@ -52,26 +52,37 @@ function isGoaState(state) {
 }
 
 /**
- * Goa → full GST line.
- * Other states → CGST + SGST (50/50 of combined GST).
+ * Goa → CGST + SGST (50/50 of combined GST).
+ * Other states → IGST only.
  */
 function resolveGstSplit(gstAmount, state) {
   const total = round2(gstAmount);
-  if (total <= 0 || isGoaState(state)) {
+  if (total <= 0) {
     return {
-      gstMode: 'full',
-      gstAmount: total,
+      gstMode: 'igst',
+      gstAmount: 0,
       cgstAmount: 0,
       sgstAmount: 0,
+      igstAmount: 0,
     };
   }
-  const cgstAmount = round2(total / 2);
-  const sgstAmount = round2(total - cgstAmount);
+  if (isGoaState(state)) {
+    const cgstAmount = round2(total / 2);
+    const sgstAmount = round2(total - cgstAmount);
+    return {
+      gstMode: 'split',
+      gstAmount: total,
+      cgstAmount,
+      sgstAmount,
+      igstAmount: 0,
+    };
+  }
   return {
-    gstMode: 'split',
+    gstMode: 'igst',
     gstAmount: total,
-    cgstAmount,
-    sgstAmount,
+    cgstAmount: 0,
+    sgstAmount: 0,
+    igstAmount: total,
   };
 }
 
@@ -172,7 +183,7 @@ function normalizeQuotationPayload(body, orderItems = [], addressOrOrder = null)
     gstMode: gstSplit.gstMode,
     cgstAmount: gstSplit.cgstAmount,
     sgstAmount: gstSplit.sgstAmount,
-    igstAmount: 0,
+    igstAmount: gstSplit.igstAmount || 0,
     grandTotal,
     itemsGross,
   };
@@ -385,10 +396,10 @@ function buildQuotationDocument(normalized, { status = 'draft', existing = null,
     discountTotal: normalized.discountTotal,
     taxableAmount: normalized.taxableAmount,
     gstAmount: normalized.gstAmount,
-    gstMode: normalized.gstMode || 'full',
+    gstMode: normalized.gstMode || 'igst',
     cgstAmount: normalized.cgstAmount || 0,
     sgstAmount: normalized.sgstAmount || 0,
-    igstAmount: 0,
+    igstAmount: normalized.igstAmount || 0,
     grandTotal: normalized.grandTotal,
     savedAt: new Date(),
     sentAt: status === 'sent' ? new Date() : existing?.sentAt || null,

@@ -47,7 +47,7 @@ export default function OrderTracker({ order, forCustomer = false }) {
 
       {cancelled && (
         <div className="mb-3 rounded-lg border border-rose-100 bg-rose-50 px-3 py-2.5">
-          <p className="text-sm font-semibold text-rose-700">Order status: Cancelled / Rejected</p>
+          <p className="text-sm font-semibold text-rose-700">Order status: Cancelled</p>
           {(() => {
             const who = order.cancelledBy?.name
               ? order.cancelledBy

@@ -190,11 +190,13 @@ function computeTotals(items, courierCharges, otherCharges, discountType, addres
   ) / 100;
   const taxable = Math.round((itemsSubtotal + courier + other) * 100) / 100;
   const grandTotal = Math.round((taxable + gstAmount) * 100) / 100;
-  const gstMode = isGoaState(addressState) || gstAmount <= 0 ? 'full' : 'split';
+  const gstMode =
+    gstAmount <= 0 ? 'igst' : isGoaState(addressState) ? 'split' : 'igst';
   const cgstAmount =
     gstMode === 'split' ? Math.round((gstAmount / 2) * 100) / 100 : 0;
   const sgstAmount =
     gstMode === 'split' ? Math.round((gstAmount - cgstAmount) * 100) / 100 : 0;
+  const igstAmount = gstMode === 'igst' ? gstAmount : 0;
   return {
     itemsGross: Math.round(itemsGross * 100) / 100,
     itemsSubtotal,
@@ -204,6 +206,7 @@ function computeTotals(items, courierCharges, otherCharges, discountType, addres
     gstMode,
     cgstAmount,
     sgstAmount,
+    igstAmount,
     grandTotal,
     courier,
     other,
@@ -974,6 +977,7 @@ export default function AdminQuotation() {
                     gstMode: totals.gstMode,
                     cgstAmount: totals.cgstAmount,
                     sgstAmount: totals.sgstAmount,
+                    igstAmount: totals.igstAmount,
                   },
                   { state: enquiryState }
                 ).map((row) => (

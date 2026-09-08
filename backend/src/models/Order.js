@@ -98,15 +98,15 @@ const quotationSchema = new mongoose.Schema(
     discountTotal: { type: Number, default: 0 },
     taxableAmount: { type: Number, default: 0 },
     gstAmount: { type: Number, default: 0 },
-    /** When customer state is not Goa: split gstAmount 50/50 into CGST + SGST */
+    /** Goa → CGST+SGST (split); other states → IGST only */
     gstMode: {
       type: String,
-      enum: ['full', 'split'],
-      default: 'full',
+      enum: ['full', 'split', 'igst'],
+      default: 'igst',
     },
     cgstAmount: { type: Number, default: 0 },
     sgstAmount: { type: Number, default: 0 },
-    /** Legacy alias from earlier CGST+IGST split — prefer sgstAmount */
+    /** Non-Goa interstate tax (same total as gstAmount when gstMode is igst) */
     igstAmount: { type: Number, default: 0 },
     grandTotal: { type: Number, default: 0 },
     savedAt: { type: Date, default: null },

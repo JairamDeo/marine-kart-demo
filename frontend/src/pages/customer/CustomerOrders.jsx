@@ -124,10 +124,10 @@ export default function CustomerOrders() {
       setViewOrder(data.data.order);
       setCancelConfirmOpen(false);
       setRejectReason('');
-      toast.success('Order rejected');
+      toast.success('Order cancelled');
       load();
     } catch (err) {
-      toast.error(friendlyError(err, 'Could not reject order'));
+      toast.error(friendlyError(err, 'Could not cancel order'));
     } finally {
       setCancelBusy(false);
     }
@@ -320,7 +320,7 @@ export default function CustomerOrders() {
               onClick={() => setCancelConfirmOpen(true)}
               className="w-full cursor-pointer rounded-2xl border border-rose-200 bg-white py-3 text-sm font-semibold text-rose-600 shadow-sm transition hover:bg-rose-50"
             >
-              Reject order
+              Cancel order
             </button>
           ) : null
         }
@@ -333,14 +333,14 @@ export default function CustomerOrders() {
           setRejectReason('');
         }}
         onConfirm={handleCancel}
-        title="Reject this order?"
-        message="Tell us why you are rejecting. This cannot be undone."
-        confirmLabel="Yes, reject order"
+        title="Cancel this order?"
+        message="Tell us why you are cancelling. This cannot be undone."
+        confirmLabel="Yes, cancel order"
         cancelLabel="Keep order"
-        busyLabel="Rejecting..."
+        busyLabel="Cancelling..."
         busy={cancelBusy}
         requireReason
-        reasonLabel="Rejection reason"
+        reasonLabel="Cancellation reason"
         reasonPlaceholder="Enter your reason..."
         reason={rejectReason}
         onReasonChange={setRejectReason}
