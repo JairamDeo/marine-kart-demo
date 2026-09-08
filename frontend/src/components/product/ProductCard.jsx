@@ -11,7 +11,7 @@ import { friendlyError } from '../../utils/toastMsg';
 export default function ProductCard({ product }) {
   const { isAuthenticated, refreshWishlist, addToCart, requireLogin, wishlistIds } = useAuth();
   const { openCart } = useCartUI();
-  const img = productImageUrl(product);
+  const img = productImageUrl(product, 400);
   const productId = String(product.id || product._id || '');
   const inWishlist = productId && wishlistIds?.includes(productId);
   const line2 = formatProductTitle(product);

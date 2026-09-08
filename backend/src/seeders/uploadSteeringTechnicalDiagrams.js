@@ -246,10 +246,23 @@ async function main() {
     const urls = [...existingUrls];
     const publicIds = existingIds.slice(0, urls.length);
 
+    /** Length-specific tech sheets (…-06-diagram) stay secondary; base family shots can lead. */
+    const isLengthDiagram = (publicId, key) => {
+      const leaf = String(publicId || '').split('/').pop() || '';
+      const base = leaf.replace(/-diagram$/i, '');
+      if (/-\d+$/.test(base) && !/\d+\.\d+$/.test(base)) return true;
+      const k = String(key || '');
+      return /-\d+$/.test(k) && !/\d+\.\d+$/.test(k);
+    };
+
+    const newPhotos = [];
+    const newDiagrams = [];
+
     let added = 0;
     for (let i = 0; i < hit.urls.length; i++) {
       const url = hit.urls[i];
       const publicId = hit.publicIds[i] || '';
+      const key = hit.keys[i] || '';
       if (!url) continue;
       if (seen.has(url) || (publicId && seen.has(publicId))) continue;
       // Also skip if same diagram publicId stem already present
@@ -265,8 +278,9 @@ async function main() {
       }
       seen.add(url);
       if (publicId) seen.add(publicId);
-      urls.push(url);
-      publicIds.push(publicId);
+      const item = { url, publicId };
+      if (isLengthDiagram(publicId, key)) newDiagrams.push(item);
+      else newPhotos.push(item);
       added += 1;
     }
 
@@ -275,13 +289,27 @@ async function main() {
       continue;
     }
 
-    product.images = urls;
-    product.imagePublicIds = publicIds;
+    // Main = existing photos + new family photos; secondary = tech sheets at end
+    const nextUrls = [
+      ...urls.filter((_, i) => !isLengthDiagram(publicIds[i], '')),
+      ...newPhotos.map((x) => x.url),
+      ...urls.filter((_, i) => isLengthDiagram(publicIds[i], '')),
+      ...newDiagrams.map((x) => x.url),
+    ];
+    const nextIds = [
+      ...publicIds.filter((id) => !isLengthDiagram(id, '')),
+      ...newPhotos.map((x) => x.publicId),
+      ...publicIds.filter((id) => isLengthDiagram(id, '')),
+      ...newDiagrams.map((x) => x.publicId),
+    ];
+
+    product.images = nextUrls;
+    product.imagePublicIds = nextIds;
     await product.save();
     updated += 1;
     appendedCount += added;
     console.log(
-      `  ✓ ${product.productId || product.name}: ${existingUrls.length} → ${urls.length} (+${added})`
+      `  ✓ ${product.productId || product.name}: ${existingUrls.length} → ${nextUrls.length} (+${added})`
     );
   }
 

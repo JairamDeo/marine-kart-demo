@@ -6,7 +6,7 @@ import { productService } from '../services/product.service';
 import { wishlistService } from '../services/wishlist.service';
 import { useAuth } from '../context/AuthContext';
 import { useCartUI } from '../context/CartUIContext';
-import { productImageUrl, realProductImages, isPlaceholderImage } from '../utils/productImage';
+import { productImageUrl, realProductImages, isPlaceholderImage, cloudinaryThumb } from '../utils/productImage';
 import { formatProductTitle } from '../utils/productTitle';
 import { friendlyError } from '../utils/toastMsg';
 import ProductCard from '../components/product/ProductCard';
@@ -61,13 +61,13 @@ export default function ProductDetailPage() {
 
   const gallery = useMemo(() => {
     if (!product) return [];
-    const imgs = realProductImages(product);
+    const imgs = realProductImages(product).map((src) => cloudinaryThumb(src, 900));
     const rawSpec =
       product.specifications?.mode === 'image' && product.specifications?.image
         ? String(product.specifications.image).trim()
         : '';
     // Only append a real specification photo — never the dummy placeholder
-    const specImg = rawSpec && !isPlaceholderImage(rawSpec) ? rawSpec : '';
+    const specImg = rawSpec && !isPlaceholderImage(rawSpec) ? cloudinaryThumb(rawSpec, 900) : '';
     if (specImg && !imgs.includes(specImg)) {
       return imgs.length ? [...imgs, specImg] : [specImg];
     }
@@ -253,7 +253,8 @@ export default function ProductDetailPage() {
                     src={currentSrc}
                     alt={formatProductTitle(product)}
                     className="absolute inset-0 h-full w-full object-contain object-center p-1.5 sm:p-2"
-                    loading="lazy"
+                    loading="eager"
+                    fetchPriority="high"
                     decoding="async"
                   />
                   <button

@@ -172,7 +172,7 @@ export default function ProductTabs() {
     setLoading(true);
     setError('');
     productService
-      .list({ ...tab.params, limit: 30 })
+      .list({ ...tab.params, limit: 12 })
       .then((res) => setProducts(res.data.data.products || []))
       .catch((err) => {
         setProducts([]);

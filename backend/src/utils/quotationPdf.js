@@ -7,6 +7,16 @@ const { BANK_DETAILS } = require('./quotation');
 const ASSETS = path.join(__dirname, '../assets/quotation');
 const LOGO_PATH = path.join(ASSETS, 'logo2.png');
 const LOGO_FALLBACK = path.join(ASSETS, 'logo-dark.png');
+const FONT_SEMIBOLD = path.join(ASSETS, 'fonts', 'SegoeUI-SemiBold.ttf');
+
+/** Semi-bold for emphasis (falls back to Helvetica-Bold if font file missing). */
+const FONT_BOLD = fs.existsSync(FONT_SEMIBOLD) ? 'MK-SemiBold' : 'Helvetica-Bold';
+
+function registerPdfFonts(doc) {
+  if (fs.existsSync(FONT_SEMIBOLD)) {
+    doc.registerFont('MK-SemiBold', FONT_SEMIBOLD);
+  }
+}
 
 const COLORS = {
   navy: '#0b2c5f',
@@ -19,7 +29,7 @@ const COLORS = {
   rowAlt: '#f8fafc',
 };
 
-const HEADER_H = 72;
+const HEADER_H = 88;
 const FOOTER_H = 40;
 
 const PAGE = {
@@ -32,11 +42,11 @@ const PAGE = {
 const COMPANY = {
   registered: {
     title: 'Registered Office',
-    lines: ['F8, Vinayaki Building, Opp. Fire Station,', 'Warkhandem, Ponda, Goa-403401'],
+    address: 'F8, Vinayaki Building, Opp. Fire Station, Warkhandem, Ponda, Goa-403401',
   },
   showroom: {
     title: 'Showroom',
-    lines: ['Supreme by The Valley Shop No: C-10,', 'Near Mandovi Clinic, Porvorim, Goa-403501'],
+    address: 'Supreme by The Valley Shop No: C-10, Near Mandovi Clinic, Porvorim, Goa-403501',
   },
 };
 
@@ -73,7 +83,7 @@ function formatQuotationDate(date) {
   }
 }
 
-/** Draw fixed header — white bar, cyan bottom border, logo2 + office details. */
+/** Draw fixed header — white bar, cyan bottom border, larger logo + stacked offices. */
 function drawHeader(doc) {
   const pageW = doc.page.width;
   const ml = PAGE.marginLeft;
@@ -83,7 +93,8 @@ function drawHeader(doc) {
   doc.rect(0, 0, pageW, HEADER_H).fill(COLORS.white);
   doc.rect(0, HEADER_H, pageW, 2).fill(COLORS.cyan);
 
-  const logoH = 40;
+  const logoH = 58;
+  const logoW = 160;
   const logoY = (HEADER_H - logoH) / 2;
   const logoFile = fs.existsSync(LOGO_PATH)
     ? LOGO_PATH
@@ -93,45 +104,52 @@ function drawHeader(doc) {
 
   if (logoFile) {
     try {
-      doc.image(logoFile, ml, logoY, { fit: [130, logoH] });
+      doc.image(logoFile, ml, logoY, { fit: [logoW, logoH] });
     } catch {
       doc
         .fillColor(COLORS.navy)
-        .font('Helvetica-Bold')
-        .fontSize(13)
-        .text('MarineKart', ml, logoY + 10, { lineBreak: false });
+        .font(FONT_BOLD)
+        .fontSize(16)
+        .text('MarineKart', ml, logoY + 16, { lineBreak: false });
     }
   } else {
     doc
       .fillColor(COLORS.navy)
-      .font('Helvetica-Bold')
-      .fontSize(13)
-      .text('MarineKart', ml, logoY + 10, { lineBreak: false });
+      .font(FONT_BOLD)
+      .fontSize(16)
+      .text('MarineKart', ml, logoY + 16, { lineBreak: false });
   }
 
-  const blockW = 195;
-  const gap = 12;
-  const totalW = blockW * 2 + gap;
-  const startX = pageW - mr - totalW;
-  const regX = startX;
-  const showX = startX + blockW + gap;
-  const infoBlockH = 38;
-  const infoY = (HEADER_H - infoBlockH) / 2;
+  // Right side: Registered Office, then Showroom stacked below — each address one line
+  const infoX = ml + logoW + 18;
+  const infoW = pageW - mr - infoX;
+  let y = 12;
 
-  doc.font('Helvetica-Bold').fontSize(8);
-  doc.fillColor(COLORS.cyan).text(COMPANY.registered.title.toUpperCase(), regX, infoY, {
+  doc.font(FONT_BOLD).fontSize(8).fillColor('#15335F');
+  doc.text(COMPANY.registered.title.toUpperCase(), infoX, y, {
+    width: infoW,
     lineBreak: false,
   });
-  doc.fillColor(COLORS.navy).font('Helvetica').fontSize(7.5);
-  COMPANY.registered.lines.forEach((line, i) => {
-    doc.text(line, regX, infoY + 11 + i * 10, { lineBreak: false });
+  y += 11;
+  doc.font('Helvetica').fontSize(7.5).fillColor(COLORS.navy);
+  doc.text(COMPANY.registered.address, infoX, y, {
+    width: infoW,
+    lineBreak: false,
+    ellipsis: true,
   });
 
-  doc.fillColor(COLORS.cyan).font('Helvetica-Bold').fontSize(8);
-  doc.text(COMPANY.showroom.title.toUpperCase(), showX, infoY, { lineBreak: false });
-  doc.fillColor(COLORS.navy).font('Helvetica').fontSize(7.5);
-  COMPANY.showroom.lines.forEach((line, i) => {
-    doc.text(line, showX, infoY + 11 + i * 10, { lineBreak: false });
+  y += 16;
+  doc.font(FONT_BOLD).fontSize(8).fillColor('#15335F');
+  doc.text(COMPANY.showroom.title.toUpperCase(), infoX, y, {
+    width: infoW,
+    lineBreak: false,
+  });
+  y += 11;
+  doc.font('Helvetica').fontSize(7.5).fillColor(COLORS.navy);
+  doc.text(COMPANY.showroom.address, infoX, y, {
+    width: infoW,
+    lineBreak: false,
+    ellipsis: true,
   });
 
   doc.restore();
@@ -240,7 +258,7 @@ function sectionTitle(doc, title) {
   const contentW = doc.page.width - PAGE.marginLeft - PAGE.marginRight;
   doc
     .fillColor(COLORS.navy)
-    .font('Helvetica-Bold')
+    .font(FONT_BOLD)
     .fontSize(10)
     .text(title, PAGE.marginLeft, y, { lineBreak: false });
   const underlineY = y + 13;
@@ -278,6 +296,7 @@ function buildQuotationPdf({ order, customer, customerName, sentAtLabel: _sentAt
         Subject: 'Product quotation',
       },
     });
+    registerPdfFonts(doc);
 
     const chunks = [];
     doc.on('data', (c) => chunks.push(c));
@@ -287,7 +306,7 @@ function buildQuotationPdf({ order, customer, customerName, sentAtLabel: _sentAt
     const contentW = doc.page.width - PAGE.marginLeft - PAGE.marginRight;
 
     // Title
-    doc.fillColor(COLORS.navy).font('Helvetica-Bold').fontSize(17).text('QUOTATION', {
+    doc.fillColor(COLORS.navy).font(FONT_BOLD).fontSize(17).text('QUOTATION', {
       width: contentW,
       align: 'center',
     });
@@ -303,13 +322,13 @@ function buildQuotationPdf({ order, customer, customerName, sentAtLabel: _sentAt
 
     doc
       .fillColor(COLORS.navy)
-      .font('Helvetica-Bold')
+      .font(FONT_BOLD)
       .fontSize(9)
       .text('To,', PAGE.marginLeft + 12, toTop + 10, { lineBreak: false });
 
     doc
       .fillColor(COLORS.ink)
-      .font('Helvetica-Bold')
+      .font(FONT_BOLD)
       .fontSize(11)
       .text(safeText(customerName || addr.fullName, 'Customer'), PAGE.marginLeft + 12, toTop + 24, {
         width: leftW,
@@ -330,18 +349,18 @@ function buildQuotationPdf({ order, customer, customerName, sentAtLabel: _sentAt
 
     doc
       .fillColor(COLORS.muted)
-      .font('Helvetica-Bold')
+      .font(FONT_BOLD)
       .fontSize(8)
       .text('Quotation No.', rightX, toTop + 10, { width: rightColW, align: 'right', lineBreak: false });
     doc
       .fillColor(COLORS.navy)
-      .font('Helvetica-Bold')
+      .font(FONT_BOLD)
       .fontSize(9)
       .text(safeText(orderNumber), rightX, toTop + 22, { width: rightColW, align: 'right', lineBreak: false });
 
     doc
       .fillColor(COLORS.muted)
-      .font('Helvetica-Bold')
+      .font(FONT_BOLD)
       .fontSize(8)
       .text('Quotation Date', rightX, toTop + 40, { width: rightColW, align: 'right', lineBreak: false });
     doc
@@ -368,7 +387,7 @@ function buildQuotationPdf({ order, customer, customerName, sentAtLabel: _sentAt
       ensureSpace(doc, 22);
       const y = doc.y;
       doc.rect(tableX, y, tableW, 20).fill(COLORS.navy);
-      doc.fillColor(COLORS.white).font('Helvetica-Bold').fontSize(7.5);
+      doc.fillColor(COLORS.white).font(FONT_BOLD).fontSize(7.5);
       let x = tableX;
       for (const [label, w, align] of [
         ['#', col.no, 'center'],
@@ -413,9 +432,9 @@ function buildQuotationPdf({ order, customer, customerName, sentAtLabel: _sentAt
         description = `${description.slice(0, 137).trim()}…`;
       }
 
-      doc.font('Helvetica-Bold').fontSize(7.5);
+      doc.font(FONT_BOLD).fontSize(7.5);
       const titleH = doc.heightOfString(baseTitle, { width: col.item - 8 });
-      doc.font('Helvetica-Bold').fontSize(6);
+      doc.font(FONT_BOLD).fontSize(6);
       const descH = description
         ? doc.heightOfString(description, { width: col.item - 8 })
         : 0;
@@ -441,14 +460,14 @@ function buildQuotationPdf({ order, customer, customerName, sentAtLabel: _sentAt
 
       let textY = y + 5;
       doc
-        .font('Helvetica-Bold')
+        .font(FONT_BOLD)
         .fontSize(7.5)
         .fillColor(COLORS.ink)
         .text(baseTitle, x + 4, textY, { width: col.item - 8 });
       textY = doc.y + 1;
       if (description) {
         doc
-          .font('Helvetica-Bold')
+          .font(FONT_BOLD)
           .fontSize(6)
           .fillColor(COLORS.muted)
           .text(description, x + 4, textY, { width: col.item - 8 });
@@ -473,7 +492,7 @@ function buildQuotationPdf({ order, customer, customerName, sentAtLabel: _sentAt
       doc.text(gstPct > 0 ? `${gstPct}%` : '—', x + 4, y + 7, { width: col.gst - 8, align: 'right', lineBreak: false });
       x += col.gst;
       doc
-        .font('Helvetica-Bold')
+        .font(FONT_BOLD)
         .fillColor(COLORS.navy)
         .text(money(lineTotal), x + 4, y + 7, { width: col.amount - 8, align: 'right', lineBreak: false });
 
@@ -512,7 +531,7 @@ function buildQuotationPdf({ order, customer, customerName, sentAtLabel: _sentAt
       doc.text(label, totalsX, ty, { width: 105, lineBreak: false });
       doc
         .fillColor(COLORS.ink)
-        .font('Helvetica-Bold')
+        .font(FONT_BOLD)
         .fontSize(8.5)
         .text(value, totalsX + 105, ty, { width: 110, align: 'right', lineBreak: false });
       ty += 14;
@@ -524,12 +543,12 @@ function buildQuotationPdf({ order, customer, customerName, sentAtLabel: _sentAt
     const midY = grandY + (grandH - 10) / 2;
     doc
       .fillColor(COLORS.cyan)
-      .font('Helvetica-Bold')
+      .font(FONT_BOLD)
       .fontSize(9)
       .text('GRAND TOTAL', totalsX + 10, midY, { lineBreak: false });
     doc
       .fillColor(COLORS.white)
-      .font('Helvetica-Bold')
+      .font(FONT_BOLD)
       .fontSize(12)
       .text(money(q.grandTotal), totalsX + 100, midY - 1, { width: 105, align: 'right', lineBreak: false });
 
@@ -554,7 +573,7 @@ function buildQuotationPdf({ order, customer, customerName, sentAtLabel: _sentAt
     doc.rect(PAGE.marginLeft, boxTop + barH - 6, contentW, 6).fill(COLORS.navy);
     doc
       .fillColor(COLORS.white)
-      .font('Helvetica-Bold')
+      .font(FONT_BOLD)
       .fontSize(8)
       .text('BANK DETAILS', PAGE.marginLeft + 10, boxTop + 6, { lineBreak: false });
 
@@ -590,7 +609,7 @@ function buildQuotationPdf({ order, customer, customerName, sentAtLabel: _sentAt
       doc.rect(PAGE.marginLeft, termsTop + barH - 6, contentW, 6).fill(COLORS.navy);
       doc
         .fillColor(COLORS.white)
-        .font('Helvetica-Bold')
+        .font(FONT_BOLD)
         .fontSize(8)
         .text('TERMS AND CONDITIONS', PAGE.marginLeft + 10, termsTop + 6, { lineBreak: false });
 
@@ -599,12 +618,12 @@ function buildQuotationPdf({ order, customer, customerName, sentAtLabel: _sentAt
         const label = String(term.label || '').toUpperCase();
         const value = String(term.value || '');
         const labelX = PAGE.marginLeft + 10;
-        doc.fillColor(COLORS.muted).font('Helvetica-Bold').fontSize(7.5);
+        doc.fillColor(COLORS.muted).font(FONT_BOLD).fontSize(7.5);
         const labelW = Math.min(doc.widthOfString(label) + 6, contentW * 0.45);
         doc.text(label, labelX, tY + 2, { width: labelW, lineBreak: false });
         doc
           .fillColor(COLORS.navy)
-          .font('Helvetica-Bold')
+          .font(FONT_BOLD)
           .fontSize(9)
           .text(value, labelX + labelW, tY, {
             width: contentW - 20 - labelW,
@@ -621,7 +640,7 @@ function buildQuotationPdf({ order, customer, customerName, sentAtLabel: _sentAt
     const thanksY = doc.y;
     doc
       .fillColor(COLORS.navy)
-      .font('Helvetica-Bold')
+      .font(FONT_BOLD)
       .fontSize(10)
       .text('Thanking you,', PAGE.marginLeft, thanksY, { lineBreak: false });
     doc

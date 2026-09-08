@@ -26,14 +26,9 @@ function buildProductSearchFilter(rawSearch) {
   return {
     $and: terms.map((term) => {
       const rx = new RegExp(escapeRegex(term), 'i');
+      // Typeahead-friendly: skip heavy description scans
       return {
-        $or: [
-          { name: rx },
-          { productId: rx },
-          { sku: rx },
-          { shortDescription: rx },
-          { description: rx },
-        ],
+        $or: [{ name: rx }, { productId: rx }, { sku: rx }, { shortDescription: rx }],
       };
     }),
   };

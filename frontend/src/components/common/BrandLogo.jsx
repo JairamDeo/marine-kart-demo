@@ -10,7 +10,8 @@ export default function BrandLogo({ className = 'h-10 w-auto', alt = 'MarineKart
       src={logo}
       alt={alt}
       className={`object-contain ${className}`}
-      loading="lazy"
+      loading="eager"
+      fetchPriority="high"
       decoding="async"
     />
   );

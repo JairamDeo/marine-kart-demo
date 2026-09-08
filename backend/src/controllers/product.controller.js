@@ -1,7 +1,6 @@
 const Product = require('../models/Product');
 const { asyncHandler, slugify } = require('../utils/helpers');
 const {
-  stampFromUser,
   withCreateAudit,
   applyUpdateAudit,
   applyDeleteAudit,
@@ -10,7 +9,12 @@ const {
 const { generateProductSku } = require('../utils/generateSku');
 const { buildProductSearchFilter } = require('../utils/productSearch');
 
-const mapProducts = (products, user) => products.map((p) => p.toPublicJSON(user));
+const LIST_SELECT =
+  'productId name slug shortDescription images category subcategory stockStatus isFeatured isBestSeller isNewArrival isActive isDeleted';
+
+const RELATED_SELECT = LIST_SELECT;
+
+const mapListProducts = (products) => products.map((p) => Product.toListJSON(p));
 
 const STRIP_ON_WRITE = [
   'sku',
@@ -37,6 +41,10 @@ function prepareProductPayload(body) {
     payload.stockStatus = s === 'out_of_stock' ? 'out_of_stock' : 'in_stock';
   }
   return payload;
+}
+
+function setPublicCache(res, seconds = 60) {
+  res.set('Cache-Control', `public, max-age=${seconds}, stale-while-revalidate=120`);
 }
 
 exports.getProducts = asyncHandler(async (req, res) => {
@@ -77,19 +85,21 @@ exports.getProducts = asyncHandler(async (req, res) => {
 
   const [products, total] = await Promise.all([
     Product.find(filter)
+      .select(LIST_SELECT)
       .populate('category', 'name slug')
       .populate('subcategory', 'name slug')
       .sort(sortKey)
       .skip(skip)
-      .limit(limitNum),
+      .limit(limitNum)
+      .lean(),
     Product.countDocuments(filter),
   ]);
 
-  res.set('Cache-Control', 'no-store');
+  setPublicCache(res, search ? 30 : 60);
   res.json({
     success: true,
     data: {
-      products: mapProducts(products, req.user),
+      products: mapListProducts(products),
       pagination: {
         page: pageNum,
         limit: limitNum,
@@ -102,17 +112,26 @@ exports.getProducts = asyncHandler(async (req, res) => {
 
 exports.getProductBySlug = asyncHandler(async (req, res) => {
   const product = await Product.findOne({ slug: req.params.slug, isActive: true, ...notDeleted })
+    .select('-actionHistory -imagePublicIds -seo -createdBy -updatedBy')
     .populate('category', 'name slug')
     .populate('subcategory', 'name slug')
-    .populate('relatedProducts');
+    .populate({
+      path: 'relatedProducts',
+      select: RELATED_SELECT,
+      match: { isActive: true, isDeleted: { $ne: true } },
+      options: { limit: 8 },
+      populate: [
+        { path: 'category', select: 'name slug' },
+        { path: 'subcategory', select: 'name slug' },
+      ],
+    })
+    .lean();
 
   if (!product) {
     return res.status(404).json({ success: false, message: 'Product not found.' });
   }
 
-  let relatedDocs = (product.relatedProducts || []).filter(
-    (p) => p && p.isActive !== false && p.isDeleted !== true
-  );
+  let relatedDocs = (product.relatedProducts || []).filter(Boolean);
 
   // If none linked manually, pull related items from same subcategory / category
   if (!relatedDocs.length) {
@@ -128,10 +147,12 @@ exports.getProductBySlug = asyncHandler(async (req, res) => {
     }
 
     relatedDocs = await Product.find(filter)
+      .select(RELATED_SELECT)
       .populate('category', 'name slug')
       .populate('subcategory', 'name slug')
       .sort('-isBestSeller -isFeatured -createdAt')
-      .limit(8);
+      .limit(8)
+      .lean();
   }
 
   // Still empty? fall back to same category
@@ -142,20 +163,53 @@ exports.getProductBySlug = asyncHandler(async (req, res) => {
       isActive: true,
       ...notDeleted,
     })
+      .select(RELATED_SELECT)
       .populate('category', 'name slug')
       .populate('subcategory', 'name slug')
       .sort('-isBestSeller -isFeatured -createdAt')
-      .limit(8);
+      .limit(8)
+      .lean();
   }
 
-  const related = relatedDocs.map((p) =>
-    typeof p.toPublicJSON === 'function' ? p.toPublicJSON(req.user) : p
-  );
+  const related = mapListProducts(relatedDocs);
+  const specs = Product.normalizeSpecifications(product.specifications);
+  const PLACEHOLDER_RE = /product-placeholder|specification-placeholder|placehold\.co|dummy/i;
+  const images = (Array.isArray(product.images) ? product.images : [])
+    .map((u) => String(u || '').trim())
+    .filter((u) => u && !PLACEHOLDER_RE.test(u));
+  if (specs?.image && PLACEHOLDER_RE.test(String(specs.image))) {
+    specs.image = '';
+    if (specs.mode === 'image' && !specs.markdown) specs.mode = 'none';
+  }
+  const stockStatus = product.stockStatus === 'out_of_stock' ? 'out_of_stock' : 'in_stock';
 
+  setPublicCache(res, 60);
   res.json({
     success: true,
     data: {
-      product: { ...product.toPublicJSON(req.user), relatedProducts: related },
+      product: {
+        id: product._id,
+        productId: product.productId || '',
+        name: product.name,
+        slug: product.slug,
+        shortDescription: product.shortDescription,
+        description: product.description,
+        specifications: specs,
+        images,
+        category: product.category,
+        subcategory: product.subcategory,
+        stockStatus,
+        inStock: stockStatus === 'in_stock',
+        isFeatured: product.isFeatured,
+        isBestSeller: product.isBestSeller,
+        isNewArrival: product.isNewArrival,
+        relatedProducts: related,
+        priceVisible: false,
+        price: null,
+        salePrice: null,
+        displayPrice: null,
+        maxOrderQty: 0,
+      },
     },
   });
 });
@@ -224,8 +278,10 @@ exports.deleteProduct = asyncHandler(async (req, res) => {
 
 exports.adminListProducts = asyncHandler(async (req, res) => {
   const products = await Product.find(notDeleted)
+    .select('-actionHistory')
     .populate('category', 'name')
     .populate('subcategory', 'name')
-    .sort('-createdAt');
+    .sort('-createdAt')
+    .lean();
   res.json({ success: true, data: { products } });
 });

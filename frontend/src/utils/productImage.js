@@ -19,22 +19,38 @@ function isUsableImage(src) {
   return Boolean(src) && !isPlaceholderImage(src);
 }
 
+/**
+ * Resize/optimize Cloudinary delivery URLs for cards & thumbs.
+ * Leaves non-Cloudinary and already-transformed URLs alone.
+ */
+export function cloudinaryThumb(url, size = 600) {
+  const src = String(url || '').trim();
+  if (!src || !isUsableImage(src)) return src;
+  if (!src.includes('res.cloudinary.com') || !src.includes('/upload/')) return src;
+  // Already has transforms between /upload/ and version or folder
+  if (/\/upload\/[^/]*?(?:w_|c_|q_|f_)/.test(src)) return src;
+
+  const w = Math.max(64, Math.min(1600, Math.round(Number(size) || 600)));
+  const transform = `f_auto,q_auto:good,c_limit,w_${w}`;
+  return src.replace('/upload/', `/upload/${transform}/`);
+}
+
 /** Real gallery URLs from product (excludes placeholders / empty). */
 export function realProductImages(product) {
   const list = Array.isArray(product?.images) ? product.images : [];
   return list.map((u) => String(u || '').trim()).filter(isUsableImage);
 }
 
-/** Product gallery main/thumbnail only — never uses specification/dummy as a real photo. */
-export function productImageUrl(product, size = 600) {
+/** Product gallery main/thumbnail — sized for cards; never uses dummy placeholders. */
+export function productImageUrl(product, size = 400) {
   const real = realProductImages(product);
-  if (real[0]) return real[0];
+  if (real[0]) return cloudinaryThumb(real[0], size);
   return PRODUCT_PLACEHOLDER;
 }
 
 export function categoryImageUrl(category, size = 300) {
   if (isUsableImage(category?.image)) {
-    return category.image;
+    return cloudinaryThumb(category.image, size);
   }
   return PRODUCT_PLACEHOLDER;
 }

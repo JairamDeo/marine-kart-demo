@@ -49,112 +49,120 @@ export default function Footer() {
   return (
     <footer>
       <div className="bg-navy text-white">
-        <div className="container-mk grid gap-8 py-10 sm:grid-cols-2 sm:gap-10 sm:py-12 lg:grid-cols-4 lg:gap-6 lg:py-8">
-          <div>
+        <div className="container-mk flex flex-col gap-10 py-10 sm:py-12 lg:flex-row lg:gap-12 lg:py-8">
+          {/* Left — brand (35%) */}
+          <div className="w-full shrink-0 lg:w-[35%]">
             <Link to="/" className="mb-5 inline-block">
-              <BrandLogo className="h-[68px] w-auto" />
+              <BrandLogo className="h-[84px] w-auto sm:h-[92px]" />
             </Link>
-            <p className="text-sm leading-relaxed text-white/70">
+            <p className="max-w-md text-sm leading-relaxed text-white/70">
               We are a team of designers and developers that create high quality HTML Template,
               Woocommerce, Shopify Theme.
             </p>
           </div>
 
-          <div>
-            <h3 className="mb-4 text-sm font-bold uppercase tracking-wider">Quick Links</h3>
-            <ul className="space-y-2 text-sm text-white/80">
-              <li>
-                <Link to="/about-us" className="hover:text-cyan">
-                  About Us
-                </Link>
-              </li>
-              <li>
-                <Link to="/shop?newArrival=true" className="hover:text-cyan">
-                  New products
-                </Link>
-              </li>
-              <li>
-                <Link to="/shop?bestSeller=true" className="hover:text-cyan">
-                  Best sales
-                </Link>
-              </li>
-              <li>
-                <Link to="/privacy-policy" className="hover:text-cyan">
-                  Privacy Policy
-                </Link>
-              </li>
-            </ul>
-          </div>
+          {/* Right — 3 equal columns (65%) */}
+          <div className="grid w-full grid-cols-1 gap-8 sm:grid-cols-3 sm:gap-6 lg:w-[65%] lg:gap-8">
+            <div>
+              <h3 className="mb-4 text-sm font-bold uppercase tracking-wider">Quick Links</h3>
+              <ul className="space-y-2 text-sm text-white/80">
+                <li>
+                  <Link to="/about-us" className="hover:text-cyan">
+                    About Us
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/shop?newArrival=true" className="hover:text-cyan">
+                    New products
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/shop?bestSeller=true" className="hover:text-cyan">
+                    Best sales
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/privacy-policy" className="hover:text-cyan">
+                    Privacy Policy
+                  </Link>
+                </li>
+              </ul>
+            </div>
 
-          <div>
-            <h3 className="mb-4 text-sm font-bold uppercase tracking-wider">Customer Service</h3>
-            <ul className="space-y-2 text-sm text-white/80">
-              <li>
-                <Link to="/account" className="hover:text-cyan">
-                  My Account
-                </Link>
-              </li>
-              <li>
-                <button type="button" onClick={openCart} className="hover:text-cyan">
-                  Shopping Cart
-                </button>
-              </li>
-              <li>
-                <button type="button" onClick={onWishlistClick} className="hover:text-cyan">
-                  Wish List
-                </button>
-              </li>
-              <li>
-                <a
-                  href="#"
-                  className="hover:text-cyan"
-                  onClick={(e) => e.preventDefault()}
-                >
-                  FAQ
-                </a>
-              </li>
-              <li>
-                <Link to="/contact-us" className="hover:text-cyan">
-                  Contact Us
-                </Link>
-              </li>
-              <li>
-                <Link to="/product-not-listed" className="hover:text-cyan">
-                  Product Not Listed
-                </Link>
-              </li>
-            </ul>
-          </div>
+            <div>
+              <h3 className="mb-4 text-sm font-bold uppercase tracking-wider">Customer Service</h3>
+              <ul className="space-y-2 text-sm text-white/80">
+                <li>
+                  <Link to="/account" className="hover:text-cyan">
+                    My Account
+                  </Link>
+                </li>
+                <li>
+                  <button type="button" onClick={openCart} className="hover:text-cyan">
+                    Shopping Cart
+                  </button>
+                </li>
+                <li>
+                  <button type="button" onClick={onWishlistClick} className="hover:text-cyan">
+                    Wish List
+                  </button>
+                </li>
+                <li>
+                  <a
+                    href="#"
+                    className="hover:text-cyan"
+                    onClick={(e) => e.preventDefault()}
+                  >
+                    FAQ
+                  </a>
+                </li>
+                <li>
+                  <Link to="/contact-us" className="hover:text-cyan">
+                    Contact Us
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/product-not-listed" className="hover:text-cyan">
+                    Request a Product
+                  </Link>
+                </li>
+              </ul>
+            </div>
 
-          <div>
-            <h3 className="mb-4 text-sm font-bold uppercase tracking-wider">Contact Info</h3>
-            <p className="mb-2 text-sm text-white/80">
-              Hotline Free 24/24:
-              <br />
-              <strong className="text-lg text-cyan">{SITE.phone}</strong>
-            </p>
-            <p className="text-sm text-white/70">{SITE.address}</p>
-            <p className="mt-1 text-sm text-cyan">{SITE.email}</p>
+            <div>
+              <h3 className="mb-4 text-sm font-bold uppercase tracking-wider">Contact Info</h3>
+              <p className="mb-2 text-sm text-white/80">
+                Hotline Free 24/24:
+                <br />
+                <strong className="text-lg text-cyan">{SITE.phone}</strong>
+              </p>
+              <p className="text-sm text-white/70">{SITE.address}</p>
+              <p className="mt-1 text-sm text-cyan">{SITE.email}</p>
+            </div>
           </div>
         </div>
 
         <div className="border-t border-white/10 py-4">
-          <div className="flex flex-col items-center justify-center gap-1 text-center text-xs text-white/50 sm:flex-row sm:gap-2">
+          <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center text-xs text-white/50">
             <span>© {new Date().getFullYear()} MarineKart. All rights reserved.</span>
-            <span className="hidden text-white/30 sm:inline" aria-hidden>
-              ·
-            </span>
-            <span>
-              Designed and Developed by{' '}
-              <a
-                href="https://www.goldleafpro.com/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-semibold text-cyan transition hover:text-white"
-              >
-                GoldLeaf Production
-              </a>
-            </span>
+            <a
+              href="https://www.goldleafpro.com/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 uppercase transition hover:text-cyan"
+              aria-label="Goldleaf Production"
+            >
+              <img
+                src="/goldleaf-icon.webp"
+                alt=""
+                className="h-3 w-auto shrink-0 object-contain"
+                width={12}
+                height={12}
+              />
+              <span>
+                Goldleaf Production © {new Date().getFullYear()} | All rights reserved.
+              </span>
+            </a>
           </div>
         </div>
       </div>

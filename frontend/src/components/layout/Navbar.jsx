@@ -137,7 +137,7 @@ export default function Navbar({ categories = [] }) {
             Contact Us
           </NavLink>
           <NavLink to="/product-not-listed" className={linkClass}>
-            Product Not Listed
+            Request a Product
           </NavLink>
         </nav>
 
@@ -157,7 +157,7 @@ export default function Navbar({ categories = [] }) {
           { to: '/shop', label: 'Shop' },
           { to: '/about-us', label: 'About Us' },
           { to: '/contact-us', label: 'Contact Us' },
-          { to: '/product-not-listed', label: 'Product Not Listed' },
+          { to: '/product-not-listed', label: 'Request a Product' },
         ].map((item) => (
           <Link
             key={item.to}

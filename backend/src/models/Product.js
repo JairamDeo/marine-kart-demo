@@ -52,6 +52,51 @@ productSchema.index({ isFeatured: 1, isBestSeller: 1, isNewArrival: 1 });
 productSchema.index({ name: 1 });
 productSchema.index({ productId: 1 });
 productSchema.index({ stockStatus: 1 });
+/** Storefront list / home tabs */
+productSchema.index({ isActive: 1, isDeleted: 1, createdAt: -1 });
+productSchema.index({ isActive: 1, isDeleted: 1, isBestSeller: 1, createdAt: -1 });
+productSchema.index({ isActive: 1, isDeleted: 1, isFeatured: 1, createdAt: -1 });
+productSchema.index({ isActive: 1, isDeleted: 1, isNewArrival: 1, createdAt: -1 });
+productSchema.index({ isActive: 1, isDeleted: 1, category: 1, createdAt: -1 });
+productSchema.index({ isActive: 1, isDeleted: 1, subcategory: 1, createdAt: -1 });
+productSchema.index({ slug: 1, isActive: 1, isDeleted: 1 });
+
+const PLACEHOLDER_RE = /product-placeholder|specification-placeholder|placehold\.co|dummy/i;
+
+function cleanImages(raw) {
+  return (Array.isArray(raw) ? raw : [])
+    .map((u) => String(u || '').trim())
+    .filter((u) => u && !PLACEHOLDER_RE.test(u));
+}
+
+/**
+ * Slim card payload for list/home/related — no description/specs/history.
+ * Works with mongoose docs or lean objects.
+ */
+function toListJSON(doc) {
+  const images = cleanImages(doc.images).slice(0, 2);
+  const stockStatus = doc.stockStatus === 'out_of_stock' ? 'out_of_stock' : 'in_stock';
+  return {
+    id: doc._id || doc.id,
+    productId: doc.productId || '',
+    name: doc.name,
+    slug: doc.slug,
+    shortDescription: doc.shortDescription || '',
+    images,
+    category: doc.category,
+    subcategory: doc.subcategory,
+    stockStatus,
+    inStock: stockStatus === 'in_stock',
+    isFeatured: !!doc.isFeatured,
+    isBestSeller: !!doc.isBestSeller,
+    isNewArrival: !!doc.isNewArrival,
+    priceVisible: false,
+    price: null,
+    salePrice: null,
+    displayPrice: null,
+    maxOrderQty: 0,
+  };
+}
 
 /** Normalize legacy key/value arrays or partial objects into the public shape. */
 function normalizeSpecifications(raw) {
@@ -106,10 +151,7 @@ function sanitizeSpecificationsInput(raw) {
  */
 productSchema.methods.toPublicJSON = function toPublicJSON(user) {
   const specs = normalizeSpecifications(this.specifications);
-  const PLACEHOLDER_RE = /product-placeholder|specification-placeholder|placehold\.co|dummy/i;
-  const images = (Array.isArray(this.images) ? this.images : [])
-    .map((u) => String(u || '').trim())
-    .filter((u) => u && !PLACEHOLDER_RE.test(u));
+  const images = cleanImages(this.images);
 
   // Don't expose dummy specification image as if it were a real asset
   if (specs?.image && PLACEHOLDER_RE.test(String(specs.image))) {
@@ -146,6 +188,9 @@ productSchema.methods.toPublicJSON = function toPublicJSON(user) {
   };
 };
 
+productSchema.statics.toListJSON = toListJSON;
+
 module.exports = mongoose.model('Product', productSchema);
 module.exports.normalizeSpecifications = normalizeSpecifications;
 module.exports.sanitizeSpecificationsInput = sanitizeSpecificationsInput;
+module.exports.toListJSON = toListJSON;

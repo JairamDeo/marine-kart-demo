@@ -1,8 +1,8 @@
 import { useEffect } from 'react';
 
 /**
- * Ensures every <img> in the document has loading="lazy"
- * (including dynamically rendered / API-driven images).
+ * Adds loading="lazy" only when an image has no explicit loading attribute.
+ * Respects loading="eager" / fetchpriority for LCP images.
  */
 export default function LazyImages() {
   useEffect(() => {

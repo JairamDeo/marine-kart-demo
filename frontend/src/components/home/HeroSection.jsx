@@ -107,7 +107,8 @@ export default function HeroSection() {
             src={current.image}
             alt={current.title}
             className="absolute inset-0 h-full w-full object-contain object-right transition duration-700 group-hover:scale-[1.02]"
-            loading="lazy"
+            loading="eager"
+            fetchPriority="high"
             decoding="async"
           />
           <div className="relative z-10 flex h-full min-h-[320px] max-w-lg flex-col justify-center p-4 sm:min-h-[380px] sm:p-6 lg:min-h-[460px] lg:p-8">
