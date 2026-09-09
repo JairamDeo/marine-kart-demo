@@ -91,7 +91,6 @@ function drawHeader(doc) {
 
   doc.save();
   doc.rect(0, 0, pageW, HEADER_H).fill(COLORS.white);
-  doc.rect(0, HEADER_H, pageW, 2).fill(COLORS.cyan);
 
   const logoH = 58;
   const logoW = 160;
@@ -123,7 +122,7 @@ function drawHeader(doc) {
   // Right side: Registered Office, then Showroom stacked below — each address one line
   const infoX = ml + logoW + 18;
   const infoW = pageW - mr - infoX;
-  let y = 12;
+  let y = 21;
 
   doc.font(FONT_BOLD).fontSize(8).fillColor('#15335F');
   doc.text(COMPANY.registered.title.toUpperCase(), infoX, y, {
@@ -647,9 +646,9 @@ function buildQuotationPdf({ order, customer, customerName, sentAtLabel: _sentAt
       .fillColor(COLORS.ink)
       .font('Helvetica')
       .fontSize(9)
-      .text('For Marine Kart India Team', PAGE.marginLeft, thanksY + 14, { lineBreak: false });
+      .text('For Marine Kart India Team', PAGE.marginLeft, thanksY + 36, { lineBreak: false });
     doc.x = PAGE.marginLeft;
-    doc.y = thanksY + 28;
+    doc.y = thanksY + 50;
 
     paintAllPages(doc);
     doc.end();

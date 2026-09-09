@@ -56,8 +56,10 @@ export default function Footer() {
               <BrandLogo className="h-[84px] w-auto sm:h-[92px]" />
             </Link>
             <p className="max-w-md text-sm leading-relaxed text-white/70">
-              We are a team of designers and developers that create high quality HTML Template,
-              Woocommerce, Shopify Theme.
+              Your trusted partner for quality marine accessories<br />
+              and engine spare parts.<br />
+              Serving fishermen, vessel owners, and shipping<br />
+              companies across India and beyond.
             </p>
           </div>
 
