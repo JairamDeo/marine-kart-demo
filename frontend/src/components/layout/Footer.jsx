@@ -50,21 +50,18 @@ export default function Footer() {
     <footer>
       <div className="bg-navy text-white">
         <div className="container-mk flex flex-col gap-10 py-10 sm:py-12 lg:flex-row lg:gap-12 lg:py-8">
-          {/* Left — brand (35%) */}
-          <div className="w-full shrink-0 lg:w-[35%]">
+          {/* Left — brand (30%) */}
+          <div className="w-full shrink-0 lg:w-[30%]">
             <Link to="/" className="mb-5 inline-block">
               <BrandLogo className="h-[84px] w-auto sm:h-[92px]" />
             </Link>
-            <p className="max-w-md text-sm leading-relaxed text-white/70">
-              Your trusted partner for quality marine accessories<br />
-              and engine spare parts.<br />
-              Serving fishermen, vessel owners, and shipping<br />
-              companies across India and beyond.
+            <p className="max-w-md text-sm leading-relaxed text-white/70 pr-4">
+              Your trusted partner for quality marine accessories and engine spare parts. Serving fishermen, vessel owners, and shipping companies across India and beyond.
             </p>
           </div>
 
-          {/* Right — 3 equal columns (65%) */}
-          <div className="grid w-full grid-cols-1 gap-8 sm:grid-cols-3 sm:gap-6 lg:w-[65%] lg:gap-8">
+          {/* Right — 3 equal columns (70%) */}
+          <div className="grid w-full grid-cols-1 gap-8 sm:grid-cols-3 sm:gap-6 lg:w-[70%] lg:gap-8">
             <div>
               <h3 className="mb-4 text-sm font-bold uppercase tracking-wider">Quick Links</h3>
               <ul className="space-y-2 text-sm text-white/80">
@@ -162,7 +159,7 @@ export default function Footer() {
                 height={12}
               />
               <span>
-                Goldleaf Production © {new Date().getFullYear()} | All rights reserved.
+                Goldleaf Production
               </span>
             </a>
           </div>
@@ -178,9 +175,8 @@ export default function Footer() {
       >
         <ArrowUp
           size={18}
-          className={`transition-transform duration-500 ease-out ${
-            atTop ? 'rotate-180' : 'rotate-0'
-          }`}
+          className={`transition-transform duration-500 ease-out ${atTop ? 'rotate-180' : 'rotate-0'
+            }`}
         />
       </button>
     </footer>

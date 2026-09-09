@@ -54,6 +54,7 @@ app.use('/api/content', contentRoutes);
 app.use('/api/other-products', require('./routes/otherProduct.routes'));
 app.use('/api/admin', adminRoutes);
 app.use('/api/notifications', require('./routes/notification.routes'));
+app.use('/api/brands', require('./routes/brand.routes'));
 
 app.use(notFound);
 app.use(errorHandler);

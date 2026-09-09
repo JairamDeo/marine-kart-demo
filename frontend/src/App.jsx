@@ -40,6 +40,8 @@ const AdminSubcategories = lazy(() => import('./pages/admin/AdminSubcategories')
 const AdminOrders = lazy(() => import('./pages/admin/AdminOrders'));
 const AdminQuotation = lazy(() => import('./pages/admin/AdminQuotation'));
 const AdminOtherProducts = lazy(() => import('./pages/admin/AdminOtherProducts'));
+const AdminSignature = lazy(() => import('./pages/admin/AdminSignature'));
+const AdminBrands = lazy(() => import('./pages/admin/AdminBrands'));
 
 function RouteFallback() {
   return (
@@ -121,11 +123,13 @@ export default function App() {
                   <Route path="products" element={<AdminProducts />} />
                   <Route path="categories" element={<AdminCategories />} />
                   <Route path="subcategories" element={<AdminSubcategories />} />
+                  <Route path="brands" element={<AdminBrands />} />
                   <Route path="customers" element={<AdminCustomers />} />
                   <Route path="approvals" element={<Navigate to="/admin/customers" replace />} />
                   <Route path="orders" element={<AdminOrders />} />
                   <Route path="orders/:id/quotation" element={<AdminQuotation />} />
                   <Route path="other-products" element={<AdminOtherProducts />} />
+                  <Route path="signature" element={<AdminSignature />} />
                 </Route>
               </Route>
 

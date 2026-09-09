@@ -579,3 +579,48 @@ exports.getSalesReport = asyncHandler(async (req, res) => {
     },
   });
 });
+
+const fs = require('fs');
+const path = require('path');
+
+exports.uploadSignature = asyncHandler(async (req, res) => {
+  const { image } = req.body;
+  if (!image) {
+    return res.status(400).json({ success: false, message: 'Image is required' });
+  }
+
+  const matches = image.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+  if (!matches || matches.length !== 3) {
+    return res.status(400).json({ success: false, message: 'Invalid base64 format' });
+  }
+
+  const imageBuffer = Buffer.from(matches[2], 'base64');
+  const signatureDir = path.join(__dirname, '../assets/quotation');
+  const signaturePath = path.join(signatureDir, 'signature.png');
+
+  if (!fs.existsSync(signatureDir)) {
+    fs.mkdirSync(signatureDir, { recursive: true });
+  }
+
+  fs.writeFileSync(signaturePath, imageBuffer);
+
+  res.status(200).json({ success: true, message: 'Signature updated successfully' });
+});
+
+exports.getSignature = asyncHandler(async (req, res) => {
+  const signaturePath = path.join(__dirname, '../assets/quotation/signature.png');
+  if (fs.existsSync(signaturePath)) {
+    const image = fs.readFileSync(signaturePath);
+    const base64 = `data:image/png;base64,${image.toString('base64')}`;
+    return res.status(200).json({ success: true, signature: base64 });
+  }
+  res.status(200).json({ success: true, signature: null });
+});
+
+exports.deleteSignature = asyncHandler(async (req, res) => {
+  const signaturePath = path.join(__dirname, '../assets/quotation/signature.png');
+  if (fs.existsSync(signaturePath)) {
+    fs.unlinkSync(signaturePath);
+  }
+  res.status(200).json({ success: true, message: 'Signature deleted successfully' });
+});

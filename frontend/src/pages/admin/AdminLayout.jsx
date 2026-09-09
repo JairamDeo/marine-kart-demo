@@ -6,6 +6,7 @@ import {
   ShoppingCart,
   Users,
   PackageSearch,
+  FileSignature
 } from 'lucide-react';
 import PortalShell from '../../components/portal/PortalShell';
 
@@ -16,7 +17,9 @@ const navItems = [
   { to: '/admin/products', label: 'Products', icon: Package },
   { to: '/admin/categories', label: 'Categories', icon: FolderTree },
   { to: '/admin/subcategories', label: 'Subcategories', icon: Layers },
+  { to: '/admin/brands', label: 'Top Brands', icon: PackageSearch },
   { to: '/admin/customers', label: 'Customers', icon: Users },
+  { to: '/admin/signature', label: 'Signature', icon: FileSignature },
 ];
 
 export default function AdminLayout() {

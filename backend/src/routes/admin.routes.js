@@ -19,6 +19,10 @@ router.post('/customers/:id/reject', adminController.rejectUser);
 router.post('/approvals/:id/approve', adminController.approveUser);
 router.get('/reports/sales', adminController.getSalesReport);
 
+router.get('/signature', adminController.getSignature);
+router.post('/signature', adminController.uploadSignature);
+router.delete('/signature', adminController.deleteSignature);
+
 router.get('/products', productController.adminListProducts);
 router.post('/products/bulk', adminController.bulkUpsertProducts);
 router.post('/products', productController.createProduct);

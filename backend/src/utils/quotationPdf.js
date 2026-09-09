@@ -91,6 +91,7 @@ function drawHeader(doc) {
 
   doc.save();
   doc.rect(0, 0, pageW, HEADER_H).fill(COLORS.white);
+  doc.rect(0, HEADER_H, pageW, 2).fill(COLORS.cyan);
 
   const logoH = 58;
   const logoW = 160;
@@ -122,14 +123,14 @@ function drawHeader(doc) {
   // Right side: Registered Office, then Showroom stacked below — each address one line
   const infoX = ml + logoW + 18;
   const infoW = pageW - mr - infoX;
-  let y = 21;
+  let y = 14;
 
   doc.font(FONT_BOLD).fontSize(8).fillColor('#15335F');
   doc.text(COMPANY.registered.title.toUpperCase(), infoX, y, {
     width: infoW,
     lineBreak: false,
   });
-  y += 11;
+  y += 16;
   doc.font('Helvetica').fontSize(7.5).fillColor(COLORS.navy);
   doc.text(COMPANY.registered.address, infoX, y, {
     width: infoW,
@@ -137,13 +138,13 @@ function drawHeader(doc) {
     ellipsis: true,
   });
 
-  y += 16;
+  y += 18;
   doc.font(FONT_BOLD).fontSize(8).fillColor('#15335F');
   doc.text(COMPANY.showroom.title.toUpperCase(), infoX, y, {
     width: infoW,
     lineBreak: false,
   });
-  y += 11;
+  y += 16;
   doc.font('Helvetica').fontSize(7.5).fillColor(COLORS.navy);
   doc.text(COMPANY.showroom.address, infoX, y, {
     width: infoW,
@@ -261,12 +262,6 @@ function sectionTitle(doc, title) {
     .fontSize(10)
     .text(title, PAGE.marginLeft, y, { lineBreak: false });
   const underlineY = y + 13;
-  doc
-    .moveTo(PAGE.marginLeft, underlineY)
-    .lineTo(PAGE.marginLeft + contentW, underlineY)
-    .lineWidth(1.2)
-    .strokeColor(COLORS.cyan)
-    .stroke();
   doc.x = PAGE.marginLeft;
   doc.y = underlineY + 8;
 }
@@ -338,13 +333,13 @@ function buildQuotationPdf({ order, customer, customerName, sentAtLabel: _sentAt
       .fillColor(COLORS.ink)
       .font('Helvetica')
       .fontSize(8.5)
-      .text(safeText(address), PAGE.marginLeft + 12, toTop + 38, { width: leftW, lineBreak: false });
+      .text(safeText(address), PAGE.marginLeft + 12, toTop + 44, { width: leftW, lineBreak: false });
 
     doc
       .fillColor(COLORS.ink)
       .font('Helvetica')
       .fontSize(8.5)
-      .text(`Mobile: ${safeText(phone)}`, PAGE.marginLeft + 12, toTop + 50, { lineBreak: false });
+      .text(`Mobile: ${safeText(phone)}`, PAGE.marginLeft + 12, toTop + 62, { lineBreak: false });
 
     doc
       .fillColor(COLORS.muted)
@@ -642,13 +637,28 @@ function buildQuotationPdf({ order, customer, customerName, sentAtLabel: _sentAt
       .font(FONT_BOLD)
       .fontSize(10)
       .text('Thanking you,', PAGE.marginLeft, thanksY, { lineBreak: false });
+    
+    const signaturePath = path.join(ASSETS, 'signature.png');
+    let teamY = thanksY + 36;
+    let nextY = thanksY + 50;
+
+    if (fs.existsSync(signaturePath)) {
+      try {
+        doc.image(signaturePath, PAGE.marginLeft, thanksY + 12, { height: 40 });
+        teamY = thanksY + 56;
+        nextY = thanksY + 70;
+      } catch (err) {
+        // ignore
+      }
+    }
+
     doc
       .fillColor(COLORS.ink)
       .font('Helvetica')
       .fontSize(9)
-      .text('For Marine Kart India Team', PAGE.marginLeft, thanksY + 36, { lineBreak: false });
+      .text('For Marine Kart India Team', PAGE.marginLeft, teamY, { lineBreak: false });
     doc.x = PAGE.marginLeft;
-    doc.y = thanksY + 50;
+    doc.y = nextY;
 
     paintAllPages(doc);
     doc.end();
