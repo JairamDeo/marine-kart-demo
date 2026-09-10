@@ -188,8 +188,8 @@ export default function AboutPage() {
             <LoadingImage
               src={logoMark}
               alt="MarineKart"
-              className="h-40 w-auto sm:h-48"
-              imgClassName="mix-blend-screen object-contain"
+              className="h-40 w-auto"
+              imgClassName="object-contain"
             />
             <a
               href="https://www.marinekartindia.com"

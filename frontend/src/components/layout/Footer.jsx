@@ -48,7 +48,7 @@ export default function Footer() {
 
   return (
     <footer>
-      <div className="bg-navy text-white">
+      <div className="bg-[#092854] text-white">
         <div className="container-mk flex flex-col gap-10 py-10 sm:py-12 lg:flex-row lg:gap-12 lg:py-8">
           {/* Left — brand (30%) */}
           <div className="w-full shrink-0 lg:w-[30%]">
@@ -142,14 +142,14 @@ export default function Footer() {
         </div>
 
         <div className="border-t border-white/10 py-4">
-          <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center text-xs text-white/50">
-            <span>© {new Date().getFullYear()} MarineKart. All rights reserved.</span>
+          <div className="flex flex-wrap items-center justify-center gap-x-1 gap-y-1 text-center text-xs text-white/50">
+            <span>© {new Date().getFullYear()} MarineKart. All rights reserved |</span>
             <a
               href="https://www.goldleafpro.com/"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 uppercase transition hover:text-cyan"
-              aria-label="Goldleaf Production"
+              className="inline-flex items-center gap-1.5 transition hover:text-cyan"
+              aria-label="Designed And Devloped By GoldLeaf Production"
             >
               <img
                 src="/goldleaf-icon.webp"
@@ -159,7 +159,7 @@ export default function Footer() {
                 height={12}
               />
               <span>
-                Goldleaf Production
+                Designed And Devloped By GoldLeaf Production
               </span>
             </a>
           </div>

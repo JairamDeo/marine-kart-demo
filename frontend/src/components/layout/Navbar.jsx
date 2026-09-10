@@ -123,7 +123,7 @@ export default function Navbar({ categories = [] }) {
           )}
         </div>
 
-        <nav className="hidden flex-1 items-center md:flex">
+        <nav className="hidden flex-1 items-center lg:flex">
           <NavLink to="/" end className={linkClass}>
             Home
           </NavLink>
@@ -151,7 +151,7 @@ export default function Navbar({ categories = [] }) {
         </div>
       </div>
 
-      <div className="flex gap-1 overflow-x-auto overscroll-x-contain border-t border-white/10 px-3 py-2 scrollbar-thin md:hidden [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="flex gap-1 overflow-x-auto overscroll-x-contain border-t border-white/10 px-3 py-2 scrollbar-thin lg:hidden [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {[
           { to: '/', label: 'Home' },
           { to: '/shop', label: 'Shop' },

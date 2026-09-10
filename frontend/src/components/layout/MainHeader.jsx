@@ -13,7 +13,7 @@ export default function MainHeader() {
   const cartCount = cart?.itemCount || 0;
 
   return (
-    <div className="bg-[#1a4b8c] py-3 sm:py-4 lg:py-3.5">
+    <div className="bg-[#092854] py-3 sm:py-4 lg:py-3.5">
       <div className="container-mk grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2.5 gap-y-2.5 sm:grid-cols-[auto_1fr_auto] sm:gap-4 lg:grid-cols-[1fr_minmax(280px,640px)_1fr] lg:gap-5">
         <Link to="/" className="col-start-1 row-start-1 shrink-0 justify-self-start">
           <BrandLogo className="h-14 w-auto max-w-[180px] sm:h-[72px] sm:max-w-none md:h-20 lg:h-[88px]" />
